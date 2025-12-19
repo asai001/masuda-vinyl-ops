@@ -64,23 +64,35 @@ npm run cdk:deploy:dev -w infra
 
 ## 環境（dev / prod）の考え方
 
-- リポジトリは 1 つのまま
 - 環境は以下で分けます
 
   - デプロイ先（AWS アカウント / スタック / リソース）
   - 環境変数（GitHub Environments や SSM / Secrets Manager など）
-  - ブランチ運用（例：main=prod / develop=dev）
+  - ブランチ運用
+    - `develop` → 開発環境（dev）
+    - `main` → 本番環境（prod）
 
-### 推奨ブランチ運用（例）
+## CI/CD（自動デプロイ運用）
 
-- `develop` → 開発環境（dev）
-- `main` → 本番環境（prod）
+本リポジトリでは、ブランチにマージされた変更をトリガーに自動デプロイする運用を想定しています。
 
-## ルール（おすすめ）
+- PR が develop にマージされたら → dev 環境へデプロイ
+- PR が main にマージされたら → prod 環境へデプロイ
+
+運用の流れ
+
+1. feature ブランチで作業（例：feature/dashboard）
+1. develop へ PR → レビュー → マージ
+1. CI/CD が dev へ自動デプロイ
+1. 動作確認後、main へ PR → レビュー → マージ
+1. CI/CD が prod へ自動デプロイ
+
+> ※ 実際のデプロイ方法（Vercel / AWS / GitHub Actions など）と、利用する Secrets は .github/workflows/ および GitHub Environments（dev / prod）で管理します。
+
+## ルール
 
 - `.env` はコミットしない（`.env.example` を用意して共有）
 - 本番相当データは dev で使わない（DB やバケットは分離）
-- インフラ変更は必ず `diff` を取ってからデプロイする
 
 ## License
 
