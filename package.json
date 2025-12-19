@@ -1,0 +1,19 @@
+{
+  "name": "masuda-vinyl-ops",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "app",
+    "infra"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w app",
+    "build": "npm run build -w app",
+    "lint": "npm run lint -w app",
+    "typecheck": "npm run typecheck -w app",
+    "cdk:diff:dev": "npm run cdk:diff:dev -w infra",
+    "cdk:deploy:dev": "npm run cdk:deploy:dev -w infra",
+    "cdk:diff:prod": "npm run cdk:diff:prod -w infra",
+    "cdk:deploy:prod": "npm run cdk:deploy:prod -w infra"
+  }
+}
