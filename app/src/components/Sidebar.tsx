@@ -72,7 +72,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           </div>
         )}
         <button onClick={handleDrawerToggle} className="p-1 hover:bg-gray-100 rounded">
-          {open ? <X size={16} /> : <Menu size={16} />}
+          {open ? <X size={20} /> : <Menu size={24} />}
         </button>
       </div>
 
