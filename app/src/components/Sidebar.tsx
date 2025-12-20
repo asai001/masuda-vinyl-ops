@@ -49,7 +49,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <div className={`${open ? "w-60" : "w-16"} h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 min-h-16">
+      <div className="flex items-center justify-between px-4 h-16 border-b border-gray-200">
         {open && (
           <div>
             <h1 className="text-lg font-bold">増田ビニール</h1>
@@ -60,8 +60,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {open ? <X size={16} /> : <Menu size={16} />}
         </button>
       </div>
-
-      <div className="border-t border-gray-200" />
 
       {/* Main Menu Items */}
       <div className="flex-1 pt-2 overflow-y-auto">

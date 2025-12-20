@@ -3,11 +3,6 @@ import { ShoppingCart, TrendingUp, Users } from "lucide-react";
 export default function DashboardPage() {
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">ダッシュボード</h1>
-        <p className="text-sm text-gray-600">2024年11月20日 (水)</p>
-      </div>
-
       <h2 className="text-xl font-bold mb-4">クイックアクション</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
