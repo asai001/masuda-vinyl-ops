@@ -72,7 +72,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             <button
               key={item.text}
               onClick={() => handleMenuClick(item.path)}
-              className={`w-full h-15 flex items-center py-1.5 transition-colors ${open ? "px-2.5 justify-start" : "px-0 justify-center"} ${
+              className={`w-full h-15 flex items-center py-1.5 transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
@@ -96,7 +96,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             <button
               key={item.text}
               onClick={() => handleMenuClick(item.path)}
-              className={`w-full h-15 flex items-center transition-colors ${open ? "px-2.5 justify-start" : "px-0 justify-center"} ${
+              className={`w-full h-15 flex items-center transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
