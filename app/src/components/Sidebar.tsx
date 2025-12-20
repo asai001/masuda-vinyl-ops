@@ -2,7 +2,20 @@
 
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Package, ShoppingCart, Blocks, TrendingUp, Settings, LogOut, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  ShoppingCart,
+  Blocks,
+  TrendingUp,
+  CreditCard,
+  DollarSign,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 
 interface SidebarProps {
   onNavigate?: (path: string) => void;
@@ -15,6 +28,8 @@ const menuItems = [
   { text: "発注管理", icon: ShoppingCart, path: "/orders" },
   { text: "製品マスタ", icon: Package, path: "/products" },
   { text: "受注管理", icon: TrendingUp, path: "/sales" },
+  { text: "支払いマスタ", icon: CreditCard, path: "/payments" },
+  { text: "支払い管理", icon: DollarSign, path: "/payment-management" },
 ];
 
 const bottomMenuItems = [
@@ -74,7 +89,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
-              <Icon size={20} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3" : ""}`} />
+              <Icon size={28} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3.5" : ""}`} />
               {open && (
                 <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{item.text}</span>
               )}
@@ -98,7 +113,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
-              <Icon size={20} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3" : ""}`} />
+              <Icon size={28} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3.5" : ""}`} />
               {open && (
                 <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{item.text}</span>
               )}
