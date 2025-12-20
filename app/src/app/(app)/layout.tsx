@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push(path);
   };
 
-  const userName = "Nguyen";
+  const userName = "Huong Nguyen";
   const userRole = "経理担当";
 
   return (
