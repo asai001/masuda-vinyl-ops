@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -40,6 +40,14 @@ const bottomMenuItems = [
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => setOpen(media.matches);
+    handleChange();
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -85,6 +93,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             <button
               key={item.text}
               onClick={() => handleMenuClick(item.path)}
+              title={!open ? item.text : undefined}
               className={`w-full h-15 flex items-center py-1.5 transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
@@ -109,6 +118,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             <button
               key={item.text}
               onClick={() => handleMenuClick(item.path)}
+              title={!open ? item.text : undefined}
               className={`w-full h-15 flex items-center transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
