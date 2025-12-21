@@ -27,7 +27,7 @@ export default function Modal({
 }: ModalProps) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
-      <DialogTitle className="flex items-center justify-between">
+      <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
         {title}
         {showCloseButton ? (
           <IconButton onClick={onClose} size="small">
@@ -36,11 +36,13 @@ export default function Modal({
         ) : null}
       </DialogTitle>
       <Divider />
-      <DialogContent className="flex flex-col gap-4">{children}</DialogContent>
+      <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2 }}>
+        {children}
+      </DialogContent>
       {actions ? (
         <>
           <Divider />
-          <DialogActions className="px-6 py-4">{actions}</DialogActions>
+          <DialogActions sx={{ px: 3, py: 2 }}>{actions}</DialogActions>
         </>
       ) : null}
     </Dialog>

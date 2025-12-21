@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import ClientMasterTableView from "@/features/client-master/ClientMasterTableView";
+import DeleteClientDialog from "@/features/client-master/DeleteClientDialog";
 import EditClientModal from "@/features/client-master/EditClientModal";
 import NewClientModal from "@/features/client-master/NewClientModal";
 import { ClientRow, clientRows } from "@/mock/clientMasterData";
@@ -18,6 +19,7 @@ export default function ClientMasterView() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ClientRow | null>(null);
+  const [deletingRow, setDeletingRow] = useState<ClientRow | null>(null);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
@@ -129,11 +131,33 @@ export default function ClientMasterView() {
     setEditingRow(null);
   };
 
+  const handleEditDelete = (client: ClientRow) => {
+    setEditingRow(null);
+    setDeletingRow(client);
+  };
+
+  const handleDeleteClick = (row: ClientRow) => {
+    setDeletingRow(row);
+  };
+
+  const handleDeleteClose = () => {
+    setDeletingRow(null);
+  };
+
+  const handleDeleteConfirm = (row: ClientRow) => {
+    setRows((prev) => prev.filter((item) => item.id !== row.id));
+    setDeletingRow(null);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
       <ToolBar filterDefinitions={filterDefinitions} filters={filters} onFiltersChange={setFilters} onCreate={handleCreate} />
-      <ClientMasterTableView rows={filteredRows} onRowClick={handleRowClick} />
+      <ClientMasterTableView
+        rows={filteredRows}
+        onRowClick={handleRowClick}
+        onDelete={handleDeleteClick}
+      />
       <NewClientModal
         open={isCreateOpen}
         onClose={handleCreateClose}
@@ -148,10 +172,17 @@ export default function ClientMasterView() {
         client={editingRow}
         onClose={handleEditClose}
         onSave={handleEditSave}
+        onDelete={handleEditDelete}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
         currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
+      />
+      <DeleteClientDialog
+        open={Boolean(deletingRow)}
+        client={deletingRow}
+        onClose={handleDeleteClose}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

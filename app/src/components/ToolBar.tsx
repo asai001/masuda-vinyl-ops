@@ -81,11 +81,12 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange, o
           </Button>
         </div>
 
-        <div className="flex flex-col gap-3">
-          {filters.map((filter) => {
-            const definition = filterDefinitionMap.get(filter.key);
-            return (
-              <div key={filter.id} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {filters.length ? (
+          <div className="flex flex-col gap-3">
+            {filters.map((filter) => {
+              const definition = filterDefinitionMap.get(filter.key);
+              return (
+                <div key={filter.id} className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Select
                   size="small"
                   value={filter.key}
@@ -136,10 +137,11 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange, o
                 >
                   <X size={16} />
                 </IconButton>
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </Paper>
   );

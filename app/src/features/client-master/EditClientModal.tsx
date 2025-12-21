@@ -20,6 +20,7 @@ type EditClientModalProps = {
   statusOptions: Option[];
   onClose: () => void;
   onSave: (client: ClientRow) => void;
+  onDelete?: (client: ClientRow) => void;
 };
 
 const emptyErrors = {
@@ -39,6 +40,7 @@ export default function EditClientModal({
   statusOptions,
   onClose,
   onSave,
+  onDelete,
 }: EditClientModalProps) {
   const [form, setForm] = useState({
     name: "",
@@ -110,14 +112,24 @@ export default function EditClientModal({
       title="編集"
       onClose={onClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={onClose}>
-            キャンセル
+        <div className="flex w-full items-center justify-between">
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => client && onDelete?.(client)}
+            disabled={!client}
+          >
+            削除
           </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
-        </>
+          <div className="flex items-center gap-2">
+            <Button variant="outlined" onClick={onClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="flex flex-col gap-2">
