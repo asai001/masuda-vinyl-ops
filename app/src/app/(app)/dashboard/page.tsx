@@ -7,7 +7,7 @@ export default function DashboardPage() {
       <h2 className="text-xl font-bold mb-4">クイックアクション</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <Link href="/orders" className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
+        <Link href="/order-management" className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mr-4">
@@ -21,7 +21,7 @@ export default function DashboardPage() {
           </div>
         </Link>
 
-        <Link href="/sales" className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
+        <Link href="/sales-management" className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer">
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mr-4">

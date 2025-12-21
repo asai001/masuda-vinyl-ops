@@ -23,12 +23,12 @@ interface SidebarProps {
 
 const menuItems = [
   { text: "ダッシュボード", icon: LayoutDashboard, path: "/dashboard" },
-  { text: "取引先マスタ", icon: Users, path: "/clients" },
-  { text: "材料マスタ", icon: Blocks, path: "/materials" },
-  { text: "発注管理", icon: ShoppingCart, path: "/orders" },
-  { text: "製品マスタ", icon: Package, path: "/products" },
-  { text: "受注管理", icon: TrendingUp, path: "/sales" },
-  { text: "支払いマスタ", icon: CreditCard, path: "/payments" },
+  { text: "取引先マスタ", icon: Users, path: "/client-master" },
+  { text: "材料マスタ", icon: Blocks, path: "/material-master" },
+  { text: "発注管理", icon: ShoppingCart, path: "/order-management" },
+  { text: "製品マスタ", icon: Package, path: "/product-master" },
+  { text: "受注管理", icon: TrendingUp, path: "/sales-management" },
+  { text: "支払いマスタ", icon: CreditCard, path: "/payment-master" },
   { text: "支払い管理", icon: DollarSign, path: "/payment-management" },
 ];
 
