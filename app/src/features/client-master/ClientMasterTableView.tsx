@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { ClientRow, clientRows } from "@/mock/clientMasterData";
+import { ClientRow } from "@/mock/clientMasterData";
 
 const statusStyles = {
-  active: { label: "有効", backgroundColor: "#e9f7ef", color: "#15803d" },
-  inactive: { label: "無効", backgroundColor: "#f3f4f6", color: "#374151" },
+  active: { label: "有効", backgroundColor: "#f0fdf4", color: "#008236" }, // bg-green-50, text-green-600
+  inactive: { label: "無効", backgroundColor: "#f6f3f4", color: "#4a5565" }, // bg-gray-100, text-gray-600
 };
 
 const columns: TableColumn<ClientRow>[] = [
@@ -30,10 +30,10 @@ const columns: TableColumn<ClientRow>[] = [
     render: (row) => (
       <Chip
         label={row.category}
-        size="small"
+        size="medium"
         sx={{
-          backgroundColor: "#e8f1ff",
-          color: "#2563eb",
+          backgroundColor: "#eff6ff", // bg-blue-50
+          color: "#1447e6",
           fontWeight: 600,
         }}
       />
@@ -60,7 +60,7 @@ const columns: TableColumn<ClientRow>[] = [
       return (
         <Chip
           label={statusStyle.label}
-          size="small"
+          size="medium"
           sx={{
             backgroundColor: statusStyle.backgroundColor,
             color: statusStyle.color,
@@ -82,7 +82,11 @@ const columns: TableColumn<ClientRow>[] = [
   },
 ];
 
-export default function ClientMasterTableView() {
+type ClientMasterTableViewProps = {
+  rows: ClientRow[];
+};
+
+export default function ClientMasterTableView({ rows }: ClientMasterTableViewProps) {
   const [sortKey, setSortKey] = useState<keyof ClientRow>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -96,8 +100,8 @@ export default function ClientMasterTableView() {
     setSortDirection("asc");
   };
 
-  const rows = useMemo(() => {
-    const sorted = [...clientRows];
+  const sortedRows = useMemo(() => {
+    const sorted = [...rows];
     sorted.sort((a, b) => {
       const aValue = a[sortKey];
       const bValue = b[sortKey];
@@ -109,9 +113,16 @@ export default function ClientMasterTableView() {
       return sortDirection === "asc" ? aText.localeCompare(bText) : bText.localeCompare(aText);
     });
     return sorted;
-  }, [sortDirection, sortKey]);
+  }, [rows, sortDirection, sortKey]);
 
   return (
-    <DataTable columns={columns} rows={rows} getRowId={(row) => row.id} sortKey={sortKey} sortDirection={sortDirection} onSort={handleSort} />
+    <DataTable
+      columns={columns}
+      rows={sortedRows}
+      getRowId={(row) => row.id}
+      sortKey={sortKey}
+      sortDirection={sortDirection}
+      onSort={handleSort}
+    />
   );
 }
