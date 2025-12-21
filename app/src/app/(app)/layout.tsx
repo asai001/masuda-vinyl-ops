@@ -12,6 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pageTitles: Record<string, string> = {
     "/": "ダッシュボード",
     "/dashboard": "ダッシュボード",
+    "/client-master": "取引先マスタ",
   };
 
   const pageTitle = pageTitles[pathname ?? ""] ?? "";
