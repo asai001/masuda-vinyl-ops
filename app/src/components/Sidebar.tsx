@@ -70,7 +70,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <div className={`${open ? "w-60" : "w-16"} h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+    <div className={`${open ? "min-w-[240px]" : "w-16"} h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-25 py-2 border-b border-gray-200">
         {open && (
