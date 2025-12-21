@@ -12,7 +12,7 @@ type FilterOption = {
 export type FilterDefinition = {
   key: string;
   label: string;
-  type: "select" | "text";
+  type: "select" | "text" | "range";
   options?: FilterOption[];
 };
 
@@ -20,6 +20,7 @@ export type FilterRow = {
   id: number;
   key: string;
   value: string;
+  valueTo?: string;
 };
 
 type ToolBarProps = {
@@ -27,15 +28,23 @@ type ToolBarProps = {
   filters: FilterRow[];
   onFiltersChange: (filters: FilterRow[]) => void;
   onCreate: () => void;
+  createLabel?: string;
 };
 
 const createFilterRow = (id: number, key: string): FilterRow => ({
   id,
   key,
   value: "",
+  valueTo: "",
 });
 
-export default function ToolBar({ filterDefinitions, filters, onFiltersChange, onCreate }: ToolBarProps) {
+export default function ToolBar({
+  filterDefinitions,
+  filters,
+  onFiltersChange,
+  onCreate,
+  createLabel = "新規登録",
+}: ToolBarProps) {
   const initialKey = filterDefinitions[0]?.key ?? "";
 
   const filterDefinitionMap = useMemo(() => {
@@ -57,11 +66,15 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange, o
   };
 
   const handleFilterKeyChange = (id: number, key: string) => {
-    onFiltersChange(filters.map((filter) => (filter.id === id ? { ...filter, key, value: "" } : filter)));
+    onFiltersChange(filters.map((filter) => (filter.id === id ? { ...filter, key, value: "", valueTo: "" } : filter)));
   };
 
   const handleFilterValueChange = (id: number, value: string) => {
     onFiltersChange(filters.map((filter) => (filter.id === id ? { ...filter, value } : filter)));
+  };
+
+  const handleFilterRangeChange = (id: number, field: "value" | "valueTo", value: string) => {
+    onFiltersChange(filters.map((filter) => (filter.id === id ? { ...filter, [field]: value } : filter)));
   };
 
   return (
@@ -77,7 +90,7 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange, o
             className="w-fit whitespace-nowrap"
             onClick={onCreate}
           >
-            新規登録
+            {createLabel}
           </Button>
         </div>
 
@@ -120,6 +133,28 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange, o
                       </MenuItem>
                     ))}
                   </Select>
+                ) : definition?.type === "range" ? (
+                  <div className="flex items-center gap-2">
+                    <TextField
+                      size="small"
+                      type="number"
+                      inputProps={{ min: 0, step: "0.1" }}
+                      placeholder="最小"
+                      value={filter.value}
+                      onChange={(event) => handleFilterRangeChange(filter.id, "value", event.target.value)}
+                      sx={{ width: 120 }}
+                    />
+                    <span className="text-gray-400">〜</span>
+                    <TextField
+                      size="small"
+                      type="number"
+                      inputProps={{ min: 0, step: "0.1" }}
+                      placeholder="最大"
+                      value={filter.valueTo ?? ""}
+                      onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
+                      sx={{ width: 120 }}
+                    />
+                  </div>
                 ) : (
                   <TextField
                     size="small"

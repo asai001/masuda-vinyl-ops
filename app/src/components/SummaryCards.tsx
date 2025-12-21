@@ -7,6 +7,7 @@ export type SummaryCard = {
   label: string;
   value: number;
   tone: "primary" | "success" | "muted";
+  icon?: React.ReactNode;
 };
 
 type SummaryCardsProps = {
@@ -20,10 +21,12 @@ const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; val
 };
 
 export default function SummaryCards({ cards }: SummaryCardsProps) {
+  const defaultIcon = <Users size={22} />;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => {
         const tone = toneStyles[card.tone];
+        const icon = card.icon ?? defaultIcon;
         return (
           <div key={card.label} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
             <div>
@@ -31,7 +34,7 @@ export default function SummaryCards({ cards }: SummaryCardsProps) {
               <div className={`text-2xl font-bold ${tone.value}`}>{card.value}</div>
             </div>
             <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${tone.badge}`}>
-              <Users size={22} className={tone.icon} />
+              <span className={tone.icon}>{icon}</span>
             </div>
           </div>
         );

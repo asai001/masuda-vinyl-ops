@@ -13,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/": "ダッシュボード",
     "/dashboard": "ダッシュボード",
     "/client-master": "取引先マスタ",
+    "/material-master": "材料マスタ",
   };
 
   const pageTitle = pageTitles[pathname ?? ""] ?? "";
