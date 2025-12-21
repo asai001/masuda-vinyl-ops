@@ -1,57 +1,65 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ClientRow } from "@/mock/clientMasterData";
+import { MaterialRow } from "@/mock/materialMasterData";
 
 type Option = {
   value: string;
   label: string;
 };
 
-type EditClientModalProps = {
+type EditMaterialModalProps = {
   open: boolean;
-  client: ClientRow | null;
+  material: MaterialRow | null;
   categoryOptions: Option[];
-  regionOptions: Option[];
+  supplierOptions: Option[];
+  unitOptions: Option[];
   currencyOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
-  onSave: (client: ClientRow) => void;
-  onDelete?: (client: ClientRow) => void;
+  onSave: (material: MaterialRow) => void;
+  onDelete?: (material: MaterialRow) => void;
 };
 
 const emptyErrors = {
+  code: "",
   name: "",
+  supplier: "",
   category: "",
-  region: "",
+  unit: "",
   currency: "",
+  unitPrice: "",
   status: "",
 };
 
-export default function EditClientModal({
+export default function EditMaterialModal({
   open,
-  client,
+  material,
   categoryOptions,
-  regionOptions,
+  supplierOptions,
+  unitOptions,
   currencyOptions,
   statusOptions,
   onClose,
   onSave,
   onDelete,
-}: EditClientModalProps) {
-  const getInitialForm = (row: ClientRow | null) => ({
+}: EditMaterialModalProps) {
+  const getInitialForm = (row: MaterialRow | null) => ({
+    code: row?.code ?? "",
     name: row?.name ?? "",
+    supplier: row?.supplier ?? "",
     category: row?.category ?? "",
-    region: row?.region ?? "",
+    unit: row?.unit ?? "",
     currency: row?.currency ?? "",
+    unitPrice: row ? String(row.unitPrice) : "",
     status: row?.status ?? "active",
-    description: row?.description ?? "",
+    note: row?.note ?? "",
   });
 
-  const [form, setForm] = useState(() => getInitialForm(client));
+  const [form, setForm] = useState(() => getInitialForm(material));
   const [errors, setErrors] = useState(emptyErrors);
 
   const handleChange = (key: keyof typeof form, value: string) => {
@@ -61,10 +69,13 @@ export default function EditClientModal({
 
   const handleSave = () => {
     const nextErrors = {
+      code: form.code ? "" : "必須項目です",
       name: form.name ? "" : "必須項目です",
+      supplier: form.supplier ? "" : "必須項目です",
       category: form.category ? "" : "必須項目です",
-      region: form.region ? "" : "必須項目です",
+      unit: form.unit ? "" : "必須項目です",
       currency: form.currency ? "" : "必須項目です",
+      unitPrice: form.unitPrice ? "" : "必須項目です",
       status: form.status ? "" : "必須項目です",
     };
     setErrors(nextErrors);
@@ -73,18 +84,27 @@ export default function EditClientModal({
       return;
     }
 
-    if (!client) {
+    const parsedPrice = Number(form.unitPrice);
+    if (Number.isNaN(parsedPrice)) {
+      setErrors((prev) => ({ ...prev, unitPrice: "数値で入力してください" }));
+      return;
+    }
+
+    if (!material) {
       return;
     }
 
     onSave({
-      ...client,
+      ...material,
+      code: form.code,
       name: form.name,
-      description: form.description,
+      supplier: form.supplier,
       category: form.category,
-      region: form.region,
+      unit: form.unit,
       currency: form.currency,
-      status: form.status as ClientRow["status"],
+      unitPrice: parsedPrice,
+      status: form.status as MaterialRow["status"],
+      note: form.note,
     });
   };
 
@@ -103,8 +123,8 @@ export default function EditClientModal({
           <Button
             variant="outlined"
             color="error"
-            onClick={() => client && onDelete?.(client)}
-            disabled={!client}
+            onClick={() => material && onDelete?.(material)}
+            disabled={!material}
           >
             削除
           </Button>
@@ -121,11 +141,25 @@ export default function EditClientModal({
     >
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          仕入先 <span className="text-red-500">*</span>
+          品番 <span className="text-red-500">*</span>
         </label>
         <TextField
           size="small"
-          placeholder="例: Nguyen Trading Co., Ltd."
+          placeholder="例: PI-001"
+          value={form.code}
+          onChange={(event) => handleChange("code", event.target.value)}
+          error={Boolean(errors.code)}
+          helperText={errors.code}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">
+          品目名 <span className="text-red-500">*</span>
+        </label>
+        <TextField
+          size="small"
+          placeholder="例: 鋼材A"
           value={form.name}
           onChange={(event) => handleChange("name", event.target.value)}
           error={Boolean(errors.name)}
@@ -136,7 +170,32 @@ export default function EditClientModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            区分 <span className="text-red-500">*</span>
+            仕入先 <span className="text-red-500">*</span>
+          </label>
+          <Select
+            size="small"
+            value={form.supplier}
+            onChange={(event) => handleChange("supplier", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.supplier)}
+            renderValue={(selected) => {
+              if (!selected) {
+                return <span className="text-gray-400">選択してください</span>;
+              }
+              const option = supplierOptions.find((item) => item.value === selected);
+              return option?.label ?? selected;
+            }}
+          >
+            {supplierOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">
+            カテゴリ <span className="text-red-500">*</span>
           </label>
           <Autocomplete
             freeSolo
@@ -156,24 +215,49 @@ export default function EditClientModal({
             )}
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            地域 <span className="text-red-500">*</span>
+            単位 <span className="text-red-500">*</span>
           </label>
           <Autocomplete
             freeSolo
-            options={regionOptions.map((option) => option.label)}
-            value={form.region}
-            inputValue={form.region}
-            onChange={(_, newValue) => handleChange("region", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("region", newValue)}
+            options={unitOptions.map((option) => option.label)}
+            value={form.unit}
+            inputValue={form.unit}
+            onChange={(_, newValue) => handleChange("unit", newValue ?? "")}
+            onInputChange={(_, newValue) => handleChange("unit", newValue)}
             renderInput={(params) => (
               <TextField
                 {...params}
                 size="small"
                 placeholder="選択または入力"
-                error={Boolean(errors.region)}
-                helperText={errors.region}
+                error={Boolean(errors.unit)}
+                helperText={errors.unit}
+              />
+            )}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">
+            通貨 <span className="text-red-500">*</span>
+          </label>
+          <Autocomplete
+            freeSolo
+            options={currencyOptions.map((option) => option.label)}
+            value={form.currency}
+            inputValue={form.currency}
+            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
+            onInputChange={(_, newValue) => handleChange("currency", newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="選択または入力"
+                error={Boolean(errors.currency)}
+                helperText={errors.currency}
               />
             )}
           />
@@ -183,28 +267,18 @@ export default function EditClientModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
+            標準単価 <span className="text-red-500">*</span>
           </label>
-          <Select
+          <TextField
             size="small"
-            value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            error={Boolean(errors.currency)}
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
-              }
-              const option = currencyOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {currencyOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
+            type="number"
+            inputProps={{ min: 0, step: "0.1" }}
+            placeholder="例: 3.5"
+            value={form.unitPrice}
+            onChange={(event) => handleChange("unitPrice", event.target.value)}
+            error={Boolean(errors.unitPrice)}
+            helperText={errors.unitPrice}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
@@ -234,8 +308,8 @@ export default function EditClientModal({
           multiline
           minRows={3}
           placeholder="備考を入力してください"
-          value={form.description}
-          onChange={(event) => handleChange("description", event.target.value)}
+          value={form.note}
+          onChange={(event) => handleChange("note", event.target.value)}
         />
       </div>
     </Modal>
