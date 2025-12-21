@@ -26,6 +26,7 @@ type ToolBarProps = {
   filterDefinitions: FilterDefinition[];
   filters: FilterRow[];
   onFiltersChange: (filters: FilterRow[]) => void;
+  onCreate: () => void;
 };
 
 const createFilterRow = (id: number, key: string): FilterRow => ({
@@ -34,7 +35,7 @@ const createFilterRow = (id: number, key: string): FilterRow => ({
   value: "",
 });
 
-export default function ToolBar({ filterDefinitions, filters, onFiltersChange }: ToolBarProps) {
+export default function ToolBar({ filterDefinitions, filters, onFiltersChange, onCreate }: ToolBarProps) {
   const initialKey = filterDefinitions[0]?.key ?? "";
 
   const filterDefinitionMap = useMemo(() => {
@@ -70,7 +71,12 @@ export default function ToolBar({ filterDefinitions, filters, onFiltersChange }:
           <Button variant="outlined" size="small" startIcon={<Plus size={16} />} onClick={handleAddFilter}>
             フィルタ追加
           </Button>
-          <Button variant="contained" startIcon={<Plus size={16} />} className="w-fit whitespace-nowrap">
+          <Button
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            className="w-fit whitespace-nowrap"
+            onClick={onCreate}
+          >
             新規登録
           </Button>
         </div>

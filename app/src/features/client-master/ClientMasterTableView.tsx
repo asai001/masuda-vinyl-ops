@@ -7,8 +7,8 @@ import DataTable, { TableColumn } from "@/components/DataTable";
 import { ClientRow } from "@/mock/clientMasterData";
 
 const statusStyles = {
-  active: { label: "有効", backgroundColor: "#f0fdf4", color: "#008236" }, // bg-green-50, text-green-600
-  inactive: { label: "無効", backgroundColor: "#f6f3f4", color: "#4a5565" }, // bg-gray-100, text-gray-600
+  active: { label: "有効", backgroundColor: "#e9f7ef", color: "#15803d" },
+  inactive: { label: "無効", backgroundColor: "#f3f4f6", color: "#374151" },
 };
 
 const columns: TableColumn<ClientRow>[] = [
@@ -30,10 +30,10 @@ const columns: TableColumn<ClientRow>[] = [
     render: (row) => (
       <Chip
         label={row.category}
-        size="medium"
+        size="small"
         sx={{
-          backgroundColor: "#eff6ff", // bg-blue-50
-          color: "#1447e6",
+          backgroundColor: "#e8f1ff",
+          color: "#2563eb",
           fontWeight: 600,
         }}
       />
@@ -60,7 +60,7 @@ const columns: TableColumn<ClientRow>[] = [
       return (
         <Chip
           label={statusStyle.label}
-          size="medium"
+          size="small"
           sx={{
             backgroundColor: statusStyle.backgroundColor,
             color: statusStyle.color,
@@ -75,7 +75,7 @@ const columns: TableColumn<ClientRow>[] = [
     header: <span>削除</span>,
     align: "center",
     render: () => (
-      <IconButton size="small" aria-label="delete">
+      <IconButton size="small" aria-label="delete" onClick={(event) => event.stopPropagation()}>
         <Trash2 size={16} className="text-red-500" />
       </IconButton>
     ),
@@ -84,9 +84,10 @@ const columns: TableColumn<ClientRow>[] = [
 
 type ClientMasterTableViewProps = {
   rows: ClientRow[];
+  onRowClick?: (row: ClientRow) => void;
 };
 
-export default function ClientMasterTableView({ rows }: ClientMasterTableViewProps) {
+export default function ClientMasterTableView({ rows, onRowClick }: ClientMasterTableViewProps) {
   const [sortKey, setSortKey] = useState<keyof ClientRow>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -123,6 +124,7 @@ export default function ClientMasterTableView({ rows }: ClientMasterTableViewPro
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}
+      onRowClick={onRowClick}
     />
   );
 }

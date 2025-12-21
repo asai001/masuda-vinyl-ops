@@ -22,6 +22,7 @@ type TableProps<T> = {
   sortKey?: string;
   sortDirection?: "asc" | "desc";
   onSort?: (key: string) => void;
+  onRowClick?: (row: T) => void;
 };
 
 export default function DataTable<T>({
@@ -31,6 +32,7 @@ export default function DataTable<T>({
   sortKey,
   sortDirection = "asc",
   onSort,
+  onRowClick,
 }: TableProps<T>) {
   return (
     <TableContainer component={Paper} elevation={0} className="border border-gray-200 rounded-xl">
@@ -79,7 +81,12 @@ export default function DataTable<T>({
         </TableHead>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={getRowId(row)} hover>
+            <TableRow
+              key={getRowId(row)}
+              hover
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={onRowClick ? "cursor-pointer" : ""}
+            >
               {columns.map((column) => (
                 <TableCell key={column.key} align={column.align} sx={{ py: 2 }}>
                   {column.render ? column.render(row) : null}
