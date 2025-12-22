@@ -19,7 +19,7 @@ export const materialRows: MaterialRow[] = [
     supplier: "Nguyen Trading Co., Ltd.",
     category: "原材料",
     unit: "kg",
-    currency: "USD",
+    currency: "JPY",
     unitPrice: 3.5,
     status: "active",
     note: "主要原料",
