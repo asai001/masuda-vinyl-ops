@@ -6,15 +6,17 @@ import {
   Button,
   Checkbox,
   Divider,
+  FormControl,
   FormControlLabel,
   FormGroup,
+  FormHelperText,
   MenuItem,
   Select,
   TextField,
 } from "@mui/material";
-import { Save } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { DocumentStatusKey, OrderRow, OrderStatusKey } from "@/mock/orderManagementData";
+import { DocumentStatusKey, OrderLineItem, OrderRow, OrderStatusKey } from "@/mock/orderManagementData";
 
 type Option = {
   value: string;
@@ -24,6 +26,7 @@ type Option = {
 type ItemOption = Option & {
   name: string;
   supplier: string;
+  unit: string;
   unitPrice: number;
   currency: string;
 };
@@ -38,6 +41,21 @@ type DocumentOption = {
   label: string;
 };
 
+type LineItemForm = {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  unit: string;
+  quantity: string;
+  unitPrice: string;
+};
+
+type LineItemError = {
+  itemCode?: string;
+  quantity?: string;
+  unitPrice?: string;
+};
+
 type EditOrderModalProps = {
   open: boolean;
   order: OrderRow | null;
@@ -48,19 +66,27 @@ type EditOrderModalProps = {
   documentOptions: DocumentOption[];
   onClose: () => void;
   onSave: (order: OrderRow) => void;
+  onDelete?: (order: OrderRow) => void;
 };
 
 const emptyErrors = {
   orderDate: "",
   deliveryDate: "",
-  itemCode: "",
   supplier: "",
-  quantity: "",
-  unitPrice: "",
   currency: "",
 };
+type ErrorKey = keyof typeof emptyErrors;
 
 const amountFormatter = new Intl.NumberFormat("en-US");
+
+const createEmptyItem = (id: number): LineItemForm => ({
+  id,
+  itemCode: "",
+  itemName: "",
+  unit: "",
+  quantity: "",
+  unitPrice: "",
+});
 
 export default function EditOrderModal({
   open,
@@ -72,15 +98,12 @@ export default function EditOrderModal({
   documentOptions,
   onClose,
   onSave,
+  onDelete,
 }: EditOrderModalProps) {
   const getInitialForm = (row: OrderRow | null) => ({
     orderDate: row?.orderDate ?? "",
     deliveryDate: row?.deliveryDate ?? "",
-    itemCode: row?.itemCode ?? "",
-    itemName: row?.itemName ?? "",
     supplier: row?.supplier ?? "",
-    quantity: row ? String(row.quantity) : "",
-    unitPrice: row ? String(row.unitPrice) : "",
     currency: row?.currency ?? "",
     note: row?.note ?? "",
     status: row?.status ?? {
@@ -93,32 +116,85 @@ export default function EditOrderModal({
       deliveryReceived: false,
       invoiceReceived: false,
     },
+    items:
+      row?.items.map((item) => ({
+        id: item.id,
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        unit: item.unit,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice),
+      })) ?? [],
   });
 
   const [form, setForm] = useState(() => getInitialForm(order));
   const [errors, setErrors] = useState(emptyErrors);
+  const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
+  const [itemsError, setItemsError] = useState("");
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
+    if (key in emptyErrors) {
+      setErrors((prev) => ({ ...prev, [key as ErrorKey]: "" }));
+    }
   };
 
-  const handleItemChange = (value: string) => {
+  const handleAddItem = () => {
+    const nextId = form.items.length ? Math.max(...form.items.map((item) => item.id)) + 1 : 1;
+    setForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem(nextId)] }));
+    setItemsError("");
+  };
+
+  const handleRemoveItem = (id: number) => {
+    setForm((prev) => ({ ...prev, items: prev.items.filter((item) => item.id !== id) }));
+    setLineErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
+    }));
+    setLineErrors((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [key]: "" },
+    }));
+  };
+
+  const handleItemSelect = (id: number, value: string) => {
     const selected = itemOptions.find((option) => option.value === value);
     setForm((prev) => ({
       ...prev,
-      itemCode: value,
-      itemName: selected?.name ?? "",
-      supplier: selected?.supplier ?? "",
-      unitPrice: selected ? String(selected.unitPrice) : prev.unitPrice,
+      supplier: selected?.supplier ?? prev.supplier,
       currency: selected?.currency ?? prev.currency,
+      items: prev.items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              itemCode: value,
+              itemName: selected?.name ?? "",
+              unit: selected?.unit ?? "",
+              unitPrice: selected ? String(selected.unitPrice) : item.unitPrice,
+            }
+          : item
+      ),
     }));
     setErrors((prev) => ({
       ...prev,
-      itemCode: "",
       supplier: "",
-      unitPrice: "",
       currency: "",
+    }));
+    setLineErrors((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        itemCode: "",
+        unitPrice: "",
+      },
     }));
   };
 
@@ -136,70 +212,22 @@ export default function EditOrderModal({
     }));
   };
 
-  const handleSave = () => {
-    const nextErrors = {
-      orderDate: form.orderDate ? "" : "必須項目です",
-      deliveryDate: form.deliveryDate ? "" : "必須項目です",
-      itemCode: form.itemCode ? "" : "必須項目です",
-      supplier: form.supplier ? "" : "必須項目です",
-      quantity: form.quantity ? "" : "必須項目です",
-      unitPrice: form.unitPrice ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-    };
-    setErrors(nextErrors);
-
-    if (Object.values(nextErrors).some((message) => message)) {
-      return;
-    }
-
-    if (!order) {
-      return;
-    }
-
-    const parsedQuantity = Number(form.quantity);
-    const parsedUnitPrice = Number(form.unitPrice);
-    if (Number.isNaN(parsedQuantity) || Number.isNaN(parsedUnitPrice)) {
-      setErrors((prev) => ({
-        ...prev,
-        quantity: Number.isNaN(parsedQuantity) ? "数値で入力してください" : prev.quantity,
-        unitPrice: Number.isNaN(parsedUnitPrice) ? "数値で入力してください" : prev.unitPrice,
-      }));
-      return;
-    }
-
-    onSave({
-      ...order,
-      orderDate: form.orderDate,
-      deliveryDate: form.deliveryDate,
-      itemCode: form.itemCode,
-      itemName: form.itemName,
-      supplier: form.supplier,
-      quantity: parsedQuantity,
-      unitPrice: parsedUnitPrice,
-      currency: form.currency,
-      amount: parsedQuantity * parsedUnitPrice,
-      note: form.note,
-      status: form.status,
-      documentStatus: form.documentStatus,
-    });
-  };
-
-  const itemLabel = useMemo(() => {
-    const selected = itemOptions.find((option) => option.value === form.itemCode);
-    return selected?.label ?? "";
-  }, [form.itemCode, itemOptions]);
-
   const amountValue = useMemo(() => {
-    if (!form.quantity || !form.unitPrice) {
+    if (!form.items.length) {
       return null;
     }
-    const quantity = Number(form.quantity);
-    const unitPrice = Number(form.unitPrice);
-    if (Number.isNaN(quantity) || Number.isNaN(unitPrice)) {
-      return null;
-    }
-    return quantity * unitPrice;
-  }, [form.quantity, form.unitPrice]);
+    let hasValue = false;
+    const total = form.items.reduce((sum, item) => {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      if (!item.quantity || !item.unitPrice || Number.isNaN(quantity) || Number.isNaN(unitPrice)) {
+        return sum;
+      }
+      hasValue = true;
+      return sum + quantity * unitPrice;
+    }, 0);
+    return hasValue ? total : null;
+  }, [form.items]);
 
   const amountLabel = useMemo(() => {
     if (amountValue === null || !form.currency) {
@@ -208,19 +236,115 @@ export default function EditOrderModal({
     return `${form.currency} ${amountFormatter.format(amountValue)}`;
   }, [amountValue, form.currency]);
 
+  const handleSave = () => {
+    const nextErrors = {
+      orderDate: form.orderDate ? "" : "必須項目です",
+      deliveryDate: form.deliveryDate ? "" : "必須項目です",
+      supplier: form.supplier ? "" : "必須項目です",
+      currency: form.currency ? "" : "必須項目です",
+    };
+    setErrors(nextErrors);
+
+    if (!form.items.length) {
+      setItemsError("部品明細を追加してください");
+    }
+
+    const nextLineErrors: Record<number, LineItemError> = {};
+    form.items.forEach((item) => {
+      const itemError: LineItemError = {};
+      if (!item.itemCode) {
+        itemError.itemCode = "必須項目です";
+      }
+      if (!item.quantity) {
+        itemError.quantity = "必須項目です";
+      }
+      if (!item.unitPrice) {
+        itemError.unitPrice = "必須項目です";
+      }
+      if (Object.keys(itemError).length) {
+        nextLineErrors[item.id] = itemError;
+      }
+    });
+    setLineErrors(nextLineErrors);
+
+    if (Object.values(nextErrors).some((message) => message) || !form.items.length || Object.keys(nextLineErrors).length) {
+      return;
+    }
+
+    if (!order) {
+      return;
+    }
+
+    const numericErrors: Record<number, LineItemError> = {};
+    const parsedItems: OrderLineItem[] = [];
+    form.items.forEach((item) => {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const itemError: LineItemError = {};
+      if (Number.isNaN(quantity)) {
+        itemError.quantity = "数値で入力してください";
+      }
+      if (Number.isNaN(unitPrice)) {
+        itemError.unitPrice = "数値で入力してください";
+      }
+      if (Object.keys(itemError).length) {
+        numericErrors[item.id] = itemError;
+        return;
+      }
+      parsedItems.push({
+        id: item.id,
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        unit: item.unit,
+        quantity,
+        unitPrice,
+      });
+    });
+
+    if (Object.keys(numericErrors).length) {
+      setLineErrors((prev) => ({ ...prev, ...numericErrors }));
+      return;
+    }
+
+    const totalAmount = parsedItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+
+    onSave({
+      ...order,
+      orderDate: form.orderDate,
+      deliveryDate: form.deliveryDate,
+      supplier: form.supplier,
+      items: parsedItems,
+      currency: form.currency,
+      amount: totalAmount,
+      note: form.note,
+      status: form.status,
+      documentStatus: form.documentStatus,
+    });
+  };
+
   return (
     <Modal
       open={open}
       title="編集"
       onClose={onClose}
       actions={
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button variant="outlined" onClick={onClose}>
-            キャンセル
+        <div className="flex w-full items-center justify-between">
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => order && onDelete?.(order)}
+            disabled={!order}
+          >
+            削除
           </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outlined" onClick={onClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
         </div>
       }
     >
@@ -255,31 +379,6 @@ export default function EditOrderModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          品目/品番 <span className="text-red-500">*</span>
-        </label>
-        <Select
-          size="small"
-          value={form.itemCode}
-          onChange={(event) => handleItemChange(event.target.value)}
-          displayEmpty
-          error={Boolean(errors.itemCode)}
-          renderValue={(selected) => {
-            if (!selected) {
-              return <span className="text-gray-400">品目を選択してください</span>;
-            }
-            return itemLabel || selected;
-          }}
-        >
-          {itemOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
           仕入先 <span className="text-red-500">*</span>
         </label>
         <Select
@@ -304,58 +403,124 @@ export default function EditOrderModal({
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            数量 <span className="text-red-500">*</span>
-          </label>
-          <TextField
-            size="small"
-            type="number"
-            inputProps={{ min: 0 }}
-            value={form.quantity}
-            onChange={(event) => handleChange("quantity", event.target.value)}
-            error={Boolean(errors.quantity)}
-            helperText={errors.quantity}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            単価 <span className="text-red-500">*</span>
-          </label>
-          <TextField
-            size="small"
-            type="number"
-            inputProps={{ min: 0, step: "0.1" }}
-            value={form.unitPrice}
-            onChange={(event) => handleChange("unitPrice", event.target.value)}
-            error={Boolean(errors.unitPrice)}
-            helperText={errors.unitPrice}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
-          </label>
-          <Autocomplete
-            freeSolo
-            options={currencyOptions.map((option) => option.label)}
-            value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
-        </div>
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">
+          通貨 <span className="text-red-500">*</span>
+        </label>
+        <Autocomplete
+          freeSolo
+          options={currencyOptions.map((option) => option.label)}
+          value={form.currency}
+          inputValue={form.currency}
+          onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
+          onInputChange={(_, newValue) => handleChange("currency", newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="選択または入力"
+              error={Boolean(errors.currency)}
+              helperText={errors.currency}
+            />
+          )}
+        />
       </div>
+
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold text-gray-700">
+          部品明細 <span className="text-red-500">*</span>
+        </label>
+        <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
+          部品を追加
+        </Button>
+      </div>
+      {itemsError ? <div className="text-sm text-red-500">{itemsError}</div> : null}
+
+      {form.items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+          部品明細を追加してください
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {form.items.map((item, index) => {
+            const itemError = lineErrors[item.id];
+            return (
+              <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-700">明細 #{index + 1}</div>
+                  <Button variant="text" color="error" size="small" onClick={() => handleRemoveItem(item.id)}>
+                    削除
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">
+                      品目/品番 <span className="text-red-500">*</span>
+                    </label>
+                    <FormControl size="small" error={Boolean(itemError?.itemCode)}>
+                      <Select
+                        value={item.itemCode}
+                        onChange={(event) => handleItemSelect(item.id, event.target.value)}
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <span className="text-gray-400">品目を選択してください</span>;
+                          }
+                          const option = itemOptions.find((optionItem) => optionItem.value === selected);
+                          return option?.label ?? selected;
+                        }}
+                      >
+                        {itemOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {itemError?.itemCode ? <FormHelperText>{itemError.itemCode}</FormHelperText> : null}
+                    </FormControl>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        数量 <span className="text-red-500">*</span>
+                      </label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        inputProps={{ min: 0 }}
+                        value={item.quantity}
+                        onChange={(event) => handleLineChange(item.id, "quantity", event.target.value)}
+                        error={Boolean(itemError?.quantity)}
+                        helperText={itemError?.quantity}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">単位</label>
+                      <TextField size="small" value={item.unit} placeholder="-" disabled />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        単価 <span className="text-red-500">*</span>
+                      </label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        inputProps={{ min: 0, step: "0.1" }}
+                        value={item.unitPrice}
+                        onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
+                        error={Boolean(itemError?.unitPrice)}
+                        helperText={itemError?.unitPrice}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
         <span>合計金額</span>

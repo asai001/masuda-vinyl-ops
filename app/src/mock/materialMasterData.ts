@@ -55,7 +55,7 @@ export const materialRows: MaterialRow[] = [
     supplier: "Saigon Processing Co.",
     category: "原材料",
     unit: "箱",
-    currency: "USD",
+    currency: "VND",
     unitPrice: 12,
     status: "active",
     note: "",

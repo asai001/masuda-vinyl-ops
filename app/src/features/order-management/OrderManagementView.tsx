@@ -5,7 +5,9 @@ import { CheckCircle, Clock, ShoppingCart } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
+import DeleteOrderDialog from "@/features/order-management/DeleteOrderDialog";
 import EditOrderModal from "@/features/order-management/EditOrderModal";
+import OrderIssueModal from "@/features/order-management/OrderIssueModal";
 import NewOrderModal from "@/features/order-management/NewOrderModal";
 import OrderManagementTableView from "@/features/order-management/OrderManagementTableView";
 import { clientRows } from "@/mock/clientMasterData";
@@ -20,22 +22,30 @@ import {
 } from "@/mock/orderManagementData";
 
 export default function OrderManagementView() {
+  const calculateOrderAmount = (items: OrderRow["items"]) =>
+    items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+
   const {
     rows,
     isCreateOpen,
     editingRow,
+    deletingRow,
     openCreate,
     closeCreate,
     saveCreate,
     openEdit,
     closeEdit,
     saveEdit,
+    openDelete,
+    closeDelete,
+    confirmDelete,
   } = useMasterCrud<OrderRow>(orderRows, (item, nextId) => ({
     ...item,
     id: nextId,
-    amount: item.quantity * item.unitPrice,
+    amount: calculateOrderAmount(item.items),
   }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
+  const [issuingRow, setIssuingRow] = useState<OrderRow | null>(null);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
@@ -98,9 +108,13 @@ export default function OrderManagementView() {
           case "supplier":
             return values.some((value) => value.value === row.supplier);
           case "itemCode":
-            return values.some((value) => row.itemCode.toLowerCase().includes(value.value.toLowerCase()));
+            return values.some((value) =>
+              row.items.some((item) => item.itemCode.toLowerCase().includes(value.value.toLowerCase()))
+            );
           case "itemName":
-            return values.some((value) => row.itemName.toLowerCase().includes(value.value.toLowerCase()));
+            return values.some((value) =>
+              row.items.some((item) => item.itemName.toLowerCase().includes(value.value.toLowerCase()))
+            );
           case "orderDate":
             return values.some((value) => matchesDateRange(row.orderDate, value));
           case "deliveryDate":
@@ -134,6 +148,7 @@ export default function OrderManagementView() {
         label: `${row.code} ${row.name}`,
         name: row.name,
         supplier: row.supplier,
+        unit: row.unit,
         unitPrice: row.unitPrice,
         currency: row.currency,
       })),
@@ -159,6 +174,20 @@ export default function OrderManagementView() {
     [documentStatusOptions]
   );
 
+  const openIssue = (row: OrderRow) => {
+    setIssuingRow(row);
+  };
+
+  const closeIssue = () => {
+    setIssuingRow(null);
+  };
+
+  // 編集モーダルを閉じてから削除確認を表示する
+  const handleEditDelete = (row: OrderRow) => {
+    closeEdit();
+    openDelete(row);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -169,7 +198,7 @@ export default function OrderManagementView() {
         onCreate={openCreate}
         createLabel="新規発注"
       />
-      <OrderManagementTableView rows={filteredRows} onRowClick={openEdit} />
+      <OrderManagementTableView rows={filteredRows} onRowClick={openEdit} onIssue={openIssue} onDelete={openDelete} />
       <NewOrderModal
         open={isCreateOpen}
         onClose={closeCreate}
@@ -186,12 +215,20 @@ export default function OrderManagementView() {
         order={editingRow}
         onClose={closeEdit}
         onSave={saveEdit}
+        onDelete={handleEditDelete}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
         currencyOptions={currencyOptions}
         statusOptions={statusOptions}
         documentOptions={documentOptions}
       />
+      <DeleteOrderDialog
+        open={Boolean(deletingRow)}
+        order={deletingRow}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+      />
+      <OrderIssueModal open={Boolean(issuingRow)} order={issuingRow} onClose={closeIssue} />
     </div>
   );
 }

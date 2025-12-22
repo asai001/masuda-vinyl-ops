@@ -14,14 +14,20 @@ export const documentStatusOptions = [
 
 export type DocumentStatusKey = (typeof documentStatusOptions)[number]["key"];
 
+export type OrderLineItem = {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+};
+
 export type OrderRow = {
   id: number;
   orderDate: string;
   supplier: string;
-  itemCode: string;
-  itemName: string;
-  quantity: number;
-  unitPrice: number;
+  items: OrderLineItem[];
   currency: string;
   amount: number;
   deliveryDate: string;
@@ -35,12 +41,26 @@ export const orderRows: OrderRow[] = [
     id: 1,
     orderDate: "2025-11-15",
     supplier: "Nguyen Trading Co., Ltd.",
-    itemCode: "PI-001",
-    itemName: "鋼材A",
-    quantity: 1000,
-    unitPrice: 3.5,
+    items: [
+      {
+        id: 1,
+        itemCode: "PI-001",
+        itemName: "鋼材A",
+        unit: "kg",
+        quantity: 1000,
+        unitPrice: 3.5,
+      },
+      {
+        id: 2,
+        itemCode: "PI-003",
+        itemName: "ボルトM8",
+        unit: "個",
+        quantity: 200,
+        unitPrice: 0.5,
+      },
+    ],
     currency: "USD",
-    amount: 3500,
+    amount: 3600,
     deliveryDate: "2025-11-25",
     note: "",
     status: { ordered: true, delivered: false, paid: false },
@@ -50,10 +70,16 @@ export const orderRows: OrderRow[] = [
     id: 2,
     orderDate: "2025-11-18",
     supplier: "Vietnam Plastics Ltd.",
-    itemCode: "PI-002",
-    itemName: "アルミ材",
-    quantity: 500,
-    unitPrice: 4.2,
+    items: [
+      {
+        id: 1,
+        itemCode: "PI-002",
+        itemName: "アルミ材",
+        unit: "kg",
+        quantity: 500,
+        unitPrice: 4.2,
+      },
+    ],
     currency: "USD",
     amount: 2100,
     deliveryDate: "2025-11-28",
@@ -65,12 +91,18 @@ export const orderRows: OrderRow[] = [
     id: 3,
     orderDate: "2025-11-10",
     supplier: "Saigon Processing Co.",
-    itemCode: "PI-003",
-    itemName: "ボルトM8",
-    quantity: 200,
-    unitPrice: 0.5,
-    currency: "USD",
-    amount: 100,
+    items: [
+      {
+        id: 1,
+        itemCode: "PI-004",
+        itemName: "包装材料",
+        unit: "箱",
+        quantity: 50,
+        unitPrice: 12,
+      },
+    ],
+    currency: "VND",
+    amount: 600,
     deliveryDate: "2025-11-20",
     note: "",
     status: { ordered: true, delivered: true, paid: true },

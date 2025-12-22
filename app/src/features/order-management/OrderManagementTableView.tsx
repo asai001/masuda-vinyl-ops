@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IconButton } from "@mui/material";
+import { Button, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { documentStatusOptions, orderStatusOptions, OrderRow } from "@/mock/orderManagementData";
@@ -15,10 +15,44 @@ const amountFormatter = new Intl.NumberFormat("en-US");
 const formatCurrencyValue = (currency: string, value: number, formatter: Intl.NumberFormat) =>
   `${currency} ${formatter.format(value)}`;
 
+const getItemSummary = (items: OrderRow["items"]) => {
+  if (!items.length) {
+    return { code: "-", name: "", extraCount: 0 };
+  }
+  const [first, ...rest] = items;
+  return { code: first.itemCode, name: first.itemName, extraCount: rest.length };
+};
+
+const getQuantityLabel = (items: OrderRow["items"]) => {
+  if (!items.length) {
+    return "-";
+  }
+  const units = new Set(items.map((item) => item.unit));
+  const total = items.reduce((sum, item) => sum + item.quantity, 0);
+  if (units.size === 1) {
+    const unit = items[0]?.unit ?? "";
+    return `${amountFormatter.format(total)} ${unit}`.trim();
+  }
+  return "複数";
+};
+
+const getUnitPriceLabel = (items: OrderRow["items"], currency: string) => {
+  if (!items.length) {
+    return "-";
+  }
+  if (items.length === 1) {
+    return formatCurrencyValue(currency, items[0].unitPrice, unitPriceFormatter);
+  }
+  return "複数";
+};
+
+type SortKey = "orderDate" | "supplier" | "itemName" | "quantity" | "unitPrice" | "amount" | "deliveryDate";
+
 type OrderManagementTableViewProps = {
   rows: OrderRow[];
   onDelete?: (row: OrderRow) => void;
   onRowClick?: (row: OrderRow) => void;
+  onIssue?: (row: OrderRow) => void;
 };
 
 const renderStatusItems = (items: { label: string; active: boolean }[]) => (
@@ -32,8 +66,13 @@ const renderStatusItems = (items: { label: string; active: boolean }[]) => (
   </div>
 );
 
-export default function OrderManagementTableView({ rows, onDelete, onRowClick }: OrderManagementTableViewProps) {
-  const [sortKey, setSortKey] = useState<keyof OrderRow>("orderDate");
+export default function OrderManagementTableView({
+  rows,
+  onDelete,
+  onRowClick,
+  onIssue,
+}: OrderManagementTableViewProps) {
+  const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const columns = useMemo<TableColumn<OrderRow>[]>(() => [
@@ -53,30 +92,30 @@ export default function OrderManagementTableView({ rows, onDelete, onRowClick }:
       key: "item",
       header: "品目/品番",
       sortKey: "itemName",
-      render: (row) => (
-        <div className="flex flex-col text-sm">
-          <span className="font-semibold">{row.itemCode}</span>
-          <span className="text-gray-600">{row.itemName}</span>
-        </div>
-      ),
+      render: (row) => {
+        const summary = getItemSummary(row.items);
+        return (
+          <div className="flex flex-col text-sm">
+            <span className="font-semibold">{summary.code}</span>
+            <span className="text-gray-600">{summary.name}</span>
+            {summary.extraCount ? <span className="text-xs text-gray-500">他{summary.extraCount}件</span> : null}
+          </div>
+        );
+      },
     },
     {
       key: "quantity",
       header: "数量",
       sortKey: "quantity",
       align: "right",
-      render: (row) => <span className="text-sm">{amountFormatter.format(row.quantity)}</span>,
+      render: (row) => <span className="text-sm">{getQuantityLabel(row.items)}</span>,
     },
     {
       key: "unitPrice",
       header: "単価",
       sortKey: "unitPrice",
       align: "right",
-      render: (row) => (
-        <span className="text-sm font-semibold">
-          {formatCurrencyValue(row.currency, row.unitPrice, unitPriceFormatter)}
-        </span>
-      ),
+      render: (row) => <span className="text-sm font-semibold">{getUnitPriceLabel(row.items, row.currency)}</span>,
     },
     {
       key: "amount",
@@ -116,6 +155,23 @@ export default function OrderManagementTableView({ rows, onDelete, onRowClick }:
         ),
     },
     {
+      key: "issue",
+      header: <span>注文書</span>,
+      align: "center",
+      render: (row) => (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={(event) => {
+            event.stopPropagation();
+            onIssue?.(row);
+          }}
+        >
+          発行
+        </Button>
+      ),
+    },
+    {
       key: "delete",
       header: <span>削除</span>,
       align: "center",
@@ -132,10 +188,10 @@ export default function OrderManagementTableView({ rows, onDelete, onRowClick }:
         </IconButton>
       ),
     },
-  ], [onDelete]);
+  ], [onDelete, onIssue]);
 
   const handleSort = (key: string) => {
-    const typedKey = key as keyof OrderRow;
+    const typedKey = key as SortKey;
     if (sortKey === typedKey) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
       return;
@@ -144,11 +200,24 @@ export default function OrderManagementTableView({ rows, onDelete, onRowClick }:
     setSortDirection("asc");
   };
 
+  const getSortValue = (row: OrderRow, key: SortKey) => {
+    switch (key) {
+      case "itemName":
+        return row.items[0]?.itemName ?? "";
+      case "quantity":
+        return row.items.reduce((sum, item) => sum + item.quantity, 0);
+      case "unitPrice":
+        return row.items[0]?.unitPrice ?? 0;
+      default:
+        return row[key as keyof OrderRow];
+    }
+  };
+
   const sortedRows = useMemo(() => {
     const sorted = [...rows];
     sorted.sort((a, b) => {
-      const aValue = a[sortKey];
-      const bValue = b[sortKey];
+      const aValue = getSortValue(a, sortKey);
+      const bValue = getSortValue(b, sortKey);
       if (sortKey === "orderDate" || sortKey === "deliveryDate") {
         const aDate = Date.parse(String(aValue));
         const bDate = Date.parse(String(bValue));
