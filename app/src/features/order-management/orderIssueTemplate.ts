@@ -59,6 +59,7 @@ export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFo
   <html lang="ja">
     <head>
       <meta charset="utf-8" />
+      <title>order-${safe(payload.orderNumber)}</title>
       <style>
         @page { size: A4; margin: 0; }
         * { box-sizing: border-box; }

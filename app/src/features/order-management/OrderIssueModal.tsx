@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, TextField } from "@mui/material";
+import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import { clientRows } from "@/mock/clientMasterData";
 import { OrderRow } from "@/mock/orderManagementData";
@@ -249,8 +249,13 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
           <Button variant="outlined" onClick={onClose}>
             キャンセル
           </Button>
-          <Button variant="contained" onClick={handleDownload} disabled={!order || isDownloading}>
-            発行
+          <Button
+            variant="contained"
+            onClick={handleDownload}
+            disabled={!order || isDownloading}
+            startIcon={isDownloading ? <CircularProgress color="inherit" size={16} /> : null}
+          >
+            {isDownloading ? "発行中" : "発行"}
           </Button>
         </div>
       }
