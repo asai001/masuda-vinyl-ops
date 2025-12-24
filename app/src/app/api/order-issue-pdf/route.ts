@@ -75,8 +75,27 @@ type Browser = import("puppeteer-core").Browser;
 
 const isVercelRuntime = process.env.VERCEL === "1" || process.env.VERCEL === "true";
 
+const ensureChromiumLambdaEnv = () => {
+  if (!process.env.AWS_LAMBDA_JS_RUNTIME) {
+    process.env.AWS_LAMBDA_JS_RUNTIME = "nodejs";
+  }
+  if (!process.env.AWS_EXECUTION_ENV) {
+    process.env.AWS_EXECUTION_ENV = "AWS_Lambda_nodejs";
+  }
+  if (!process.env.FONTCONFIG_PATH) {
+    process.env.FONTCONFIG_PATH = "/tmp/aws";
+  }
+  const libPath = "/tmp/aws/lib";
+  if (!process.env.LD_LIBRARY_PATH) {
+    process.env.LD_LIBRARY_PATH = libPath;
+  } else if (!process.env.LD_LIBRARY_PATH.split(":").includes(libPath)) {
+    process.env.LD_LIBRARY_PATH = `${libPath}:${process.env.LD_LIBRARY_PATH}`;
+  }
+};
+
 const launchBrowser = async (): Promise<Browser> => {
   if (isVercelRuntime) {
+    ensureChromiumLambdaEnv();
     const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
       import("@sparticuz/chromium"),
       import("puppeteer-core"),
