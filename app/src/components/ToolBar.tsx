@@ -12,7 +12,7 @@ type FilterOption = {
 export type FilterDefinition = {
   key: string;
   label: string;
-  type: "select" | "text" | "range";
+  type: "select" | "text" | "range" | "date-range";
   options?: FilterOption[];
 };
 
@@ -153,6 +153,26 @@ export default function ToolBar({
                       value={filter.valueTo ?? ""}
                       onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
                       sx={{ width: 120 }}
+                    />
+                  </div>
+                ) : definition?.type === "date-range" ? (
+                  <div className="flex items-center gap-2">
+                    <TextField
+                      size="small"
+                      type="date"
+                      placeholder="年/月/日"
+                      value={filter.value}
+                      onChange={(event) => handleFilterRangeChange(filter.id, "value", event.target.value)}
+                      sx={{ width: 160 }}
+                    />
+                    <span className="text-gray-400">〜</span>
+                    <TextField
+                      size="small"
+                      type="date"
+                      placeholder="年/月/日"
+                      value={filter.valueTo ?? ""}
+                      onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
+                      sx={{ width: 160 }}
                     />
                   </div>
                 ) : (

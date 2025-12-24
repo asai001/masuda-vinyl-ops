@@ -14,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/dashboard": "ダッシュボード",
     "/client-master": "取引先マスタ",
     "/material-master": "材料マスタ",
+    "/order-management": "発注管理",
   };
 
   const pageTitle = pageTitles[pathname ?? ""] ?? "";

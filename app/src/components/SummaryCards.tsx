@@ -6,7 +6,7 @@ import { Users } from "lucide-react";
 export type SummaryCard = {
   label: string;
   value: number;
-  tone: "primary" | "success" | "muted";
+  tone: "primary" | "success" | "muted" | "warning";
   icon?: React.ReactNode;
 };
 
@@ -16,6 +16,7 @@ type SummaryCardsProps = {
 
 const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; value: string }> = {
   primary: { badge: "bg-blue-50", icon: "text-blue-600", value: "text-gray-900" },
+  warning: { badge: "bg-orange-50", icon: "text-orange-500", value: "text-orange-500" },
   success: { badge: "bg-green-50", icon: "text-green-600", value: "text-green-600" },
   muted: { badge: "bg-gray-50", icon: "text-gray-400", value: "text-gray-500" },
 };
