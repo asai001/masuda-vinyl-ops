@@ -23,6 +23,8 @@ type NewClientModalProps = {
 
 const emptyErrors = {
   name: "",
+  address: "",
+  phone: "",
   category: "",
   region: "",
   currency: "",
@@ -40,6 +42,8 @@ export default function NewClientModal({
 }: NewClientModalProps) {
   const [form, setForm] = useState({
     name: "",
+    address: "",
+    phone: "",
     category: "",
     region: "",
     currency: "",
@@ -51,6 +55,8 @@ export default function NewClientModal({
   const resetForm = () => {
     setForm({
       name: "",
+      address: "",
+      phone: "",
       category: "",
       region: "",
       currency: "",
@@ -73,6 +79,8 @@ export default function NewClientModal({
   const handleSave = () => {
     const nextErrors = {
       name: form.name ? "" : "必須項目です",
+      address: "",
+      phone: "",
       category: form.category ? "" : "必須項目です",
       region: form.region ? "" : "必須項目です",
       currency: form.currency ? "" : "必須項目です",
@@ -87,6 +95,8 @@ export default function NewClientModal({
     onSave({
       name: form.name,
       description: form.description,
+      address: form.address,
+      phone: form.phone,
       category: form.category,
       region: form.region,
       currency: form.currency,
@@ -128,6 +138,31 @@ export default function NewClientModal({
           error={Boolean(errors.name)}
           helperText={errors.name}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">住所</label>
+          <TextField
+            size="small"
+            placeholder="例: No.102, Huu Nghi Road, VSIP Bac Ninh"
+            value={form.address}
+            onChange={(event) => handleChange("address", event.target.value)}
+            error={Boolean(errors.address)}
+            helperText={errors.address}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">電話番号</label>
+          <TextField
+            size="small"
+            placeholder="例: 0241-3906-120"
+            value={form.phone}
+            onChange={(event) => handleChange("phone", event.target.value)}
+            error={Boolean(errors.phone)}
+            helperText={errors.phone}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

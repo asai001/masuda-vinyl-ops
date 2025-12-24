@@ -1,0 +1,589 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  Autocomplete,
+  Button,
+  Checkbox,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  FormGroup,
+  FormHelperText,
+  MenuItem,
+  Select,
+  TextField,
+} from "@mui/material";
+import { Plus, Save } from "lucide-react";
+import Modal from "@/components/Modal";
+import { DocumentStatusKey, OrderLineItem, OrderRow, OrderStatusKey } from "@/mock/orderManagementData";
+
+type Option = {
+  value: string;
+  label: string;
+};
+
+type ItemOption = Option & {
+  name: string;
+  supplier: string;
+  unit: string;
+  unitPrice: number;
+  currency: string;
+};
+
+type StatusOption = {
+  value: OrderStatusKey;
+  label: string;
+};
+
+type DocumentOption = {
+  value: DocumentStatusKey;
+  label: string;
+};
+
+type LineItemForm = {
+  id: number;
+  itemCode: string;
+  itemName: string;
+  unit: string;
+  quantity: string;
+  unitPrice: string;
+};
+
+type LineItemError = {
+  itemCode?: string;
+  quantity?: string;
+  unitPrice?: string;
+};
+
+type NewOrderModalProps = {
+  open: boolean;
+  itemOptions: ItemOption[];
+  supplierOptions: Option[];
+  currencyOptions: Option[];
+  statusOptions: StatusOption[];
+  documentOptions: DocumentOption[];
+  onClose: () => void;
+  onSave: (order: Omit<OrderRow, "id">) => void;
+};
+
+const emptyErrors = {
+  orderDate: "",
+  deliveryDate: "",
+  supplier: "",
+  currency: "",
+};
+type ErrorKey = keyof typeof emptyErrors;
+
+const amountFormatter = new Intl.NumberFormat("en-US");
+
+const getTodayString = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const createEmptyItem = (id: number): LineItemForm => ({
+  id,
+  itemCode: "",
+  itemName: "",
+  unit: "",
+  quantity: "",
+  unitPrice: "",
+});
+
+export default function NewOrderModal({
+  open,
+  itemOptions,
+  supplierOptions,
+  currencyOptions,
+  statusOptions,
+  documentOptions,
+  onClose,
+  onSave,
+}: NewOrderModalProps) {
+  const [form, setForm] = useState({
+    orderDate: getTodayString(),
+    deliveryDate: "",
+    supplier: "",
+    currency: "",
+    note: "",
+    status: {
+      ordered: true,
+      delivered: false,
+      paid: false,
+    },
+    documentStatus: {
+      orderSent: false,
+      deliveryReceived: false,
+      invoiceReceived: false,
+    },
+    items: [] as LineItemForm[],
+  });
+  const [errors, setErrors] = useState(emptyErrors);
+  const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
+  const [itemsError, setItemsError] = useState("");
+
+  const resetForm = () => {
+    setForm({
+      orderDate: getTodayString(),
+      deliveryDate: "",
+      supplier: "",
+      currency: "",
+      note: "",
+      status: {
+        ordered: true,
+        delivered: false,
+        paid: false,
+      },
+      documentStatus: {
+        orderSent: false,
+        deliveryReceived: false,
+        invoiceReceived: false,
+      },
+      items: [],
+    });
+    setErrors(emptyErrors);
+    setLineErrors({});
+    setItemsError("");
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleChange = (key: keyof typeof form, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key in emptyErrors) {
+      setErrors((prev) => ({ ...prev, [key as ErrorKey]: "" }));
+    }
+  };
+
+  const handleAddItem = () => {
+    const nextId = form.items.length ? Math.max(...form.items.map((item) => item.id)) + 1 : 1;
+    setForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem(nextId)] }));
+    setItemsError("");
+  };
+
+  const handleRemoveItem = (id: number) => {
+    setForm((prev) => ({ ...prev, items: prev.items.filter((item) => item.id !== id) }));
+    setLineErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
+    }));
+    setLineErrors((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [key]: "" },
+    }));
+  };
+
+  const handleItemSelect = (id: number, value: string) => {
+    const selected = itemOptions.find((option) => option.value === value);
+    setForm((prev) => ({
+      ...prev,
+      supplier: selected?.supplier ?? prev.supplier,
+      currency: selected?.currency ?? prev.currency,
+      items: prev.items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              itemCode: value,
+              itemName: selected?.name ?? "",
+              unit: selected?.unit ?? "",
+              unitPrice: selected ? String(selected.unitPrice) : item.unitPrice,
+            }
+          : item
+      ),
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      supplier: "",
+      currency: "",
+    }));
+    setLineErrors((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        itemCode: "",
+        unitPrice: "",
+      },
+    }));
+  };
+
+  const toggleStatus = (key: OrderStatusKey) => {
+    setForm((prev) => ({
+      ...prev,
+      status: { ...prev.status, [key]: !prev.status[key] },
+    }));
+  };
+
+  const toggleDocumentStatus = (key: DocumentStatusKey) => {
+    setForm((prev) => ({
+      ...prev,
+      documentStatus: { ...prev.documentStatus, [key]: !prev.documentStatus[key] },
+    }));
+  };
+
+  const amountValue = useMemo(() => {
+    if (!form.items.length) {
+      return null;
+    }
+    let hasValue = false;
+    const total = form.items.reduce((sum, item) => {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      if (!item.quantity || !item.unitPrice || Number.isNaN(quantity) || Number.isNaN(unitPrice)) {
+        return sum;
+      }
+      hasValue = true;
+      return sum + quantity * unitPrice;
+    }, 0);
+    return hasValue ? total : null;
+  }, [form.items]);
+
+  const amountLabel = useMemo(() => {
+    if (amountValue === null || !form.currency) {
+      return "-";
+    }
+    return `${form.currency} ${amountFormatter.format(amountValue)}`;
+  }, [amountValue, form.currency]);
+
+  const handleSave = () => {
+    const nextErrors = {
+      orderDate: form.orderDate ? "" : "必須項目です",
+      deliveryDate: form.deliveryDate ? "" : "必須項目です",
+      supplier: form.supplier ? "" : "必須項目です",
+      currency: form.currency ? "" : "必須項目です",
+    };
+    setErrors(nextErrors);
+
+    if (!form.items.length) {
+      setItemsError("部品明細を追加してください");
+    }
+
+    const nextLineErrors: Record<number, LineItemError> = {};
+    form.items.forEach((item) => {
+      const itemError: LineItemError = {};
+      if (!item.itemCode) {
+        itemError.itemCode = "必須項目です";
+      }
+      if (!item.quantity) {
+        itemError.quantity = "必須項目です";
+      }
+      if (!item.unitPrice) {
+        itemError.unitPrice = "必須項目です";
+      }
+      if (Object.keys(itemError).length) {
+        nextLineErrors[item.id] = itemError;
+      }
+    });
+    setLineErrors(nextLineErrors);
+
+    if (Object.values(nextErrors).some((message) => message) || !form.items.length || Object.keys(nextLineErrors).length) {
+      return;
+    }
+
+    const numericErrors: Record<number, LineItemError> = {};
+    const parsedItems: OrderLineItem[] = [];
+    form.items.forEach((item) => {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const itemError: LineItemError = {};
+      if (Number.isNaN(quantity)) {
+        itemError.quantity = "数値で入力してください";
+      }
+      if (Number.isNaN(unitPrice)) {
+        itemError.unitPrice = "数値で入力してください";
+      }
+      if (Object.keys(itemError).length) {
+        numericErrors[item.id] = itemError;
+        return;
+      }
+      parsedItems.push({
+        id: item.id,
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        unit: item.unit,
+        quantity,
+        unitPrice,
+      });
+    });
+
+    if (Object.keys(numericErrors).length) {
+      setLineErrors((prev) => ({ ...prev, ...numericErrors }));
+      return;
+    }
+
+    const totalAmount = parsedItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+
+    onSave({
+      orderDate: form.orderDate,
+      deliveryDate: form.deliveryDate,
+      supplier: form.supplier,
+      items: parsedItems,
+      currency: form.currency,
+      amount: totalAmount,
+      note: form.note,
+      status: form.status,
+      documentStatus: form.documentStatus,
+    });
+    resetForm();
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="新規発注"
+      onClose={handleClose}
+      actions={
+        <div className="flex w-full items-center justify-end gap-2">
+          <Button variant="outlined" onClick={handleClose}>
+            キャンセル
+          </Button>
+          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+            保存
+          </Button>
+        </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">
+            発注日 <span className="text-red-500">*</span>
+          </label>
+          <TextField
+            size="small"
+            type="date"
+            value={form.orderDate}
+            onChange={(event) => handleChange("orderDate", event.target.value)}
+            error={Boolean(errors.orderDate)}
+            helperText={errors.orderDate}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">
+            納品予定日 <span className="text-red-500">*</span>
+          </label>
+          <TextField
+            size="small"
+            type="date"
+            value={form.deliveryDate}
+            onChange={(event) => handleChange("deliveryDate", event.target.value)}
+            error={Boolean(errors.deliveryDate)}
+            helperText={errors.deliveryDate}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">
+          仕入先 <span className="text-red-500">*</span>
+        </label>
+        <Select
+          size="small"
+          value={form.supplier}
+          onChange={(event) => handleChange("supplier", event.target.value)}
+          displayEmpty
+          error={Boolean(errors.supplier)}
+          renderValue={(selected) => {
+            if (!selected) {
+              return <span className="text-gray-400">選択してください</span>;
+            }
+            const option = supplierOptions.find((item) => item.value === selected);
+            return option?.label ?? selected;
+          }}
+        >
+          {supplierOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">
+          通貨 <span className="text-red-500">*</span>
+        </label>
+        <Autocomplete
+          freeSolo
+          options={currencyOptions.map((option) => option.label)}
+          value={form.currency}
+          inputValue={form.currency}
+          onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
+          onInputChange={(_, newValue) => handleChange("currency", newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="選択または入力"
+              error={Boolean(errors.currency)}
+              helperText={errors.currency}
+            />
+          )}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold text-gray-700">
+          部品明細 <span className="text-red-500">*</span>
+        </label>
+        <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
+          部品を追加
+        </Button>
+      </div>
+      {itemsError ? <div className="text-sm text-red-500">{itemsError}</div> : null}
+
+      {form.items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+          部品明細を追加してください
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {form.items.map((item, index) => {
+            const itemError = lineErrors[item.id];
+            return (
+              <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-700">明細 #{index + 1}</div>
+                  <Button variant="text" color="error" size="small" onClick={() => handleRemoveItem(item.id)}>
+                    削除
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">
+                      品目/品番 <span className="text-red-500">*</span>
+                    </label>
+                    <FormControl size="small" error={Boolean(itemError?.itemCode)}>
+                      <Select
+                        value={item.itemCode}
+                        onChange={(event) => handleItemSelect(item.id, event.target.value)}
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <span className="text-gray-400">品目を選択してください</span>;
+                          }
+                          const option = itemOptions.find((optionItem) => optionItem.value === selected);
+                          return option?.label ?? selected;
+                        }}
+                      >
+                        {itemOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {itemError?.itemCode ? <FormHelperText>{itemError.itemCode}</FormHelperText> : null}
+                    </FormControl>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        数量 <span className="text-red-500">*</span>
+                      </label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        inputProps={{ min: 0 }}
+                        value={item.quantity}
+                        onChange={(event) => handleLineChange(item.id, "quantity", event.target.value)}
+                        error={Boolean(itemError?.quantity)}
+                        helperText={itemError?.quantity}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">単位</label>
+                      <TextField size="small" value={item.unit} placeholder="-" disabled />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">
+                        単価 <span className="text-red-500">*</span>
+                      </label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        inputProps={{ min: 0, step: "0.1" }}
+                        value={item.unitPrice}
+                        onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
+                        error={Boolean(itemError?.unitPrice)}
+                        helperText={itemError?.unitPrice}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+        <span>合計金額</span>
+        <span>{amountLabel}</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">備考</label>
+        <TextField
+          size="small"
+          multiline
+          minRows={3}
+          placeholder="備考を入力してください"
+          value={form.note}
+          onChange={(event) => handleChange("note", event.target.value)}
+        />
+      </div>
+
+      <Divider />
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">ステータス</label>
+        <FormGroup>
+          {statusOptions.map((option) => (
+            <FormControlLabel
+              key={option.value}
+              control={<Checkbox checked={form.status[option.value]} onChange={() => toggleStatus(option.value)} />}
+              label={option.label}
+              className="h-8"
+            />
+          ))}
+        </FormGroup>
+      </div>
+
+      <Divider />
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">書類状況</label>
+        <FormGroup>
+          {documentOptions.map((option) => (
+            <FormControlLabel
+              key={option.value}
+              control={
+                <Checkbox
+                  checked={form.documentStatus[option.value]}
+                  onChange={() => toggleDocumentStatus(option.value)}
+                />
+              }
+              label={option.label}
+              className="h-8"
+            />
+          ))}
+        </FormGroup>
+      </div>
+    </Modal>
+  );
+}
