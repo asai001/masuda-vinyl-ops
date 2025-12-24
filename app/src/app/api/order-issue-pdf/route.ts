@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer";
+import puppeteer, { type Browser } from "puppeteer";
 import {
   renderOrderIssueHtml,
   type OrderIssuePdfPayload,
@@ -73,7 +73,7 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
 });
 
 export async function POST(request: Request) {
-  let browser: puppeteer.Browser | null = null;
+  let browser: Browser | null = null;
   try {
     const body = (await request.json()) as Partial<OrderIssuePdfPayload>;
     const payload = normalizePayload(body);
