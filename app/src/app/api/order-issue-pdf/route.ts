@@ -1,7 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import puppeteer, { type Browser } from "puppeteer";
 import {
   renderOrderIssueHtml,
   type OrderIssuePdfPayload,
@@ -72,6 +71,30 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
   note: typeof payload.note === "string" ? payload.note : "",
 });
 
+type Browser = import("puppeteer-core").Browser;
+
+const isVercelRuntime = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+
+const launchBrowser = async (): Promise<Browser> => {
+  if (isVercelRuntime) {
+    const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
+      import("@sparticuz/chromium"),
+      import("puppeteer-core"),
+    ]);
+    return puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  }
+  const { default: puppeteer } = await import("puppeteer");
+  return puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+};
+
 export async function POST(request: Request) {
   let browser: Browser | null = null;
   try {
@@ -80,10 +103,7 @@ export async function POST(request: Request) {
     const fonts = await loadFontData();
     const html = renderOrderIssueHtml(payload, fonts);
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     page.setDefaultNavigationTimeout(0);
     await page.setContent(html, { waitUntil: "domcontentloaded" });
