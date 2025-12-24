@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     const html = renderOrderIssueHtml(payload, fonts);
 
     browser = await puppeteer.launch({
-      headless: "new",
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
@@ -92,7 +92,9 @@ export async function POST(request: Request) {
         await document.fonts.ready;
       }
     });
-    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    const pdfData = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    const pdfBytes = Uint8Array.from(pdfData);
+    const pdfBuffer = pdfBytes.buffer;
 
     const safeOrderNumber = payload.orderNumber.replace(/[^A-Za-z0-9-_]/g, "") || "order";
     return new NextResponse(pdfBuffer, {
