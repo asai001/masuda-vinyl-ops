@@ -71,7 +71,7 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
   note: typeof payload.note === "string" ? payload.note : "",
 });
 
-type Browser = import("puppeteer-core").Browser;
+// type Browser = import("puppeteer-core").Browser;
 
 const isVercelRuntime = process.env.VERCEL === "1" || process.env.VERCEL === "true";
 
@@ -93,26 +93,51 @@ const ensureChromiumLambdaEnv = () => {
   }
 };
 
-const launchBrowser = async (): Promise<Browser> => {
-  if (isVercelRuntime) {
-    ensureChromiumLambdaEnv();
-    const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
-      import("@sparticuz/chromium"),
-      import("puppeteer-core"),
-    ]);
+import type { Browser } from "puppeteer-core";
+const isVercel = !!process.env.VERCEL;
+
+// const launchBrowser = async (): Promise<Browser> => {
+//   if (isVercelRuntime) {
+//     ensureChromiumLambdaEnv();
+//     const [{ default: chromium }, { default: puppeteer }] = await Promise.all([import("@sparticuz/chromium"), import("puppeteer-core")]);
+//     return puppeteer.launch({
+//       args: chromium.args,
+//       defaultViewport: chromium.defaultViewport,
+//       executablePath: await chromium.executablePath(),
+//       headless: true,
+//     });
+//   }
+//   const { default: puppeteer } = await import("puppeteer");
+//   return puppeteer.launch({
+//     headless: true,
+//     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//   });
+// };
+
+async function launchBrowser(): Promise<Browser> {
+  if (isVercel) {
+    const chromiumMod = await import("@sparticuz/chromium");
+    const chromium = chromiumMod.default ?? chromiumMod; // ←ここ重要
+
+    const puppeteer = (await import("puppeteer-core")).default;
+
+    const headless = "shell" as const;
+
     return puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      args: puppeteer.defaultArgs({ args: chromium.args, headless }),
       executablePath: await chromium.executablePath(),
-      headless: true,
+      headless,
+      // PDF生成だけなら viewport 指定は必須じゃない（必要なら自分で設定）
+      // defaultViewport: { width: 1280, height: 720 },
     });
   }
-  const { default: puppeteer } = await import("puppeteer");
+
+  const puppeteer = (await import("puppeteer")).default;
   return puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
-};
+}
 
 export async function POST(request: Request) {
   let browser: Browser | null = null;
