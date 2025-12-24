@@ -141,38 +141,25 @@ export default function OrderManagementView() {
     ];
   }, [rows]);
 
-  const itemOptions = useMemo(
-    () =>
-      materialRows.map((row) => ({
-        value: row.code,
-        label: `${row.code} ${row.name}`,
-        name: row.name,
-        supplier: row.supplier,
-        unit: row.unit,
-        unitPrice: row.unitPrice,
-        currency: row.currency,
-      })),
-    [materialRows]
-  );
-  const supplierOptions = useMemo(
-    () => clientRows.map((row) => ({ value: row.name, label: row.name })),
-    [clientRows]
-  );
-  const currencyOptions = useMemo(() => {
+  const itemOptions = materialRows.map((row) => ({
+    value: row.code,
+    label: `${row.code} ${row.name}`,
+    name: row.name,
+    supplier: row.supplier,
+    unit: row.unit,
+    unitPrice: row.unitPrice,
+    currency: row.currency,
+  }));
+  const supplierOptions = clientRows.map((row) => ({ value: row.name, label: row.name }));
+  const currencyOptions = (() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
     return uniqueValues(materialRows.map((row) => row.currency)).map((value) => ({
       value,
       label: value,
     }));
-  }, [materialRows]);
-  const statusOptions = useMemo(
-    () => orderStatusOptions.map((status) => ({ value: status.key, label: status.label })),
-    [orderStatusOptions]
-  );
-  const documentOptions = useMemo(
-    () => documentStatusOptions.map((status) => ({ value: status.key, label: status.label })),
-    [documentStatusOptions]
-  );
+  })();
+  const statusOptions = orderStatusOptions.map((status) => ({ value: status.key, label: status.label }));
+  const documentOptions = documentStatusOptions.map((status) => ({ value: status.key, label: status.label }));
 
   const openIssue = (row: OrderRow) => {
     setIssuingRow(row);

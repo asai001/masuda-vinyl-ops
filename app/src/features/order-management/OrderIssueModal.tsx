@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { Button } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import { clientRows } from "@/mock/clientMasterData";
 import { OrderRow } from "@/mock/orderManagementData";
+import { renderOrderIssueHtml, type OrderIssuePdfPayload, type PdfFontSources } from "./orderIssueTemplate";
 
 type OrderIssueModalProps = {
   open: boolean;
@@ -18,15 +19,108 @@ const vndExchangeRates = {
   USD: 25000,
   JPY: 170,
 } as const;
-const issuerInfo = {
-  name: "MASUDA VINYL VIETNAM",
-  addressLines: ["Lô 1 Đông vàng, Khu công nghiệp Đình Trám", "Phường Nếnh, Tỉnh Bắc Ninh"],
-  phone: "0240-3662-7777",
-} as const;
+
+const previewFontSources: PdfFontSources = {
+  jpRegular: "/fonts/NotoSerifJP-Regular.ttf",
+  jpBold: "/fonts/NotoSerifJP-Bold.ttf",
+  vnRegular: "/fonts/NotoSerif-Regular.ttf",
+  vnBold: "/fonts/NotoSerif-Bold.ttf",
+};
+const formatIssueDate = (value?: string | null) => {
+  if (!value) {
+    return "-";
+  }
+  const match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    return value;
+  }
+  const [, year, month, day] = match;
+  return `${Number(day)}/${Number(month)}/${year}`;
+};
+const a4WidthPx = (210 / 25.4) * 96;
+const a4HeightPx = (297 / 25.4) * 96;
+type PreviewSize = { width: number; height: number };
+const requestPdfBlob = async (payload: OrderIssuePdfPayload, signal?: AbortSignal) => {
+  const response = await fetch("/api/order-issue-pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`PDF生成に失敗しました (${response.status})`);
+  }
+  return response.blob();
+};
 
 export default function OrderIssueModal({ open, order, onClose }: OrderIssueModalProps) {
-  const issueDate = order?.orderDate ?? "-";
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [issueNote, setIssueNote] = useState("");
+  const [previewScale, setPreviewScale] = useState(1);
+  const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
+    width: a4WidthPx,
+    height: a4HeightPx,
+  });
+  const [previewSize, setPreviewSize] = useState<PreviewSize>({
+    width: a4WidthPx,
+    height: a4HeightPx,
+  });
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setIssueNote("");
+      return;
+    }
+    setIssueNote(order?.note?.trim() ?? "");
+  }, [open, order]);
+
+  const applyScale = (contentSize: PreviewSize) => {
+    const element = previewContainerRef.current;
+    if (!element) {
+      return;
+    }
+    const width = element.clientWidth;
+    if (!width) {
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const dialogContent = element.closest(".MuiDialogContent-root");
+    const contentRect = dialogContent?.getBoundingClientRect();
+    const availableHeight = contentRect ? contentRect.bottom - rect.top : window.innerHeight - rect.top - 24;
+    const padding = 16;
+    const maxWidth = Math.max(0, width - padding);
+    const maxHeight = Math.max(0, availableHeight - padding);
+    if (!maxWidth || !maxHeight) {
+      return;
+    }
+    const scale = Math.min(1, maxWidth / contentSize.width, maxHeight / contentSize.height);
+    setPreviewScale(scale);
+    setPreviewSize({ width: contentSize.width * scale, height: contentSize.height * scale });
+  };
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    applyScale(previewContentSize);
+    const element = previewContainerRef.current;
+    if (!element) {
+      return;
+    }
+    const handleResize = () => applyScale(previewContentSize);
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(element);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open, previewContentSize]);
+  const issueDate = formatIssueDate(order?.orderDate);
   const orderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const supplierName = order?.supplier ?? "取引先名";
   const supplierInfo = useMemo(() => {
     if (!order) {
       return null;
@@ -35,15 +129,9 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
   }, [order]);
   const supplierAddress = supplierInfo?.address || "（未設定）";
   const supplierPhone = supplierInfo?.phone || "（未設定）";
-  const [supplierAddressLine1, supplierAddressLine2] = useMemo(() => {
-    if (supplierAddress === "（未設定）") {
-      return [supplierAddress, ""];
-    }
-    const parts = supplierAddress.split(",").map((value) => value.trim());
-    const line1 = parts[0] || supplierAddress;
-    const line2 = parts.slice(1).join(", ").trim();
-    return [line1, line2];
-  }, [supplierAddress]);
+  const supplierAddressLine1 = supplierAddress;
+  const supplierAddressLine2 = "";
+
   const vndRate = useMemo(() => {
     if (!order) {
       return vndExchangeRates.VND;
@@ -70,8 +158,86 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
       amount: amountFormatter.format(item.quantity * item.unitPrice * vndRate),
     }));
   }, [order, vndRate]);
-  const totalRows = 9;
-  const rows = Array.from({ length: totalRows }, (_, index) => lineItems[index] ?? null);
+  const noteLabel = issueNote.trim();
+
+  const pdfPayload = useMemo<OrderIssuePdfPayload | null>(() => {
+    if (!order) {
+      return null;
+    }
+    return {
+      orderNumber,
+      issueDate,
+      supplierName,
+      supplierAddressLine1,
+      supplierAddressLine2,
+      supplierPhone,
+      lineItems,
+      amountLabel,
+      note: noteLabel,
+    };
+  }, [
+    order,
+    orderNumber,
+    issueDate,
+    supplierName,
+    supplierAddressLine1,
+    supplierAddressLine2,
+    supplierPhone,
+    lineItems,
+    amountLabel,
+    noteLabel,
+  ]);
+
+  const previewHtml = useMemo(() => {
+    if (!pdfPayload) {
+      return "";
+    }
+    return renderOrderIssueHtml(pdfPayload, previewFontSources);
+  }, [pdfPayload]);
+  const handleDownload = async () => {
+    if (!pdfPayload || isDownloading) {
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const blob = await requestPdfBlob(pdfPayload);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `order-${orderNumber}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download order PDF", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const previewMessageClass = "flex h-full items-center justify-center text-sm text-gray-500";
+  const handlePreviewLoad = () => {
+    const frame = previewFrameRef.current;
+    if (!frame) {
+      return;
+    }
+    const measureContent = () => {
+      const doc = frame.contentDocument;
+      const rootRect = doc?.documentElement?.getBoundingClientRect();
+      const bodyRect = doc?.body?.getBoundingClientRect();
+      const width = Math.max(bodyRect?.width ?? 0, rootRect?.width ?? 0, a4WidthPx);
+      const height = Math.max(bodyRect?.height ?? 0, rootRect?.height ?? 0, a4HeightPx);
+      const nextSize = { width, height };
+      setPreviewContentSize(nextSize);
+      applyScale(nextSize);
+    };
+    measureContent();
+    const doc = frame.contentDocument;
+    if (doc?.fonts?.ready) {
+      doc.fonts.ready.then(measureContent).catch(() => {
+        // Ignore font load errors for preview scaling.
+      });
+    }
+  };
 
   return (
     <Modal
@@ -83,126 +249,54 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
           <Button variant="outlined" onClick={onClose}>
             キャンセル
           </Button>
-          <Button variant="contained">発行</Button>
+          <Button variant="contained" onClick={handleDownload} disabled={!order || isDownloading}>
+            発行
+          </Button>
         </div>
       }
     >
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <div className="text-sm font-semibold text-gray-700">プレビュー</div>
-        {/* 印刷イメージに合わせた帳票レイアウト */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
+          <TextField
+            size="small"
+            multiline
+            minRows={3}
+            placeholder="摘要を入力（任意）"
+            value={issueNote}
+            onChange={(event) => setIssueNote(event.target.value)}
+            disabled={!order}
+          />
+          <div className="text-xs text-gray-500">注文には保存されません。</div>
+        </div>
+        <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
         <div className="mt-4 flex justify-center">
-          <div className="w-full max-w-[720px]">
-            <div className="relative w-full aspect-[210/297] rounded-lg border border-gray-500 bg-white">
-              <div className="absolute inset-0 overflow-y-auto p-4 text-[10px] text-gray-900">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-start font-serif">
-                  <div />
-                  <div className="text-center">
-                    <div className="text-[17px] font-bold">注文書</div>
-                    <div className="text-[13px] tracking-widest">ĐƠN ĐẶT HÀNG</div>
-                  </div>
-                  <div className="space-y-1 text-right text-[10px] leading-4">
-                    <div className="font-semibold">注番: {orderNumber}</div>
-                    <div>Mã đặt hàng:</div>
-                    <div>{issueDate}</div>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4 font-serif">
-                  <div className="space-y-1">
-                    <div className="font-semibold">
-                      <span className="border-gray-700 pb-0.5">{order?.supplier ?? "取引先名"}</span> 御中
-                    </div>
-                    <div className="h-2.5 pb-0.5 leading-4">Add: {supplierAddressLine1}</div>
-                    <div className="h-2.5 pb-0.5 leading-4">{supplierAddressLine2}</div>
-                    <div className="h-2.5 pb-0.5 leading-4">Tel : {supplierPhone}</div>
-                  </div>
-                  <div className="space-y-1 text-right leading-4">
-                    <div className="h-2.5 font-semibold">{issuerInfo.name}</div>
-                    {issuerInfo.addressLines.map((line) => (
-                      <div className="h-2.5" key={line}>
-                        {line}
-                      </div>
-                    ))}
-                    <div>TELL: {issuerInfo.phone}</div>
-                  </div>
-                </div>
-
-                <div className="mt-3 font-serif text-[12px]">下記の事項に注文致します。宜しくお願いします。</div>
-                <div className="font-serif text-[10px]">Chúng tôi xác nhận đặt hàng theo danh mục các mặt hàng bên dưới.</div>
-
-                <table className="mt-3 w-full border-collapse text-[9px]">
-                  <thead>
-                    <tr className="h-6">
-                      <th className="border border-gray-700 px-2 align-middle">No.</th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>品名/規格</div>
-                        <div>Tên sản phẩm/Quy cách</div>
-                      </th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>単位</div>
-                        <div>Đơn vị</div>
-                      </th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>数量</div>
-                        <div>Số lượng</div>
-                      </th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>単価</div>
-                        <div>Đơn giá</div>
-                      </th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>希望納期</div>
-                        <div>Ngày giao</div>
-                      </th>
-                      <th className="border border-gray-700 px-2 align-middle">
-                        <div>金額</div>
-                        <div>Số tiền (VND)</div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, index) => (
-                      <tr key={index} className="h-6">
-                        <td className="border border-gray-700 px-2 text-center align-middle">{row ? index + 1 : ""}</td>
-                        <td className="border border-gray-700 px-2 align-middle">{row?.name ?? ""}</td>
-                        <td className="border border-gray-700 px-2 text-center align-middle">{row?.unit ?? ""}</td>
-                        <td className="border border-gray-700 px-2 text-right align-middle">{row?.quantity ?? ""}</td>
-                        <td className="border border-gray-700 px-2 text-right align-middle">{row?.unitPrice ?? ""}</td>
-                        <td className="border border-gray-700 px-2 text-center align-middle">{row?.deliveryDate ?? ""}</td>
-                        <td className="border border-gray-700 px-2 text-right align-middle">{row?.amount ?? ""}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="h-8">
-                      <td colSpan={6} className="border border-gray-700 px-2 py-2 text-right align-middle">
-                        小計(税抜)
-                      </td>
-                      <td className="border border-gray-700 px-2 py-2 text-right align-middle">{amountLabel}</td>
-                    </tr>
-                    <tr className="h-8">
-                      <td colSpan={6} className="border border-gray-700 px-2 py-2 text-right align-middle">
-                        VAT %
-                      </td>
-                      <td className="border border-gray-700 px-2 py-2 text-right align-middle">-</td>
-                    </tr>
-                    <tr className="h-8">
-                      <td colSpan={6} className="border border-gray-700 px-2 py-2 text-right font-semibold align-middle">
-                        合計(税込)
-                      </td>
-                      <td className="border border-gray-700 px-2 py-2 text-right font-semibold align-middle">{amountLabel}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-
-                <div className="mt-3 text-[9px]">摘要: {order?.note || "（未設定）"}</div>
-
-                <div className="mt-6 flex justify-end">
-                  <div className="flex h-[88px] w-[152px] items-center justify-center border border-gray-700 text-[11px] text-gray-600">
-                    承認印
-                  </div>
-                </div>
-              </div>
+          <div ref={previewContainerRef} className="w-full max-w-[720px]">
+            <div
+              className="relative mx-auto overflow-hidden bg-white"
+              style={{ width: previewSize.width, height: previewSize.height }}
+            >
+              {open
+                ? pdfPayload
+                  ? (
+                    <iframe
+                      title="注文書プレビュー"
+                      className="block border-0 bg-white"
+                      ref={previewFrameRef}
+                      scrolling="no"
+                      style={{
+                        width: previewContentSize.width,
+                        height: previewContentSize.height,
+                        overflow: "hidden",
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: "top left",
+                      }}
+                      srcDoc={previewHtml}
+                      onLoad={handlePreviewLoad}
+                    />
+                  )
+                  : <div className={previewMessageClass}>プレビューを生成できません。</div>
+                : null}
             </div>
           </div>
         </div>

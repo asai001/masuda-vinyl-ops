@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
 import { OrderRow } from "@/mock/orderManagementData";
@@ -15,11 +15,18 @@ type DeleteOrderDialogProps = {
 export default function DeleteOrderDialog({ open, order, onClose, onConfirm }: DeleteOrderDialogProps) {
   const [confirmed, setConfirmed] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setConfirmed(false);
+  const handleClose = () => {
+    setConfirmed(false);
+    onClose();
+  };
+
+  const handleConfirm = () => {
+    if (!order) {
+      return;
     }
-  }, [open]);
+    onConfirm(order);
+    setConfirmed(false);
+  };
 
   const firstItem = order?.items[0];
   const extraCount = order ? Math.max(order.items.length - 1, 0) : 0;
@@ -31,13 +38,13 @@ export default function DeleteOrderDialog({ open, order, onClose, onConfirm }: D
     <Modal
       open={open}
       title="削除確認"
-      onClose={onClose}
+      onClose={handleClose}
       actions={
         <>
-          <Button variant="outlined" onClick={onClose}>
+          <Button variant="outlined" onClick={handleClose}>
             キャンセル
           </Button>
-          <Button variant="contained" color="error" onClick={() => order && onConfirm(order)} disabled={!confirmed}>
+          <Button variant="contained" color="error" onClick={handleConfirm} disabled={!confirmed}>
             削除
           </Button>
         </>
