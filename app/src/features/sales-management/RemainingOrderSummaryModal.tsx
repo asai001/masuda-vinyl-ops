@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
@@ -70,17 +70,9 @@ const bodyCellSx = {
 };
 
 export default function RemainingOrderSummaryModal({ open, rows, onClose }: RemainingOrderSummaryModalProps) {
-  const [startDate, setStartDate] = useState(() => getDefaultDateRange().startDate);
-  const [endDate, setEndDate] = useState(() => getDefaultDateRange().endDate);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const defaultRange = getDefaultDateRange();
-    setStartDate(defaultRange.startDate);
-    setEndDate(defaultRange.endDate);
-  }, [open]);
+  const defaultRange = useMemo(() => getDefaultDateRange(), []);
+  const [startDate, setStartDate] = useState(defaultRange.startDate);
+  const [endDate, setEndDate] = useState(defaultRange.endDate);
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const summaryMap = new Map<string, SummaryRow>();

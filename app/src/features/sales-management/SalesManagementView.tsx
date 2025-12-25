@@ -42,6 +42,7 @@ export default function SalesManagementView() {
   } = useMasterCrud<SalesRow>(salesRows, (item, nextId) => ({ ...item, id: nextId }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [summaryKey, setSummaryKey] = useState(0);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
@@ -246,6 +247,7 @@ export default function SalesManagementView() {
   };
 
   const openSummary = () => {
+    setSummaryKey((prev) => prev + 1);
     setIsSummaryOpen(true);
   };
 
@@ -304,7 +306,7 @@ export default function SalesManagementView() {
         onClose={closeDelete}
         onConfirm={confirmDelete}
       />
-      <RemainingOrderSummaryModal open={isSummaryOpen} rows={rows} onClose={closeSummary} />
+      <RemainingOrderSummaryModal key={summaryKey} open={isSummaryOpen} rows={rows} onClose={closeSummary} />
     </div>
   );
 }
