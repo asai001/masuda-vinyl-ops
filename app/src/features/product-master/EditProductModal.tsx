@@ -346,7 +346,9 @@ export default function EditProductModal({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">重量 (g)</label>
+          <label className="text-sm font-semibold text-gray-700">
+            重量 (g) <span className="text-red-500">*</span>
+          </label>
           <TextField
             size="small"
             type="number"
@@ -359,7 +361,9 @@ export default function EditProductModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">長さ (mm)</label>
+          <label className="text-sm font-semibold text-gray-700">
+            長さ (mm) <span className="text-red-500">*</span>
+          </label>
           <TextField
             size="small"
             type="number"
@@ -372,7 +376,9 @@ export default function EditProductModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">分速 (m/min)</label>
+          <label className="text-sm font-semibold text-gray-700">
+            分速 (m/min) <span className="text-red-500">*</span>
+          </label>
           <TextField
             size="small"
             type="number"
@@ -387,7 +393,9 @@ export default function EditProductModal({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">使用材料</label>
+        <label className="text-sm font-semibold text-gray-700">
+          使用材料 <span className="text-red-500">*</span>
+        </label>
         <Select
           size="small"
           multiple
