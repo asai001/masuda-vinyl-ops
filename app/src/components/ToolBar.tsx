@@ -29,6 +29,7 @@ type ToolBarProps = {
   onFiltersChange: (filters: FilterRow[]) => void;
   onCreate: () => void;
   createLabel?: string;
+  rightActions?: React.ReactNode;
 };
 
 const createFilterRow = (id: number, key: string): FilterRow => ({
@@ -44,6 +45,7 @@ export default function ToolBar({
   onFiltersChange,
   onCreate,
   createLabel = "新規登録",
+  rightActions,
 }: ToolBarProps) {
   const initialKey = filterDefinitions[0]?.key ?? "";
 
@@ -84,14 +86,17 @@ export default function ToolBar({
           <Button variant="outlined" size="small" startIcon={<Plus size={16} />} onClick={handleAddFilter}>
             フィルタ追加
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<Plus size={16} />}
-            className="w-fit whitespace-nowrap"
-            onClick={onCreate}
-          >
-            {createLabel}
-          </Button>
+          <div className="flex items-center gap-2">
+            {rightActions}
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              className="w-fit whitespace-nowrap"
+              onClick={onCreate}
+            >
+              {createLabel}
+            </Button>
+          </div>
         </div>
 
         {filters.length ? (

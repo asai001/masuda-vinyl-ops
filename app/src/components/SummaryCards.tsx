@@ -23,8 +23,9 @@ const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; val
 
 export default function SummaryCards({ cards }: SummaryCardsProps) {
   const defaultIcon = <Users size={22} />;
+  const columnClass = cards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3";
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${columnClass}`}>
       {cards.map((card) => {
         const tone = toneStyles[card.tone];
         const icon = card.icon ?? defaultIcon;

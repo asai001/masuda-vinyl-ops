@@ -16,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/material-master": "材料マスタ",
     "/product-master": "製品マスタ",
     "/order-management": "発注管理",
+    "/sales-management": "受注管理",
   };
 
   const pageTitle = pageTitles[pathname ?? ""] ?? "";
@@ -30,9 +31,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar onNavigate={handleNavigate} />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header pageTitle={pageTitle} userName={userName} userRole={userRole} />
-        <main className="flex-1 bg-gray-50 p-6">{children}</main>
+        <main className="flex-1 bg-gray-50 p-6 min-w-0 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
