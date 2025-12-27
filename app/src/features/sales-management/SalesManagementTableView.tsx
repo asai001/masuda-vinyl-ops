@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Chip, IconButton } from "@mui/material";
-import { Download, Trash2 } from "lucide-react";
+import { Button, Chip, IconButton } from "@mui/material";
+import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import {
@@ -95,9 +95,10 @@ type SalesManagementTableViewProps = {
   rows: SalesRow[];
   onRowClick?: (row: SalesRow) => void;
   onDelete?: (row: SalesRow) => void;
+  onIssue?: (row: SalesRow) => void;
 };
 
-export default function SalesManagementTableView({ rows, onRowClick, onDelete }: SalesManagementTableViewProps) {
+export default function SalesManagementTableView({ rows, onRowClick, onDelete, onIssue }: SalesManagementTableViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -272,9 +273,25 @@ export default function SalesManagementTableView({ rows, onRowClick, onDelete }:
     },
     {
       key: "download",
-      header: "",
+      header: (
+        <div className="flex flex-col leading-tight">
+          <span>インボイス</span>
+          <span>パッキングリスト</span>
+        </div>
+      ),
       align: "center",
-      render: () => <Download size={16} className="text-green-600" />,
+      render: (row) => (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={(event) => {
+            event.stopPropagation();
+            onIssue?.(row);
+          }}
+        >
+          発行
+        </Button>
+      ),
     },
     {
       key: "delete",
@@ -296,7 +313,7 @@ export default function SalesManagementTableView({ rows, onRowClick, onDelete }:
           <Trash2 size={16} className="text-red-500" />
         ),
     },
-  ], [onDelete]);
+  ], [onDelete, onIssue]);
 
   const handleSort = (key: string) => {
     const typedKey = key as SortKey;

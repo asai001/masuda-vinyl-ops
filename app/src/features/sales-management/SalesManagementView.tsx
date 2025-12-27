@@ -8,6 +8,7 @@ import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteSalesDialog from "@/features/sales-management/DeleteSalesDialog";
 import EditSalesModal from "@/features/sales-management/EditSalesModal";
+import { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
 import NewSalesModal from "@/features/sales-management/NewSalesModal";
 import RemainingOrderSummaryModal from "@/features/sales-management/RemainingOrderSummaryModal";
 import SalesManagementTableView from "@/features/sales-management/SalesManagementTableView";
@@ -246,6 +247,71 @@ export default function SalesManagementView() {
     openDelete(row);
   };
 
+  const countryLabelMap: Record<string, string> = {
+    日本: "JAPAN",
+    ベトナム: "VIETNAM",
+    タイ: "THAILAND",
+    インドネシア: "INDONESIA",
+  };
+
+  const formatInvoiceDate = () => {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const sanitizeFileName = (value: string) => value.replace(/[^A-Za-z0-9-_]/g, "") || "invoice";
+
+  const handleIssue = async (row: SalesRow) => {
+    const customerInfo = clientRows.find((item) => item.name === row.customerName);
+    const region = customerInfo?.region ?? row.customerRegion ?? "";
+    const destinationCountry = countryLabelMap[region] ?? region;
+    const items = row.items.map((item) => {
+      const product = productRows.find((productRow) => productRow.code === item.productCode);
+      return {
+        partNo: item.productCode,
+        partName: item.productName,
+        poNo: row.orderNo,
+        unit: product?.unit ?? "",
+        quantity: item.orderQuantity,
+        unitPrice: item.unitPrice,
+      };
+    });
+    const payload: InvoicePackingPayload = {
+      orderNo: row.orderNo,
+      invoiceDate: formatInvoiceDate(),
+      invoiceNo: row.orderNo,
+      destinationCountry,
+      consigneeName: row.customerName,
+      consigneeAddress: customerInfo?.address ?? "",
+      consigneeTel: customerInfo?.phone ?? "",
+      consigneeTaxId: customerInfo?.taxId ?? "",
+      items,
+    };
+
+    try {
+      const response = await fetch("/api/invoice-packing-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Excel生成に失敗しました (${response.status})`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `インボイス-パッキングリスト-${sanitizeFileName(row.orderNo)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download invoice packing list", error);
+    }
+  };
+
   const openSummary = () => {
     setSummaryKey((prev) => prev + 1);
     setIsSummaryOpen(true);
@@ -276,7 +342,7 @@ export default function SalesManagementView() {
           </Button>
         }
       />
-      <SalesManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
+      <SalesManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} onIssue={handleIssue} />
       <NewSalesModal
         open={isCreateOpen}
         onClose={closeCreate}

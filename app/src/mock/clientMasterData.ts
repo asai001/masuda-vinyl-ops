@@ -4,6 +4,7 @@ export type ClientRow = {
   description: string;
   address: string;
   phone: string;
+  taxId?: string;
   category: string;
   region: string;
   currency: string;
