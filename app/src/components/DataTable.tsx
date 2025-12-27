@@ -23,6 +23,7 @@ type TableProps<T> = {
   sortDirection?: "asc" | "desc";
   onSort?: (key: string) => void;
   onRowClick?: (row: T) => void;
+  enableHorizontalScroll?: boolean;
 };
 
 export default function DataTable<T>({
@@ -33,10 +34,29 @@ export default function DataTable<T>({
   sortDirection = "asc",
   onSort,
   onRowClick,
+  enableHorizontalScroll = false,
 }: TableProps<T>) {
   return (
-    <TableContainer component={Paper} elevation={0} className="border border-gray-200 rounded-xl">
-      <Table>
+    <TableContainer
+      component={Paper}
+      elevation={0}
+      className="border border-gray-200 rounded-xl w-full"
+      sx={{
+        overflowX: enableHorizontalScroll ? "auto" : "visible",
+        width: "100%",
+        maxWidth: "100%",
+      }}
+    >
+      <Table
+        sx={
+          enableHorizontalScroll
+            ? {
+                width: "100%",
+                minWidth: "max-content",
+              }
+            : undefined
+        }
+      >
         <TableHead>
           <TableRow>
             {columns.map((column) => (
@@ -48,6 +68,7 @@ export default function DataTable<T>({
                   fontWeight: 600,
                   color: "text.secondary",
                   width: column.width,
+                  whiteSpace: enableHorizontalScroll ? "nowrap" : "normal",
                 }}
               >
                 {column.sortKey && onSort ? (
@@ -88,7 +109,11 @@ export default function DataTable<T>({
               className={onRowClick ? "cursor-pointer" : ""}
             >
               {columns.map((column) => (
-                <TableCell key={column.key} align={column.align} sx={{ py: 2 }}>
+                <TableCell
+                  key={column.key}
+                  align={column.align}
+                  sx={{ py: 2, whiteSpace: enableHorizontalScroll ? "nowrap" : "normal" }}
+                >
                   {column.render ? column.render(row) : null}
                 </TableCell>
               ))}
