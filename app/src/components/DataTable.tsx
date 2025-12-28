@@ -24,6 +24,7 @@ type TableProps<T> = {
   onSort?: (key: string) => void;
   onRowClick?: (row: T) => void;
   enableHorizontalScroll?: boolean;
+  containerClassName?: string;
 };
 
 export default function DataTable<T>({
@@ -35,12 +36,13 @@ export default function DataTable<T>({
   onSort,
   onRowClick,
   enableHorizontalScroll = false,
+  containerClassName = "",
 }: TableProps<T>) {
   return (
     <TableContainer
       component={Paper}
       elevation={0}
-      className="border border-gray-200 rounded-xl w-full"
+      className={`border border-gray-200 rounded-xl w-full ${containerClassName}`}
       sx={{
         overflowX: enableHorizontalScroll ? "auto" : "visible",
         width: "100%",
