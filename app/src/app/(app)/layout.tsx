@@ -19,6 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/sales-management": "受注管理",
     "/payment-master": "支払いマスタ",
     "/payment-management": "支払い管理",
+    "/settings": "各種設定",
   };
 
   const pageTitle = pageTitles[pathname ?? ""] ?? "";
