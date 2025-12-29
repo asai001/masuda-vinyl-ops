@@ -42,12 +42,6 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
   const columns = useMemo<TableColumn<PaymentManagementRow>[]>(
     () => [
       {
-        key: "id",
-        header: "NO.",
-        sortKey: "id",
-        render: (row) => <span className="text-sm">{row.id}</span>,
-      },
-      {
         key: "category",
         header: "カテゴリ",
         sortKey: "category",
