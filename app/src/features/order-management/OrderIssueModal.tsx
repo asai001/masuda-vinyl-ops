@@ -276,32 +276,29 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
         </div>
         <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
         <div className="mt-4 flex justify-center">
-          <div ref={previewContainerRef} className="w-full max-w-[720px]">
-            <div
-              className="relative mx-auto overflow-hidden bg-white"
-              style={{ width: previewSize.width, height: previewSize.height }}
-            >
-              {open
-                ? pdfPayload
-                  ? (
-                    <iframe
-                      title="注文書プレビュー"
-                      className="block border-0 bg-white"
-                      ref={previewFrameRef}
-                      scrolling="no"
-                      style={{
-                        width: previewContentSize.width,
-                        height: previewContentSize.height,
-                        overflow: "hidden",
-                        transform: `scale(${previewScale})`,
-                        transformOrigin: "top left",
-                      }}
-                      srcDoc={previewHtml}
-                      onLoad={handlePreviewLoad}
-                    />
-                  )
-                  : <div className={previewMessageClass}>プレビューを生成できません。</div>
-                : null}
+          <div ref={previewContainerRef} className="w-full max-w-180">
+            <div className="relative mx-auto overflow-hidden bg-white" style={{ width: previewSize.width, height: previewSize.height }}>
+              {open ? (
+                pdfPayload ? (
+                  <iframe
+                    title="注文書プレビュー"
+                    className="block border-0 bg-white"
+                    ref={previewFrameRef}
+                    scrolling="no"
+                    style={{
+                      width: previewContentSize.width,
+                      height: previewContentSize.height,
+                      overflow: "hidden",
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: "top left",
+                    }}
+                    srcDoc={previewHtml}
+                    onLoad={handlePreviewLoad}
+                  />
+                ) : (
+                  <div className={previewMessageClass}>プレビューを生成できません。</div>
+                )
+              ) : null}
             </div>
           </div>
         </div>
