@@ -22,19 +22,34 @@ export class InfraStack extends cdk.Stack {
     //   visibilityTimeout: cdk.Duration.seconds(300)
     // });
 
-    const resourceSuffix =
-      props.deployEnv === "prod" ? "" : `-${props.deployEnv}`;
-    const userPool = new cognito.UserPool(
-      this,
-      `masuda-vinyl-ops-userpool${resourceSuffix}`,
-      {
-        userPoolName: `masuda-vinyl-ops-userpool${resourceSuffix}`,
-        signInCaseSensitive: false,
-        signInAliases: {
-          email: true,
-        },
-      }
-    );
+    const resourceSuffix = props.deployEnv === "prod" ? "" : `-${props.deployEnv}`;
+    const userPool = new cognito.UserPool(this, `masuda-vinyl-ops-userpool${resourceSuffix}`, {
+      userPoolName: `masuda-vinyl-ops-userpool${resourceSuffix}`,
+      signInCaseSensitive: false,
+      signInAliases: {
+        email: true,
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: false,
+        requireUppercase: false,
+        requireDigits: false,
+        requireSymbols: false,
+      },
+    });
+
+    userPool.addClient(`masuda-vinyl-ops-app-client${resourceSuffix}`, {
+      userPoolClientName: `masuda-vinyl-ops-app-client${resourceSuffix}`,
+      authFlows: {
+        userSrp: true,
+      },
+      generateSecret: false,
+      accessTokenValidity: cdk.Duration.hours(1),
+      idTokenValidity: cdk.Duration.hours(1),
+      refreshTokenValidity: cdk.Duration.days(14),
+      preventUserExistenceErrors: true,
+      disableOAuth: true,
+    });
 
     const teamSlug = "asai001s-projects-3e71fbe6";
     const projectName = "masuda-vinyl-ops-app";
