@@ -29,6 +29,13 @@ export class InfraStack extends cdk.Stack {
       signInAliases: {
         email: true,
       },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: false,
+        requireUppercase: false,
+        requireDigits: false,
+        requireSymbols: false,
+      },
     });
 
     userPool.addClient(`masuda-vinyl-ops-app-client${resourceSuffix}`, {

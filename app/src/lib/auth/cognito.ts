@@ -16,6 +16,29 @@ type SignInInput = {
   remember: boolean;
 };
 
+export type NewPasswordChallenge = {
+  type: "NEW_PASSWORD_REQUIRED";
+  user: CognitoUser;
+  userAttributes: Record<string, string>;
+  requiredAttributes: string[];
+};
+
+type SignInSuccess = {
+  type: "SUCCESS";
+  session: CognitoUserSession;
+};
+
+export type SignInResult = SignInSuccess | NewPasswordChallenge;
+
+type CompleteNewPasswordInput = {
+  user: CognitoUser;
+  newPassword: string;
+  userAttributes: Record<string, string>;
+  requiredAttributes: string[];
+  requiredAttributeValues: Record<string, string>;
+  remember: boolean;
+};
+
 type AuthError = Error & { code?: string };
 
 const getConfig = (): CognitoConfig | null => {
@@ -57,6 +80,47 @@ const createUserPool = (config: CognitoConfig, storage: Storage): CognitoUserPoo
     Storage: storage,
   });
 
+const toStringAttributes = (attributes: unknown): Record<string, string> => {
+  if (!attributes || typeof attributes !== "object") {
+    return {};
+  }
+
+  const record: Record<string, string> = {};
+  Object.entries(attributes as Record<string, unknown>).forEach(([key, value]) => {
+    if (typeof value === "string") {
+      record[key] = value;
+    }
+  });
+
+  return record;
+};
+
+const stripReadOnlyAttributes = (attributes: Record<string, string>): Record<string, string> => {
+  const trimmed = { ...attributes };
+  delete trimmed.email_verified;
+  delete trimmed.phone_number_verified;
+  delete trimmed.sub;
+  return trimmed;
+};
+
+const buildNewPasswordAttributes = (
+  userAttributes: Record<string, string>,
+  requiredAttributes: string[],
+  requiredAttributeValues: Record<string, string>,
+): Record<string, string> => {
+  const sanitized = stripReadOnlyAttributes(userAttributes);
+  const requiredOnly: Record<string, string> = {};
+
+  requiredAttributes.forEach((attribute) => {
+    const value = requiredAttributeValues[attribute] ?? sanitized[attribute];
+    if (typeof value === "string" && value.length > 0) {
+      requiredOnly[attribute] = value;
+    }
+  });
+
+  return requiredOnly;
+};
+
 const clearCognitoStorage = (storage: Storage, clientId: string) => {
   const prefix = `CognitoIdentityServiceProvider.${clientId}`;
   const keysToRemove: string[] = [];
@@ -92,7 +156,7 @@ const getSessionFromStorage = async (
   });
 };
 
-export const signInWithPassword = async (input: SignInInput): Promise<CognitoUserSession> => {
+export const signInWithPassword = async (input: SignInInput): Promise<SignInResult> => {
   const config = requireConfig();
   const storage = getBrowserStorage(input.remember);
   const pool = createUserPool(config, storage);
@@ -109,11 +173,17 @@ export const signInWithPassword = async (input: SignInInput): Promise<CognitoUse
     Password: input.password,
   });
 
-  const session = await new Promise<CognitoUserSession>((resolve, reject) => {
+  const result = await new Promise<SignInResult>((resolve, reject) => {
     user.authenticateUser(authDetails, {
-      onSuccess: (result) => resolve(result),
+      onSuccess: (session) => resolve({ type: "SUCCESS", session }),
       onFailure: (error) => reject(error),
-      newPasswordRequired: () => reject(withCode("NEW_PASSWORD_REQUIRED")),
+      newPasswordRequired: (userAttributes, requiredAttributes) =>
+        resolve({
+          type: "NEW_PASSWORD_REQUIRED",
+          user,
+          userAttributes: toStringAttributes(userAttributes),
+          requiredAttributes: Array.isArray(requiredAttributes) ? requiredAttributes : [],
+        }),
       mfaRequired: () => reject(withCode("MFA_REQUIRED")),
       totpRequired: () => reject(withCode("TOTP_REQUIRED")),
       selectMFAType: () => reject(withCode("SELECT_MFA_TYPE")),
@@ -121,12 +191,12 @@ export const signInWithPassword = async (input: SignInInput): Promise<CognitoUse
     });
   });
 
-  if (typeof window !== "undefined") {
+  if (result.type === "SUCCESS" && typeof window !== "undefined") {
     const otherStorage = input.remember ? window.sessionStorage : window.localStorage;
     clearCognitoStorage(otherStorage, config.clientId);
   }
 
-  return session;
+  return result;
 };
 
 export const getCurrentSession = async (): Promise<CognitoUserSession | null> => {
@@ -144,4 +214,44 @@ export const getCurrentSession = async (): Promise<CognitoUserSession | null> =>
   }
 
   return null;
+};
+
+export const completeNewPasswordChallenge = async (input: CompleteNewPasswordInput): Promise<CognitoUserSession> => {
+  const config = requireConfig();
+  const attributes = buildNewPasswordAttributes(
+    input.userAttributes,
+    input.requiredAttributes,
+    input.requiredAttributeValues,
+  );
+
+  const session = await new Promise<CognitoUserSession>((resolve, reject) => {
+    input.user.completeNewPasswordChallenge(input.newPassword, attributes, {
+      onSuccess: (result) => resolve(result),
+      onFailure: (error) => reject(error),
+    });
+  });
+
+  if (typeof window !== "undefined") {
+    const otherStorage = getBrowserStorage(!input.remember);
+    clearCognitoStorage(otherStorage, config.clientId);
+  }
+
+  return session;
+};
+
+export const signOut = (): void => {
+  const config = getConfig();
+  if (!config || typeof window === "undefined") {
+    return;
+  }
+
+  const storages = [window.localStorage, window.sessionStorage];
+  storages.forEach((storage) => {
+    const pool = createUserPool(config, storage);
+    const user = pool.getCurrentUser();
+    if (user) {
+      user.signOut();
+    }
+    clearCognitoStorage(storage, config.clientId);
+  });
 };
