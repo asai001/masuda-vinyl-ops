@@ -10,10 +10,10 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "cdk:diff:dev": "cdk diff",
-    "cdk:deploy:dev": "cdk deploy",
-    "cdk:diff:prod": "cdk diff",
-    "cdk:deploy:prod": "cdk deploy"
+    "cdk:diff:dev": "cdk diff -c env=dev",
+    "cdk:deploy:dev": "cdk deploy -c env=dev",
+    "cdk:diff:prod": "cdk diff -c env=prod",
+    "cdk:deploy:prod": "cdk deploy -c env=prod"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "aws-cdk-lib": "2.232.1",
-    "constructs": "^10.0.0"
+    "constructs": "^10.0.0",
+    "dotenv": "^17.2.2"
   }
 }
