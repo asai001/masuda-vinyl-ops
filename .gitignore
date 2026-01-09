@@ -50,6 +50,10 @@ coverage/
 # =========================
 cdk.out/
 cdk.context.json
+infra/.cdk.staging
+infra/**/*.js
+!infra/jest.config.js
+infra/**/*.d.ts
 
 # =========================
 # Misc
