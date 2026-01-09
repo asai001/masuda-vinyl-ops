@@ -1,7 +1,66 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { getCurrentSession, signInWithPassword } from "@/lib/auth/cognito";
+
+type AuthError = {
+  code?: string;
+  message?: string;
+};
+
+const getErrorCode = (error: unknown): string | undefined => {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+  const code = (error as AuthError).code;
+  return typeof code === "string" ? code : undefined;
+};
+
+const getLoginErrorMessage = (error: unknown): string => {
+  const code = getErrorCode(error);
+
+  switch (code) {
+    case "CONFIG_MISSING":
+      return "Cognitoの設定が不足しています。環境変数を確認してください。";
+    case "STORAGE_UNAVAILABLE":
+      return "ブラウザのストレージにアクセスできません。設定を確認してください。";
+    case "NEW_PASSWORD_REQUIRED":
+      return "初回ログインのためパスワード変更が必要です。管理者に連絡してください。";
+    case "MFA_REQUIRED":
+    case "TOTP_REQUIRED":
+    case "SELECT_MFA_TYPE":
+      return "このアカウントは多要素認証が必要です。管理者に連絡してください。";
+    case "CUSTOM_CHALLENGE":
+      return "追加認証が必要です。管理者に連絡してください。";
+    case "UserNotConfirmedException":
+      return "ユーザー確認が完了していません。管理者に連絡してください。";
+    case "NotAuthorizedException":
+      return "ログインIDまたはパスワードが正しくありません。";
+    case "UserNotFoundException":
+      return "ユーザーが見つかりません。";
+    case "PasswordResetRequiredException":
+      return "パスワードのリセットが必要です。";
+    case "TooManyRequestsException":
+    case "LimitExceededException":
+      return "試行回数が多すぎます。しばらく待ってから再試行してください。";
+    case "InvalidParameterException":
+      return "入力内容を確認してください。";
+    case "InvalidPasswordException":
+      return "パスワードの形式が正しくありません。";
+    default:
+      break;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as AuthError).message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+
+  return "ログインに失敗しました。時間をおいて再度お試しください。";
+};
 
 type LoginFormState = {
   identifier: string;
@@ -16,6 +75,25 @@ export default function LoginView() {
     password: "",
     remember: false,
   });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkSession = async () => {
+      const session = await getCurrentSession();
+      if (session && isMounted) {
+        router.replace("/dashboard");
+      }
+    };
+
+    checkSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const handleTextChange = (key: "identifier" | "password") => (event: ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [key]: event.target.value }));
@@ -25,9 +103,32 @@ export default function LoginView() {
     setForm((prev) => ({ ...prev, remember: event.target.checked }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    router.push("/dashboard");
+    if (isSubmitting) {
+      return;
+    }
+
+    if (!form.identifier.trim() || !form.password) {
+      setErrorMessage("ログインIDとパスワードを入力してください。");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await signInWithPassword({
+        identifier: form.identifier,
+        password: form.password,
+        remember: form.remember,
+      });
+      router.push("/dashboard");
+    } catch (error) {
+      setErrorMessage(getLoginErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -43,6 +144,15 @@ export default function LoginView() {
         </header>
         <form className="mt-16 w-full rounded-[3px] bg-[#e9f9fb] px-8 pt-9 pb-8" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-5">
+            {errorMessage && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="rounded-[3px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                {errorMessage}
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <span className="text-[0.95rem] text-neutral-600">ログインID</span>
               <input
@@ -53,6 +163,8 @@ export default function LoginView() {
                 aria-label="ログインID"
                 value={form.identifier}
                 onChange={handleTextChange("identifier")}
+                required
+                disabled={isSubmitting}
                 className="h-10 w-full rounded-[3px] border border-teal-700/25 bg-white/80 px-3 text-base text-slate-900 focus:border-teal-600 focus:outline-none"
               />
             </div>
@@ -66,6 +178,8 @@ export default function LoginView() {
                 aria-label="パスワード"
                 value={form.password}
                 onChange={handleTextChange("password")}
+                required
+                disabled={isSubmitting}
                 className="h-10 w-full rounded-[3px] border border-teal-700/25 bg-white/80 px-3 text-base text-slate-900 focus:border-teal-600 focus:outline-none"
               />
             </div>
@@ -81,6 +195,7 @@ export default function LoginView() {
                 type="checkbox"
                 checked={form.remember}
                 onChange={handleRememberChange}
+                disabled={isSubmitting}
                 className="h-4 w-4 accent-teal-600"
               />
               ログイン情報を保持
@@ -95,9 +210,10 @@ export default function LoginView() {
           <div className="mt-6 flex justify-center">
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-[3px] bg-[#00a7c2] py-3 text-base font-semibold tracking-[0.08em] text-white hover:bg-[#0094ad]"
             >
-              ログイン
+              {isSubmitting ? "ログイン中..." : "ログイン"}
             </button>
           </div>
         </form>

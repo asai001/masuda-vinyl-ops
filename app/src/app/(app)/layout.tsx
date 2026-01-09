@@ -1,13 +1,36 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { usePathname, useRouter } from "next/navigation";
+import { getCurrentSession } from "@/lib/auth/cognito";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkAuth = async () => {
+      const session = await getCurrentSession();
+      if (!session) {
+        router.replace("/");
+        return;
+      }
+      if (isMounted) {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname, router]);
 
   const pageTitles: Record<string, string> = {
     "/": "ダッシュボード",
@@ -30,6 +53,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const userName = "Huong Nguyen";
   const userRole = "経理担当";
+
+  if (isCheckingAuth) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
 
   return (
     <div className="flex min-h-screen text-gray-900">
