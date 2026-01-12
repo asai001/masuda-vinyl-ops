@@ -2,7 +2,13 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { completeNewPasswordChallenge, getCurrentSession, signInWithPassword, type NewPasswordChallenge } from "@/lib/auth/cognito";
+import Link from "next/link";
+import {
+  completeNewPasswordChallenge,
+  getCurrentSession,
+  signInWithPassword,
+  type NewPasswordChallenge,
+} from "@/lib/auth/cognito";
 
 type AuthError = {
   code?: string;
@@ -219,7 +225,11 @@ export default function LoginView() {
         >
           <div className="flex flex-col gap-5">
             {errorMessage && (
-              <div role="alert" aria-live="polite" className="rounded-[3px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div
+                role="alert"
+                aria-live="polite"
+                className="rounded-[3px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
                 {errorMessage}
               </div>
             )}
@@ -322,9 +332,12 @@ export default function LoginView() {
                 />
                 ログイン情報を保持
               </label>
-              <button type="button" className="inline-flex w-fit cursor-pointer self-start text-[0.85rem] text-teal-700 hover:underline">
+              <Link
+                href="/forgot-password"
+                className="inline-flex w-fit cursor-pointer self-start text-[0.85rem] text-teal-700 hover:underline"
+              >
                 パスワードを忘れた方はこちら
-              </button>
+              </Link>
             </div>
           )}
           <div className="mt-6 flex justify-center">
@@ -333,7 +346,13 @@ export default function LoginView() {
               disabled={isSubmitting}
               className="w-full rounded-[3px] bg-[#00a7c2] py-3 text-base font-semibold tracking-[0.08em] text-white hover:bg-[#0094ad]"
             >
-              {isNewPasswordRequired ? (isSubmitting ? "更新中..." : "パスワードを更新") : isSubmitting ? "ログイン中..." : "ログイン"}
+              {isNewPasswordRequired
+                ? isSubmitting
+                  ? "更新中..."
+                  : "パスワードを更新"
+                : isSubmitting
+                ? "ログイン中..."
+                : "ログイン"}
             </button>
           </div>
         </form>

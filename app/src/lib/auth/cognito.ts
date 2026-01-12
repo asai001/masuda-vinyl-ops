@@ -372,3 +372,80 @@ export const updateMyProfileAttributes = async (input: {
 
   return refreshed;
 };
+
+const createUnauthenticatedUser = (identifier: string, storage: Storage): CognitoUser => {
+  const config = requireConfig();
+  const pool = createUserPool(config, storage);
+  const username = identifier.trim();
+
+  return new CognitoUser({
+    Username: username,
+    Pool: pool,
+    Storage: storage,
+  });
+};
+
+export const confirmPasswordReset = async (input: {
+  identifier: string;
+  verificationCode: string;
+  newPassword: string;
+}): Promise<void> => {
+  const identifier = input.identifier.trim();
+  const code = input.verificationCode.trim();
+  if (!identifier || !code || !input.newPassword) {
+    throw withCode("InvalidParameterException");
+  }
+
+  const storage = getBrowserStorage(false);
+  const user = createUnauthenticatedUser(identifier, storage);
+
+  await new Promise<void>((resolve, reject) => {
+    user.confirmPassword(code, input.newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (error) => reject(error),
+    });
+  });
+};
+
+export type ForgotPasswordDelivery = {
+  destination?: string;
+  deliveryMedium?: string;
+  attributeName?: string;
+};
+
+export const requestPasswordReset = async (identifier: string): Promise<ForgotPasswordDelivery> => {
+  if (!identifier.trim()) {
+    throw withCode("InvalidParameterException");
+  }
+
+  // パスワード再設定はログイン不要なので sessionStorage を使う
+  const storage = getBrowserStorage(false);
+  const user = createUnauthenticatedUser(identifier, storage);
+
+  return new Promise<ForgotPasswordDelivery>((resolve, reject) => {
+    let resolved = false;
+    user.forgotPassword({
+      onFailure: (error) => reject(error),
+      inputVerificationCode: (data) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        const payload = (data ?? {}) as Record<string, unknown>;
+        resolve({
+          destination: typeof payload.Destination === "string" ? payload.Destination : undefined,
+          deliveryMedium: typeof payload.DeliveryMedium === "string" ? payload.DeliveryMedium : undefined,
+          attributeName: typeof payload.AttributeName === "string" ? payload.AttributeName : undefined,
+        });
+      },
+      onSuccess: () => {
+        // confirmPassword を使わずに完結させる場合に備えて一応 resolve
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        resolve({});
+      },
+    });
+  });
+};
