@@ -1,4 +1,10 @@
-import { AuthenticationDetails, CognitoUser, CognitoUserPool, CognitoUserSession } from "amazon-cognito-identity-js";
+import {
+  AuthenticationDetails,
+  CognitoUser,
+  CognitoUserPool,
+  CognitoUserSession,
+  CognitoUserAttribute,
+} from "amazon-cognito-identity-js";
 
 type CognitoConfig = {
   userPoolId: string;
@@ -101,7 +107,7 @@ const stripReadOnlyAttributes = (attributes: Record<string, string>): Record<str
 const buildNewPasswordAttributes = (
   userAttributes: Record<string, string>,
   requiredAttributes: string[],
-  requiredAttributeValues: Record<string, string>
+  requiredAttributeValues: Record<string, string>,
 ): Record<string, string> => {
   const sanitized = stripReadOnlyAttributes(userAttributes);
   const requiredOnly: Record<string, string> = {};
@@ -210,7 +216,11 @@ export const getCurrentSession = async (): Promise<CognitoUserSession | null> =>
 
 export const completeNewPasswordChallenge = async (input: CompleteNewPasswordInput): Promise<CognitoUserSession> => {
   const config = requireConfig();
-  const attributes = buildNewPasswordAttributes(input.userAttributes, input.requiredAttributes, input.requiredAttributeValues);
+  const attributes = buildNewPasswordAttributes(
+    input.userAttributes,
+    input.requiredAttributes,
+    input.requiredAttributeValues,
+  );
 
   const session = await new Promise<CognitoUserSession>((resolve, reject) => {
     input.user.completeNewPasswordChallenge(input.newPassword, attributes, {
@@ -250,4 +260,90 @@ export const getIdTokenJwt = async (): Promise<string | null> => {
     return null;
   }
   return session.getIdToken().getJwtToken();
+};
+
+const getCurrentUserFromStorages = (config: CognitoConfig): { user: CognitoUser; storage: Storage } | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const storages = [window.localStorage, window.sessionStorage] as const;
+  for (const storage of storages) {
+    const pool = createUserPool(config, storage);
+    const user = pool.getCurrentUser();
+    if (user) {
+      return { user, storage };
+    }
+  }
+  return null;
+};
+
+export type MyProfile = {
+  userName: string;
+  departmentName: string;
+};
+
+export const getMyProfile = async (): Promise<MyProfile | null> => {
+  const session = await getCurrentSession();
+  if (!session) {
+    return null;
+  }
+
+  const payload = session.getIdToken().decodePayload() as Record<string, unknown>;
+
+  // userName は好きな属性に寄せてOK（例: custom:displayName）
+  const userName =
+    (payload["custom:displayName"] as string | undefined) ??
+    (payload["name"] as string | undefined) ??
+    (payload["cognito:username"] as string | undefined) ??
+    "";
+
+  const departmentName = (payload["custom:departmentName"] as string | undefined) ?? "";
+
+  return { userName, departmentName };
+};
+
+export const updateMyProfileAttributes = async (input: {
+  userName?: string; // custom:displayName に入れる想定
+  departmentName?: string; // custom:departmentName
+}): Promise<CognitoUserSession> => {
+  const config = requireConfig();
+  const found = getCurrentUserFromStorages(config);
+  if (!found) {
+    throw withCode("NOT_AUTHENTICATED");
+  }
+
+  const { user } = found;
+
+  const attrs: CognitoUserAttribute[] = [];
+  if (typeof input.userName === "string") {
+    attrs.push(new CognitoUserAttribute({ Name: "custom:displayName", Value: input.userName }));
+  }
+  if (typeof input.departmentName === "string") {
+    attrs.push(new CognitoUserAttribute({ Name: "custom:departmentName", Value: input.departmentName }));
+  }
+  if (attrs.length === 0) {
+    throw withCode("NO_FIELDS_TO_UPDATE");
+  }
+
+  // 1) 属性更新
+  await new Promise<void>((resolve, reject) => {
+    user.updateAttributes(attrs, (err) => (err ? reject(err) : resolve()));
+  });
+
+  // 2) トークン再発行（IDトークンpayloadに反映させる）
+  const session = await new Promise<CognitoUserSession>((resolve, reject) => {
+    user.getSession((err: Error | null, s: CognitoUserSession | null) =>
+      err || !s ? reject(err ?? withCode("SESSION_MISSING")) : resolve(s),
+    );
+  });
+
+  const refreshToken = session.getRefreshToken();
+  const refreshed = await new Promise<CognitoUserSession>((resolve, reject) => {
+    user.refreshSession(refreshToken, (err, newSession) =>
+      err || !newSession ? reject(err ?? withCode("REFRESH_FAILED")) : resolve(newSession),
+    );
+  });
+
+  return refreshed;
 };
