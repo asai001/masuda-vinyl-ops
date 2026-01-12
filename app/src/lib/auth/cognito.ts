@@ -292,28 +292,56 @@ export const getMyProfile = async (): Promise<MyProfile | null> => {
   const payload = session.getIdToken().decodePayload() as Record<string, unknown>;
 
   // userName は好きな属性に寄せてOK（例: custom:displayName）
-  const userName =
-    (payload["custom:displayName"] as string | undefined) ??
-    (payload["name"] as string | undefined) ??
-    (payload["cognito:username"] as string | undefined) ??
-    "";
+  const userName = (payload["custom:displayName"] as string | undefined) ?? "";
 
   const departmentName = (payload["custom:departmentName"] as string | undefined) ?? "";
 
   return { userName, departmentName };
 };
 
+// 認証済み user + session を「同じストレージ」から確実に取得する
+const getAuthenticatedUserAndSession = async (): Promise<{ user: CognitoUser; session: CognitoUserSession } | null> => {
+  const config = getConfig();
+  if (!config || typeof window === "undefined") {
+    return null;
+  }
+
+  const storages = [window.localStorage, window.sessionStorage] as const;
+
+  for (const storage of storages) {
+    const pool = createUserPool(config, storage);
+    const user = pool.getCurrentUser();
+    if (!user) {
+      continue;
+    }
+
+    const session = await new Promise<CognitoUserSession | null>((resolve) => {
+      user.getSession((err: Error | null, s: CognitoUserSession | null) => {
+        if (err || !s) {
+          return resolve(null);
+        }
+        resolve(s);
+      });
+    });
+
+    if (session) {
+      return { user, session };
+    }
+  }
+
+  return null;
+};
+
 export const updateMyProfileAttributes = async (input: {
-  userName?: string; // custom:displayName に入れる想定
+  userName?: string; // custom:displayName
   departmentName?: string; // custom:departmentName
 }): Promise<CognitoUserSession> => {
-  const config = requireConfig();
-  const found = getCurrentUserFromStorages(config);
+  const found = await getAuthenticatedUserAndSession();
   if (!found) {
     throw withCode("NOT_AUTHENTICATED");
   }
 
-  const { user } = found;
+  const { user, session } = found;
 
   const attrs: CognitoUserAttribute[] = [];
   if (typeof input.userName === "string") {
@@ -326,23 +354,20 @@ export const updateMyProfileAttributes = async (input: {
     throw withCode("NO_FIELDS_TO_UPDATE");
   }
 
-  // 1) 属性更新
+  // 1) 属性更新（この時点で session がある user なので "not authenticated" が起きにくい）
   await new Promise<void>((resolve, reject) => {
     user.updateAttributes(attrs, (err) => (err ? reject(err) : resolve()));
   });
 
-  // 2) トークン再発行（IDトークンpayloadに反映させる）
-  const session = await new Promise<CognitoUserSession>((resolve, reject) => {
-    user.getSession((err: Error | null, s: CognitoUserSession | null) =>
-      err || !s ? reject(err ?? withCode("SESSION_MISSING")) : resolve(s),
-    );
-  });
-
+  // 2) トークン再発行（ヘッダー即反映のため）
   const refreshToken = session.getRefreshToken();
   const refreshed = await new Promise<CognitoUserSession>((resolve, reject) => {
-    user.refreshSession(refreshToken, (err, newSession) =>
-      err || !newSession ? reject(err ?? withCode("REFRESH_FAILED")) : resolve(newSession),
-    );
+    user.refreshSession(refreshToken, (err: Error | null, newSession: CognitoUserSession | null) => {
+      if (err || !newSession) {
+        return reject(err ?? withCode("REFRESH_FAILED"));
+      }
+      resolve(newSession);
+    });
   });
 
   return refreshed;
