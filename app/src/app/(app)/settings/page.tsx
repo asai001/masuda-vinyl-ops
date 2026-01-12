@@ -1,6 +1,6 @@
 "use client";
 
-import SettingsView from "@/features/settings/SettingsView";
+import SettingsView from "@/features/settings/ui/SettingsView";
 
 export default function SettingsPage() {
   return <SettingsView />;

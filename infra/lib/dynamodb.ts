@@ -14,6 +14,8 @@ interface DynamoDbResourcesProps {
 }
 
 export class DynamoDbResources extends Construct {
+  public readonly settingsTable: dynamodb.Table;
+
   private readonly pointInTimeRecoveryEnabled: boolean;
 
   constructor(scope: Construct, id: string, props: DynamoDbResourcesProps) {
@@ -457,6 +459,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "settingsKey", type: dynamodb.AttributeType.STRING }, // e.g. "DEFAULT"
       removalPolicy,
     });
+    this.settingsTable = settings.table;
   }
 
   private createTable(args: {

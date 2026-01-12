@@ -15,13 +15,14 @@ export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: InfraStackProps) {
     super(scope, id, props);
 
-    new DynamoDbResources(this, "DynamoDb", {
+    const dynamodb = new DynamoDbResources(this, "DynamoDb", {
       deployEnv: props.deployEnv,
     });
 
     new UserPoolResources(this, "UserPool", {
       deployEnv: props.deployEnv,
       vercelEnvironment: props.vercelEnvironment,
+      settingsTable: dynamodb.settingsTable,
     });
   }
 }

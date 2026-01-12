@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as iam from "aws-cdk-lib/aws-iam";
+import { Table } from "aws-cdk-lib/aws-dynamodb";
 
 type DeployEnv = "dev" | "prod";
 type VercelEnvironment = "preview" | "production";
@@ -9,6 +10,7 @@ type VercelEnvironment = "preview" | "production";
 interface UserPoolResourcesProps {
   deployEnv: DeployEnv;
   vercelEnvironment: VercelEnvironment;
+  settingsTable: Table;
 }
 
 export class UserPoolResources extends Construct {
@@ -61,8 +63,11 @@ export class UserPoolResources extends Construct {
       },
     });
 
-    new iam.Role(this, "role", {
+    const vercelRole = new iam.Role(this, "role", {
+      roleName: `masuda-vinyl-ops-vercel-oidc-${props.deployEnv}-${props.vercelEnvironment}`,
       assumedBy,
     });
+
+    props.settingsTable.grantReadWriteData(vercelRole);
   }
 }
