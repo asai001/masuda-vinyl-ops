@@ -1,9 +1,4 @@
-import {
-  AuthenticationDetails,
-  CognitoUser,
-  CognitoUserPool,
-  CognitoUserSession,
-} from "amazon-cognito-identity-js";
+import { AuthenticationDetails, CognitoUser, CognitoUserPool, CognitoUserSession } from "amazon-cognito-identity-js";
 
 type CognitoConfig = {
   userPoolId: string;
@@ -106,7 +101,7 @@ const stripReadOnlyAttributes = (attributes: Record<string, string>): Record<str
 const buildNewPasswordAttributes = (
   userAttributes: Record<string, string>,
   requiredAttributes: string[],
-  requiredAttributeValues: Record<string, string>,
+  requiredAttributeValues: Record<string, string>
 ): Record<string, string> => {
   const sanitized = stripReadOnlyAttributes(userAttributes);
   const requiredOnly: Record<string, string> = {};
@@ -135,10 +130,7 @@ const clearCognitoStorage = (storage: Storage, clientId: string) => {
   keysToRemove.forEach((key) => storage.removeItem(key));
 };
 
-const getSessionFromStorage = async (
-  storage: Storage,
-  config: CognitoConfig,
-): Promise<CognitoUserSession | null> => {
+const getSessionFromStorage = async (storage: Storage, config: CognitoConfig): Promise<CognitoUserSession | null> => {
   const pool = createUserPool(config, storage);
   const user = pool.getCurrentUser();
   if (!user) {
@@ -218,11 +210,7 @@ export const getCurrentSession = async (): Promise<CognitoUserSession | null> =>
 
 export const completeNewPasswordChallenge = async (input: CompleteNewPasswordInput): Promise<CognitoUserSession> => {
   const config = requireConfig();
-  const attributes = buildNewPasswordAttributes(
-    input.userAttributes,
-    input.requiredAttributes,
-    input.requiredAttributeValues,
-  );
+  const attributes = buildNewPasswordAttributes(input.userAttributes, input.requiredAttributes, input.requiredAttributeValues);
 
   const session = await new Promise<CognitoUserSession>((resolve, reject) => {
     input.user.completeNewPasswordChallenge(input.newPassword, attributes, {
@@ -254,4 +242,12 @@ export const signOut = (): void => {
     }
     clearCognitoStorage(storage, config.clientId);
   });
+};
+
+export const getIdTokenJwt = async (): Promise<string | null> => {
+  const session = await getCurrentSession();
+  if (!session) {
+    return null;
+  }
+  return session.getIdToken().getJwtToken();
 };
