@@ -35,6 +35,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const onUpdated = async () => {
+      const p = await getMyProfile();
+      if (!cancelled) {
+        setProfile(p);
+      }
+    };
+
+    window.addEventListener("mvops:profile-updated", onUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("mvops:profile-updated", onUpdated);
+    };
+  }, []);
+
   const pageTitles: Record<string, string> = {
     "/": "ダッシュボード",
     "/dashboard": "ダッシュボード",
