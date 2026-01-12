@@ -31,7 +31,22 @@ export class UserPoolResources extends Construct {
         requireDigits: false,
         requireSymbols: false,
       },
+
+      customAttributes: {
+        departmentName: new cognito.StringAttribute({
+          mutable: true,
+        }),
+        displayName: new cognito.StringAttribute({
+          mutable: true,
+        }),
+        orgId: new cognito.StringAttribute({
+          mutable: true,
+        }),
+      },
     });
+
+    const readAttrs = new cognito.ClientAttributes().withCustomAttributes("departmentName", "displayName", "orgId");
+    const writeAttrs = new cognito.ClientAttributes().withCustomAttributes("departmentName", "displayName");
 
     userPool.addClient(`masuda-vinyl-ops-app-client${resourceSuffix}`, {
       userPoolClientName: `masuda-vinyl-ops-app-client${resourceSuffix}`,
@@ -44,6 +59,8 @@ export class UserPoolResources extends Construct {
       refreshTokenValidity: cdk.Duration.days(14),
       preventUserExistenceErrors: true,
       disableOAuth: true,
+      readAttributes: readAttrs,
+      writeAttributes: writeAttrs,
     });
 
     const teamSlug = "asai001s-projects-3e71fbe6";

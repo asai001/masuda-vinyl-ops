@@ -4,12 +4,13 @@ import React, { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { usePathname, useRouter } from "next/navigation";
-import { getCurrentSession } from "@/lib/auth/cognito";
+import { getCurrentSession, getMyProfile } from "@/lib/auth/cognito";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [profile, setProfile] = useState<{ userName: string; departmentName: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,7 +21,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         router.replace("/");
         return;
       }
+      const p = await getMyProfile();
       if (isMounted) {
+        setProfile(p);
         setIsCheckingAuth(false);
       }
     };
@@ -51,8 +54,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push(path);
   };
 
-  const userName = "Huong Nguyen";
-  const userRole = "経理担当";
+  const userName = profile?.userName ?? "";
+  const departmentName = profile?.departmentName ?? "";
 
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-50" />;
@@ -62,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen text-gray-900">
       <Sidebar onNavigate={handleNavigate} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header pageTitle={pageTitle} userName={userName} userRole={userRole} />
+        <Header pageTitle={pageTitle} userName={userName} userRole={departmentName} />
         <main className="flex-1 bg-gray-50 p-6 min-w-0 overflow-x-hidden">{children}</main>
       </div>
     </div>
