@@ -26,7 +26,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- clients ----
     const clients = this.createTable({
-      tableName: "clients",
+      tableName: "clients-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "clientId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
@@ -67,7 +67,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- materials ----
     const materials = this.createTable({
-      tableName: "materials",
+      tableName: "materials-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "materialId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
@@ -128,7 +128,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- products ----
     const products = this.createTable({
-      tableName: "products",
+      tableName: "products-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "productId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
@@ -337,7 +337,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- payment_definitions ----
     const paymentDefs = this.createTable({
-      tableName: "payment-definitions",
+      tableName: "payment-definitions-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "paymentDefId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
