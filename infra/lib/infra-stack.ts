@@ -22,7 +22,10 @@ export class InfraStack extends cdk.Stack {
     new UserPoolResources(this, "UserPool", {
       deployEnv: props.deployEnv,
       vercelEnvironment: props.vercelEnvironment,
-      settingsTable: dynamodb.settingsTable,
+      tables: {
+        settings: dynamodb.settingsTable,
+        clientsMaster: dynamodb.clientsMasterTable,
+      },
     });
   }
 }
