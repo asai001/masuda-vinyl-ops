@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
@@ -8,16 +8,13 @@ import ClientMasterTableView from "@/features/client-master/ClientMasterTableVie
 import DeleteClientDialog from "@/features/client-master/DeleteClientDialog";
 import EditClientModal from "@/features/client-master/EditClientModal";
 import NewClientModal from "@/features/client-master/NewClientModal";
-import { ClientRow, clientRows } from "@/mock/clientMasterData";
-
-const statusLabels: Record<string, string> = {
-  active: "有効",
-  inactive: "無効",
-};
+import type { ClientRow } from "./types";
+import { fetchClientRows } from "./api/client";
 
 export default function ClientMasterView() {
   const {
     rows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
@@ -30,38 +27,63 @@ export default function ClientMasterView() {
     openDelete,
     closeDelete,
     confirmDelete,
-  } = useMasterCrud<ClientRow>(clientRows, (item, nextId) => ({ ...item, id: nextId }));
+  } = useMasterCrud<ClientRow>([], (item, nextId) => ({
+    ...item,
+    id: nextId,
+    clientId: item.clientId ?? `local_${nextId}`,
+  }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
+
+  // DynamoDB から取引先を取得
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchClientRows();
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows]);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     // 配列から重複を取り除いて、ユニークな値だけにするための関数
-    const uniqueValues = (values: string[]) => Array.from(new Set(values));
+    const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
+    const uniqueStrings = (values: Array<string | undefined>) => Array.from(new Set(values.filter(isNonEmptyString)));
+    const toOptions = (values: string[]) => values.map((v) => ({ value: v, label: v }));
 
     // 以下のような select 用の値を生成
     // [{value: "材料", label: "材料"}, {value: "加工", label: "加工"}
-    const categoryOptions = uniqueValues(rows.map((row) => row.category)).map((value) => ({
-      value,
-      label: value,
-    }));
-    const regionOptions = uniqueValues(rows.map((row) => row.region)).map((value) => ({
-      value,
-      label: value,
-    }));
-    const currencyOptions = uniqueValues(rows.map((row) => row.currency)).map((value) => ({
-      value,
-      label: value,
-    }));
-    const statusOptions = [
-      { value: "active", label: statusLabels.active },
-      { value: "inactive", label: statusLabels.inactive },
-    ];
+    const categoryOptions = toOptions(uniqueStrings(rows.map((r) => r.category)));
+    const regionOptions = toOptions(uniqueStrings(rows.map((r) => r.region)));
+    const currencyOptions = toOptions(uniqueStrings(rows.map((r) => r.currency)));
+    const statusOptions = toOptions(uniqueStrings(rows.map((r) => r.status)));
 
     return [
       { key: "category", label: "区分", type: "select", options: categoryOptions },
       { key: "region", label: "地域", type: "select", options: regionOptions },
       { key: "currency", label: "通貨", type: "select", options: currencyOptions },
       { key: "status", label: "ステータス", type: "select", options: statusOptions },
-      { key: "name", label: "仕入先", type: "text" },
+      { key: "name", label: "取引先", type: "text" },
     ];
   }, [rows]);
 
@@ -104,7 +126,7 @@ export default function ClientMasterView() {
           default:
             return true;
         }
-      })
+      }),
     );
   }, [filters, rows]);
 
@@ -127,7 +149,18 @@ export default function ClientMasterView() {
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
-      <ToolBar filterDefinitions={filterDefinitions} filters={filters} onFiltersChange={setFilters} onCreate={openCreate} />
+      <ToolBar
+        filterDefinitions={filterDefinitions}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onCreate={openCreate}
+      />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          取引先マスタの取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <ClientMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewClientModal
         open={isCreateOpen}
@@ -150,7 +183,12 @@ export default function ClientMasterView() {
         currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
       />
-      <DeleteClientDialog open={Boolean(deletingRow)} client={deletingRow} onClose={closeDelete} onConfirm={confirmDelete} />
+      <DeleteClientDialog
+        open={Boolean(deletingRow)}
+        client={deletingRow}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

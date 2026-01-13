@@ -231,7 +231,7 @@ export class DynamoDbResources extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    // 仕入先
+    // 取引先
     purchaseOrders.table.addGlobalSecondaryIndex({
       indexName: "PurchaseOrdersBySupplierIndex",
       partitionKey: { name: "supplierIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${supplier}`

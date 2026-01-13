@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ClientRow } from "@/mock/clientMasterData";
+import { ClientRow } from "./types";
 
 type Option = {
   value: string;
@@ -48,7 +48,7 @@ export default function NewClientModal({
     region: "",
     currency: "",
     status: "active",
-    description: "",
+    note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
 
@@ -61,7 +61,7 @@ export default function NewClientModal({
       region: "",
       currency: "",
       status: "active",
-      description: "",
+      note: "",
     });
     setErrors(emptyErrors);
   };
@@ -93,8 +93,9 @@ export default function NewClientModal({
     }
 
     onSave({
+      clientId: crypto.randomUUID(),
       name: form.name,
-      description: form.description,
+      note: form.note,
       address: form.address,
       phone: form.phone,
       category: form.category,
@@ -128,7 +129,7 @@ export default function NewClientModal({
     >
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          仕入先 <span className="text-red-500">*</span>
+          取引先 <span className="text-red-500">*</span>
         </label>
         <TextField
           size="small"
@@ -266,8 +267,8 @@ export default function NewClientModal({
           multiline
           minRows={3}
           placeholder="備考を入力してください"
-          value={form.description}
-          onChange={(event) => handleChange("description", event.target.value)}
+          value={form.note}
+          onChange={(event) => handleChange("note", event.target.value)}
         />
       </div>
     </Modal>
