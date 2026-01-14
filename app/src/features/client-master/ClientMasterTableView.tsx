@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { ClientRow } from "@/mock/clientMasterData";
+import { ClientRow } from "./types";
 
 const statusStyles = {
   active: { label: "有効", backgroundColor: "#e9f7ef", color: "#15803d" },
@@ -24,12 +24,12 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
   const columns: TableColumn<ClientRow>[] = [
     {
       key: "name",
-      header: "仕入先",
+      header: "取引先",
       sortKey: "name",
       render: (row) => (
         <div>
           <div className="text-sm font-semibold text-gray-900">{row.name}</div>
-          <div className="text-xs text-gray-500">{row.description}</div>
+          <div className="text-xs text-gray-500">{row.note}</div>
           <div className="text-xs text-gray-500">住所: {row.address || "（未設定）"}</div>
           <div className="text-xs text-gray-500">TEL: {row.phone || "（未設定）"}</div>
         </div>
@@ -39,17 +39,22 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
       key: "category",
       header: "区分",
       sortKey: "category",
-      render: (row) => (
-        <Chip
-          label={row.category}
-          size="small"
-          sx={{
-            backgroundColor: "#e8f1ff",
-            color: "#2563eb",
-            fontWeight: 600,
-          }}
-        />
-      ),
+      render: (row) => {
+        if (!row.category) {
+          return null;
+        }
+        return (
+          <Chip
+            label={row.category}
+            size="small"
+            sx={{
+              backgroundColor: "#e8f1ff",
+              color: "#2563eb",
+              fontWeight: 600,
+            }}
+          />
+        );
+      },
     },
     {
       key: "region",
@@ -68,6 +73,9 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
       header: "ステータス",
       sortKey: "status",
       render: (row) => {
+        if (!row.status) {
+          return null;
+        }
         const statusStyle = statusStyles[row.status];
         return (
           <Chip
@@ -130,7 +138,7 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.clientId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

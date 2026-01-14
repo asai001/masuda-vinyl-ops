@@ -15,6 +15,7 @@ interface DynamoDbResourcesProps {
 
 export class DynamoDbResources extends Construct {
   public readonly settingsTable: dynamodb.Table;
+  public readonly clientsMasterTable: dynamodb.Table;
 
   private readonly pointInTimeRecoveryEnabled: boolean;
 
@@ -25,49 +26,50 @@ export class DynamoDbResources extends Construct {
     const removalPolicy = this.pointInTimeRecoveryEnabled ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
 
     // ---- clients ----
-    const clients = this.createTable({
-      tableName: "clients",
+    const clientsMaster = this.createTable({
+      tableName: "clients-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "clientId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
 
     // category / region / currency / status: orgId#xxx で1発Queryできるように
-    clients.table.addGlobalSecondaryIndex({
+    clientsMaster.table.addGlobalSecondaryIndex({
       indexName: "ClientsByCategoryIndex",
       partitionKey: { name: "categoryIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${category}`
       sortKey: { name: "categoryIndexSk", type: dynamodb.AttributeType.STRING }, // `${nameLower}#${clientId}`
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    clients.table.addGlobalSecondaryIndex({
+    clientsMaster.table.addGlobalSecondaryIndex({
       indexName: "ClientsByRegionIndex",
       partitionKey: { name: "regionIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${region}`
       sortKey: { name: "regionIndexSk", type: dynamodb.AttributeType.STRING }, // `${nameLower}#${clientId}`
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    clients.table.addGlobalSecondaryIndex({
+    clientsMaster.table.addGlobalSecondaryIndex({
       indexName: "ClientsByCurrencyIndex",
       partitionKey: { name: "currencyIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${currency}`
       sortKey: { name: "currencyIndexSk", type: dynamodb.AttributeType.STRING }, // `${nameLower}#${clientId}`
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    clients.table.addGlobalSecondaryIndex({
+    clientsMaster.table.addGlobalSecondaryIndex({
       indexName: "ClientsByStatusIndex",
       partitionKey: { name: "statusIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${status}`
       sortKey: { name: "statusIndexSk", type: dynamodb.AttributeType.STRING }, // `${nameLower}#${clientId}`
       projectionType: dynamodb.ProjectionType.ALL,
     });
     // name 前方一致（begins_with）で検索したい用
-    clients.table.addGlobalSecondaryIndex({
+    clientsMaster.table.addGlobalSecondaryIndex({
       indexName: "ClientsByNameIndex",
       partitionKey: { name: "nameIndexPk", type: dynamodb.AttributeType.STRING }, // orgId
       sortKey: { name: "nameIndexSk", type: dynamodb.AttributeType.STRING }, // `${nameLower}#${clientId}`
       projectionType: dynamodb.ProjectionType.ALL,
     });
+    this.clientsMasterTable = clientsMaster.table;
 
     // ---- materials ----
     const materials = this.createTable({
-      tableName: "materials",
+      tableName: "materials-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "materialId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
@@ -128,7 +130,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- products ----
     const products = this.createTable({
-      tableName: "products",
+      tableName: "products-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "productId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
@@ -231,7 +233,7 @@ export class DynamoDbResources extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    // 仕入先
+    // 取引先
     purchaseOrders.table.addGlobalSecondaryIndex({
       indexName: "PurchaseOrdersBySupplierIndex",
       partitionKey: { name: "supplierIndexPk", type: dynamodb.AttributeType.STRING }, // `${orgId}#${supplier}`
@@ -337,7 +339,7 @@ export class DynamoDbResources extends Construct {
 
     // ---- payment_definitions ----
     const paymentDefs = this.createTable({
-      tableName: "payment-definitions",
+      tableName: "payment-definitions-master",
       pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
       sk: { name: "paymentDefId", type: dynamodb.AttributeType.STRING },
       removalPolicy,

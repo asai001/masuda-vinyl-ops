@@ -3,7 +3,7 @@
 import React from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { ClientRow } from "@/mock/clientMasterData";
+import { ClientRow } from "./types";
 
 type DeleteClientDialogProps = {
   open: boolean;

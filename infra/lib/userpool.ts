@@ -10,7 +10,10 @@ type VercelEnvironment = "preview" | "production";
 interface UserPoolResourcesProps {
   deployEnv: DeployEnv;
   vercelEnvironment: VercelEnvironment;
-  settingsTable: Table;
+  tables: {
+    settings: Table;
+    clientsMaster: Table;
+  };
 }
 
 export class UserPoolResources extends Construct {
@@ -68,15 +71,18 @@ export class UserPoolResources extends Construct {
     const env = props.vercelEnvironment;
     const aud = `https://vercel.com/${teamSlug}`;
 
+    const issuer = `https://oidc.vercel.com/${teamSlug}`;
+    const issuerKeyPrefix = `oidc.vercel.com/${teamSlug}`;
+
     const vercelProvider = new iam.OpenIdConnectProvider(this, "VercelOidc", {
-      url: "https://oidc.vercel.com",
+      url: issuer,
       clientIds: [aud],
     });
 
     const assumedBy = new iam.OpenIdConnectPrincipal(vercelProvider, {
       StringEquals: {
-        "oidc.vercel.com:aud": aud,
-        "oidc.vercel.com:sub": `owner:${teamSlug}:project:${projectName}:environment:${env}`,
+        [`${issuerKeyPrefix}:aud`]: aud,
+        [`${issuerKeyPrefix}:sub`]: `owner:${teamSlug}:project:${projectName}:environment:${env}`,
       },
     });
 
@@ -85,6 +91,7 @@ export class UserPoolResources extends Construct {
       assumedBy,
     });
 
-    props.settingsTable.grantReadWriteData(vercelRole);
+    props.tables.settings.grantReadWriteData(vercelRole);
+    props.tables.clientsMaster.grantReadWriteData(vercelRole);
   }
 }
