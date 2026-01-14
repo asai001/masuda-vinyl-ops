@@ -4,23 +4,21 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ClientRow } from "./types";
+import { ClientRow } from "../types";
 
 type Option = {
   value: string;
   label: string;
 };
 
-type EditClientModalProps = {
+type NewClientModalProps = {
   open: boolean;
-  client: ClientRow | null;
   categoryOptions: Option[];
   regionOptions: Option[];
   currencyOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
-  onSave: (client: ClientRow) => void;
-  onDelete?: (client: ClientRow) => void;
+  onSave: (client: Omit<ClientRow, "id">) => void;
 };
 
 const emptyErrors = {
@@ -33,30 +31,59 @@ const emptyErrors = {
   status: "",
 };
 
-export default function EditClientModal({
+const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
+
+export default function NewClientModal({
   open,
-  client,
   categoryOptions,
   regionOptions,
   currencyOptions,
   statusOptions,
   onClose,
   onSave,
-  onDelete,
-}: EditClientModalProps) {
-  const getInitialForm = (row: ClientRow | null) => ({
-    name: row?.name ?? "",
-    address: row?.address ?? "",
-    phone: row?.phone ?? "",
-    category: row?.category ?? "",
-    region: row?.region ?? "",
-    currency: row?.currency ?? "",
-    status: row?.status ?? "active",
-    note: row?.note ?? "",
+}: NewClientModalProps) {
+  const [form, setForm] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    category: "",
+    region: "",
+    currency: "",
+    status: "active",
+    note: "",
   });
-
-  const [form, setForm] = useState(() => getInitialForm(client));
   const [errors, setErrors] = useState(emptyErrors);
+
+  // statusOptions は画面上「有効/無効」の二択に固定するため、入力値としては使用しないと明示
+  // ESLint/TS の「未使用変数」警告を消すための行
+  void statusOptions;
+
+  const currencyLabelOptions = useMemo(() => {
+    const fromProps = currencyOptions.map((o) => o.label).filter(Boolean);
+    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
+    // 重複除去（大文字小文字は区別しない）
+    const uniq = Array.from(new Map(merged.map((v) => [v.toUpperCase(), v])).values());
+    return uniq;
+  }, [currencyOptions]);
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      address: "",
+      phone: "",
+      category: "",
+      region: "",
+      currency: "",
+      status: "active",
+      note: "",
+    });
+    setErrors(emptyErrors);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -79,12 +106,8 @@ export default function EditClientModal({
       return;
     }
 
-    if (!client) {
-      return;
-    }
-
     onSave({
-      ...client,
+      clientId: crypto.randomUUID(),
       name: form.name,
       note: form.note,
       address: form.address,
@@ -94,32 +117,27 @@ export default function EditClientModal({
       currency: form.currency,
       status: form.status as ClientRow["status"],
     });
+    resetForm();
   };
 
   const statusLabel = useMemo(() => {
-    const selected = statusOptions.find((option) => option.value === form.status);
-    return selected?.label ?? "有効";
-  }, [form.status, statusOptions]);
+    return form.status === "inactive" ? "無効" : "有効";
+  }, [form.status]);
 
   return (
     <Modal
       open={open}
-      title="編集"
-      onClose={onClose}
+      title="新規登録"
+      onClose={handleClose}
       actions={
-        <div className="flex w-full items-center justify-between">
-          <Button variant="outlined" color="error" onClick={() => client && onDelete?.(client)} disabled={!client}>
-            削除
+        <>
+          <Button variant="outlined" onClick={handleClose}>
+            キャンセル
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outlined" onClick={onClose}>
-              キャンセル
-            </Button>
-            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-              保存
-            </Button>
-          </div>
-        </div>
+          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+            保存
+          </Button>
+        </>
       }
     >
       <div className="flex flex-col gap-2">
@@ -213,26 +231,23 @@ export default function EditClientModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Select
-            size="small"
+          <Autocomplete
+            freeSolo
+            options={currencyLabelOptions}
             value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            error={Boolean(errors.currency)}
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
-              }
-              const option = currencyOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {currencyOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
+            inputValue={form.currency}
+            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
+            onInputChange={(_, newValue) => handleChange("currency", newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="選択または入力"
+                error={Boolean(errors.currency)}
+                helperText={errors.currency}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
@@ -246,7 +261,10 @@ export default function EditClientModal({
             error={Boolean(errors.status)}
             renderValue={() => statusLabel}
           >
-            {statusOptions.map((option) => (
+            {[
+              { value: "active", label: "有効" },
+              { value: "inactive", label: "無効" },
+            ].map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>

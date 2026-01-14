@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { ClientRow } from "./types";
+import { ClientRow } from "../types";
 
 const statusStyles = {
   active: { label: "有効", backgroundColor: "#e9f7ef", color: "#15803d" },

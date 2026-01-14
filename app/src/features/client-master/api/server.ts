@@ -169,8 +169,9 @@ export async function upsertClient(
   if (!existing) {
     // --- create ---
     const displayNo = await nextSequence(orgId, "CLIENT");
-    // displayNo を見やすい ID にも使う（必要なら後で変更OK）
-    const clientId = `cli_${String(displayNo).padStart(6, "0")}`;
+
+    // ✅ clientId はUUID（フロントから来たものを採用。無い場合はサーバーで生成）
+    const clientId = updatingClientId || crypto.randomUUID();
 
     const item = buildClientItem(orgId, {
       ...input,
@@ -188,7 +189,7 @@ export async function upsertClient(
   const item = buildClientItem(orgId, {
     ...existing,
     ...input,
-    clientId: existing.clientId,
+    clientId: existing.clientId, // ✅ 既存のclientIdは不変
     displayNo: existing.displayNo ?? 0,
     createdAt: existing.createdAt ?? updatedAt,
     updatedAt,

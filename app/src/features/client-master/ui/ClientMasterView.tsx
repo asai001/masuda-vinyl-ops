@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
-import ClientMasterTableView from "@/features/client-master/ClientMasterTableView";
-import DeleteClientDialog from "@/features/client-master/DeleteClientDialog";
-import EditClientModal from "@/features/client-master/EditClientModal";
-import NewClientModal from "@/features/client-master/NewClientModal";
-import type { ClientRow } from "./types";
-import { createClient, deleteClient, fetchClientRows, updateClient } from "./api/client";
+import ClientMasterTableView from "@/features/client-master/ui/ClientMasterTableView";
+import DeleteClientDialog from "@/features/client-master/ui/DeleteClientDialog";
+import EditClientModal from "@/features/client-master/ui/EditClientModal";
+import NewClientModal from "@/features/client-master/ui/NewClientModal";
+import type { ClientRow } from "../types";
+import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
 
 export default function ClientMasterView() {
   const {
@@ -143,7 +143,10 @@ export default function ClientMasterView() {
     const categoryOptions = toOptions(uniqueStrings(rows.map((r) => r.category)));
     const regionOptions = toOptions(uniqueStrings(rows.map((r) => r.region)));
     const currencyOptions = toOptions(uniqueStrings(rows.map((r) => r.currency)));
-    const statusOptions = toOptions(uniqueStrings(rows.map((r) => r.status)));
+    const statusOptions = [
+      { value: "active", label: "有効" },
+      { value: "inactive", label: "無効" },
+    ];
 
     return [
       { key: "category", label: "区分", type: "select", options: categoryOptions },
