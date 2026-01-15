@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { NewMaterialInput, MaterialRow } from "../types";
+import { MaterialRow } from "@/mock/materialMasterData";
 
 type Option = {
   value: string;
@@ -19,7 +19,7 @@ type NewMaterialModalProps = {
   currencyOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
-  onSave: (input: NewMaterialInput) => void;
+  onSave: (material: Omit<MaterialRow, "id">) => void;
 };
 
 const emptyErrors = {
@@ -56,8 +56,6 @@ export default function NewMaterialModal({
   });
   const [errors, setErrors] = useState(emptyErrors);
 
-  const isBlank = (v: string) => v.trim().length === 0;
-
   const resetForm = () => {
     setForm({
       code: "",
@@ -85,16 +83,15 @@ export default function NewMaterialModal({
 
   const handleSave = () => {
     const nextErrors = {
-      code: isBlank(form.code) ? "空文字だけでは登録できません" : "",
-      name: isBlank(form.name) ? "空文字だけでは登録できません" : "",
-      supplier: isBlank(form.supplier) ? "空文字だけでは登録できません" : "",
-      category: isBlank(form.category) ? "空文字だけでは登録できません" : "",
-      unit: isBlank(form.unit) ? "空文字だけでは登録できません" : "",
-      currency: isBlank(form.currency) ? "空文字だけでは登録できません" : "",
-      unitPrice: isBlank(form.unitPrice) ? "空文字だけでは登録できません" : "",
-      status: isBlank(form.status) ? "空文字だけでは登録できません" : "",
+      code: form.code ? "" : "必須項目です",
+      name: form.name ? "" : "必須項目です",
+      supplier: form.supplier ? "" : "必須項目です",
+      category: form.category ? "" : "必須項目です",
+      unit: form.unit ? "" : "必須項目です",
+      currency: form.currency ? "" : "必須項目です",
+      unitPrice: form.unitPrice ? "" : "必須項目です",
+      status: form.status ? "" : "必須項目です",
     };
-
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
@@ -108,15 +105,15 @@ export default function NewMaterialModal({
     }
 
     onSave({
-      code: form.code.trim(),
-      name: form.name.trim(),
-      supplier: form.supplier.trim(),
-      category: form.category.trim(),
-      unit: form.unit.trim(),
-      currency: form.currency.trim(),
+      code: form.code,
+      name: form.name,
+      supplier: form.supplier,
+      category: form.category,
+      unit: form.unit,
+      currency: form.currency,
       unitPrice: parsedPrice,
       status: form.status as MaterialRow["status"],
-      note: form.note, // 空OKなのでそのまま
+      note: form.note,
     });
     resetForm();
   };
@@ -175,22 +172,26 @@ export default function NewMaterialModal({
           <label className="text-sm font-semibold text-gray-700">
             仕入先 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            options={supplierOptions}
-            value={supplierOptions.find((o) => o.value === form.supplier) ?? null}
-            onChange={(_, newValue) => handleChange("supplier", newValue?.value ?? "")}
-            getOptionLabel={(opt) => opt.label}
-            isOptionEqualToValue={(opt, val) => opt.value === val.value}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="検索して選択"
-                error={Boolean(errors.supplier)}
-                helperText={errors.supplier}
-              />
-            )}
-          />
+          <Select
+            size="small"
+            value={form.supplier}
+            onChange={(event) => handleChange("supplier", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.supplier)}
+            renderValue={(selected) => {
+              if (!selected) {
+                return <span className="text-gray-400">選択してください</span>;
+              }
+              const option = supplierOptions.find((item) => item.value === selected);
+              return option?.label ?? selected;
+            }}
+          >
+            {supplierOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">

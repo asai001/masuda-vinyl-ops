@@ -3,7 +3,7 @@
 import React from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { MaterialRow } from "../types";
+import { MaterialRow } from "@/mock/materialMasterData";
 
 type DeleteMaterialDialogProps = {
   open: boolean;
