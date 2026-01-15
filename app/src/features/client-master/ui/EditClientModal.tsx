@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ClientRow } from "../types";
+import type { ClientRow } from "../types";
 
 type Option = {
   value: string;
@@ -31,6 +31,7 @@ const emptyErrors = {
   region: "",
   currency: "",
   status: "",
+  note: "",
 };
 
 const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
@@ -77,19 +78,21 @@ export default function EditClientModal({
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const isBlank = (v: string) => v.trim().length === 0;
   const handleSave = () => {
     const nextErrors = {
-      name: form.name ? "" : "必須項目です",
+      name: isBlank(form.name) ? "空白だけでは登録できません" : "",
       address: "",
       phone: "",
-      category: form.category ? "" : "必須項目です",
-      region: form.region ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-      status: form.status ? "" : "必須項目です",
+      category: isBlank(form.category) ? "空白だけでは登録できません" : "",
+      region: isBlank(form.region) ? "空白だけでは登録できません" : "",
+      currency: isBlank(form.currency) ? "空白だけでは登録できません" : "",
+      status: isBlank(form.status) ? "空白だけでは登録できません" : "",
+      note: isBlank(form.note) ? "空白だけでは登録できません" : "", // ✅備考も必須
     };
     setErrors(nextErrors);
 
-    if (Object.values(nextErrors).some((message) => message)) {
+    if (Object.values(nextErrors).some(Boolean)) {
       return;
     }
 
@@ -97,16 +100,18 @@ export default function EditClientModal({
       return;
     }
 
+    const normalizedStatus: "active" | "inactive" = form.status === "inactive" ? "inactive" : "active";
+
     onSave({
       ...client,
-      name: form.name,
-      note: form.note,
-      address: form.address,
-      phone: form.phone,
-      category: form.category,
-      region: form.region,
-      currency: form.currency,
-      status: form.status as ClientRow["status"],
+      name: form.name.trim(),
+      note: form.note.trim(),
+      address: form.address.trim(),
+      phone: form.phone.trim(),
+      category: form.category.trim(),
+      region: form.region.trim(),
+      currency: form.currency.trim(),
+      status: normalizedStatus,
     });
   };
 
@@ -277,6 +282,8 @@ export default function EditClientModal({
           placeholder="備考を入力してください"
           value={form.note}
           onChange={(event) => handleChange("note", event.target.value)}
+          error={Boolean(errors.note)}
+          helperText={errors.note}
         />
       </div>
     </Modal>

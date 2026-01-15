@@ -33,3 +33,19 @@ export type ClientItem = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type NewClientInput = {
+  name: string;
+  note: string;
+  address?: string;
+  phone?: string;
+  taxId?: string;
+  category: string;
+  region: string;
+  currency: string;
+  status: "active" | "inactive";
+};
+
+export type UpdateClientInput = NewClientInput & {
+  clientId: string;
+};

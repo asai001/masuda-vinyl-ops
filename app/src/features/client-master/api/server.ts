@@ -9,7 +9,7 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { awsCredentialsProvider } from "@vercel/oidc-aws-credentials-provider";
-import type { ClientItem } from "../types";
+import type { ClientItem, NewClientInput, UpdateClientInput } from "../types";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -157,11 +157,8 @@ export async function getClient(orgId: string, clientId: string): Promise<Client
   return (res.Item ?? null) as ClientItem | null;
 }
 
-export async function upsertClient(
-  orgId: string,
-  input: Partial<ClientItem> & { name: string; clientId?: string },
-): Promise<ClientItem> {
-  const updatingClientId = input.clientId?.trim() || "";
+export async function upsertClient(orgId: string, input: NewClientInput | UpdateClientInput): Promise<ClientItem> {
+  const updatingClientId = "clientId" in input ? input.clientId.trim() : "";
   const existing = updatingClientId ? await getClient(orgId, updatingClientId) : null;
 
   const updatedAt = nowIso();
@@ -170,8 +167,8 @@ export async function upsertClient(
     // --- create ---
     const displayNo = await nextSequence(orgId, "CLIENT");
 
-    // ✅ clientId はUUID（フロントから来たものを採用。無い場合はサーバーで生成）
-    const clientId = updatingClientId || crypto.randomUUID();
+    // ✅ clientId はサーバー側でUUID固定
+    const clientId = crypto.randomUUID();
 
     const item = buildClientItem(orgId, {
       ...input,
@@ -189,7 +186,7 @@ export async function upsertClient(
   const item = buildClientItem(orgId, {
     ...existing,
     ...input,
-    clientId: existing.clientId, // ✅ 既存のclientIdは不変
+    clientId: existing.clientId, // ✅ 不変
     displayNo: existing.displayNo ?? 0,
     createdAt: existing.createdAt ?? updatedAt,
     updatedAt,

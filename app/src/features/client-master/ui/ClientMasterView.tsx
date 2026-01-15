@@ -8,7 +8,7 @@ import ClientMasterTableView from "@/features/client-master/ui/ClientMasterTable
 import DeleteClientDialog from "@/features/client-master/ui/DeleteClientDialog";
 import EditClientModal from "@/features/client-master/ui/EditClientModal";
 import NewClientModal from "@/features/client-master/ui/NewClientModal";
-import type { ClientRow } from "../types";
+import type { NewClientInput, ClientRow } from "../types";
 import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
 
 export default function ClientMasterView() {
@@ -39,15 +39,13 @@ export default function ClientMasterView() {
     replaceRows(fetched);
   };
 
-  const handleCreate = (item: Omit<ClientRow, "id">) => {
+  const handleCreate = (input: NewClientInput) => {
     (async () => {
       try {
         setMutating(true);
         setMutateError(null);
 
-        // displayNo は UI の連番として扱う（最大+1）
-        const nextDisplayNo = rows.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
-        await createClient(item, nextDisplayNo);
+        await createClient(input);
 
         await reload();
         closeCreate();
@@ -248,7 +246,7 @@ export default function ClientMasterView() {
         statusOptions={getOptions("status")}
       />
       <EditClientModal
-        key={editingRow?.id ?? "client-edit"}
+        key={editingRow?.clientId ?? "client-edit"}
         open={Boolean(editingRow)}
         client={editingRow}
         onClose={closeEdit}
