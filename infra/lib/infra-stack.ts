@@ -25,6 +25,7 @@ export class InfraStack extends cdk.Stack {
       tables: {
         settings: dynamodb.settingsTable,
         clientsMaster: dynamodb.clientsMasterTable,
+        sequences: dynamodb.sequencesTable,
       },
     });
   }
