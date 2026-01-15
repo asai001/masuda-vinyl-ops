@@ -13,6 +13,7 @@ interface UserPoolResourcesProps {
   tables: {
     settings: Table;
     clientsMaster: Table;
+    sequences: Table;
   };
 }
 
@@ -93,5 +94,6 @@ export class UserPoolResources extends Construct {
 
     props.tables.settings.grantReadWriteData(vercelRole);
     props.tables.clientsMaster.grantReadWriteData(vercelRole);
+    props.tables.sequences.grantReadWriteData(vercelRole);
   }
 }

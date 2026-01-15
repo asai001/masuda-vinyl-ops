@@ -16,6 +16,7 @@ interface DynamoDbResourcesProps {
 export class DynamoDbResources extends Construct {
   public readonly settingsTable: dynamodb.Table;
   public readonly clientsMasterTable: dynamodb.Table;
+  public readonly sequencesTable: dynamodb.Table;
 
   private readonly pointInTimeRecoveryEnabled: boolean;
 
@@ -453,6 +454,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "sequenceName", type: dynamodb.AttributeType.STRING }, // e.g. "PO", "SO", "PAY"
       removalPolicy,
     });
+    this.sequencesTable = sequences.table;
 
     // ---- settings（設定）----
     const settings = this.createTable({
