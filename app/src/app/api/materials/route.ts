@@ -7,26 +7,6 @@ const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v
 
 const isOptionalString = (v: unknown): v is string | undefined => v === undefined || typeof v === "string";
 
-function isUpdateMaterialInput(v: unknown): v is UpdateMaterialInput {
-  if (typeof v !== "object" || v === null) {
-    return false;
-  }
-  const r = v as Record<string, unknown>;
-
-  return (
-    isNonEmptyString(r.materialId) &&
-    isNonEmptyString(r.code) &&
-    isNonEmptyString(r.name) &&
-    (r.supplier === undefined || isNonEmptyString(r.supplier)) &&
-    (r.category === undefined || isNonEmptyString(r.category)) &&
-    (r.unit === undefined || isNonEmptyString(r.unit)) &&
-    (r.currency === undefined || isNonEmptyString(r.currency)) &&
-    (r.unitPrice === undefined || typeof r.unitPrice === "number") &&
-    (r.status === undefined || r.status === "active" || r.status === "inactive") &&
-    (r.note === undefined || isOptionalString(r.note))
-  );
-}
-
 function getBearer(req: Request) {
   const v = req.headers.get("authorization") ?? "";
   const m = v.match(/^Bearer\s+(.+)$/i);
@@ -77,13 +57,33 @@ function isNewMaterialInput(v: unknown): v is NewMaterialInput {
   return (
     isNonEmptyString(r.code) &&
     isNonEmptyString(r.name) &&
-    (r.supplier === undefined || isNonEmptyString(r.supplier)) &&
-    (r.category === undefined || isNonEmptyString(r.category)) &&
-    (r.unit === undefined || isNonEmptyString(r.unit)) &&
-    (r.currency === undefined || isNonEmptyString(r.currency)) &&
-    (r.unitPrice === undefined || typeof r.unitPrice === "number") &&
-    (r.status === undefined || r.status === "active" || r.status === "inactive") &&
-    (r.note === undefined || isOptionalString(r.note)) // note は空でもOKにするなら isOptionalString
+    isNonEmptyString(r.supplier) &&
+    isNonEmptyString(r.category) &&
+    isNonEmptyString(r.unit) &&
+    isNonEmptyString(r.currency) &&
+    typeof r.unitPrice === "number" &&
+    (r.status === "active" || r.status === "inactive") &&
+    (r.note === undefined || isOptionalString(r.note)) // ✅ noteは空OK
+  );
+}
+
+function isUpdateMaterialInput(v: unknown): v is UpdateMaterialInput {
+  if (typeof v !== "object" || v === null) {
+    return false;
+  }
+  const r = v as Record<string, unknown>;
+
+  return (
+    isNonEmptyString(r.materialId) &&
+    isNonEmptyString(r.code) &&
+    isNonEmptyString(r.name) &&
+    isNonEmptyString(r.supplier) &&
+    isNonEmptyString(r.category) &&
+    isNonEmptyString(r.unit) &&
+    isNonEmptyString(r.currency) &&
+    typeof r.unitPrice === "number" &&
+    (r.status === "active" || r.status === "inactive") &&
+    (r.note === undefined || isOptionalString(r.note))
   );
 }
 
@@ -130,6 +130,13 @@ export async function PUT(req: Request) {
   }
 }
 
+function isDeleteMaterialBody(v: unknown): v is { materialId: string } {
+  if (typeof v !== "object" || v === null) {
+    return false;
+  }
+  const r = v as Record<string, unknown>;
+  return typeof r.materialId === "string" && r.materialId.trim().length > 0;
+}
 export async function DELETE(req: Request) {
   try {
     const orgIdOrRes = await requireOrgId(req);
@@ -138,13 +145,12 @@ export async function DELETE(req: Request) {
     }
     const orgId = orgIdOrRes;
 
-    const body = (await req.json()) as { materialId?: unknown };
-    const materialId = typeof body.materialId === "string" ? body.materialId : "";
-    if (!materialId) {
-      return NextResponse.json({ error: "materialId is required" }, { status: 400 });
+    const bodyUnknown: unknown = await req.json();
+    if (!isDeleteMaterialBody(bodyUnknown)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    await deleteMaterial(orgId, materialId);
+    await deleteMaterial(orgId, bodyUnknown.materialId);
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error(e);

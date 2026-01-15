@@ -49,18 +49,33 @@ export default function MaterialMasterView() {
   type Option = { value: string; label: string };
 
   const [supplierOptionsFromClients, setSupplierOptionsFromClients] = useState<Option[]>([]);
+  const [supplierCurrencyMap, setSupplierCurrencyMap] = useState<Record<string, string>>({});
 
   const reloadSupplierOptions = async () => {
     try {
       const clients = await fetchClientRows();
+
       const names = Array.from(new Set(clients.map((c) => c.name.trim()).filter(Boolean))).sort((a, b) =>
         a.localeCompare(b, "ja"),
       );
-
       setSupplierOptionsFromClients(names.map((name) => ({ value: name, label: name })));
+
+      // ✅ 追加：取引先名 -> 通貨 の辞書を作る
+      const map: Record<string, string> = {};
+      for (const c of clients) {
+        const name = c.name?.trim();
+        const currency = c.currency?.trim();
+        if (!name || !currency) {
+          continue;
+        }
+        // 同名が複数ある場合は先勝ち（必要ならここは方針変更可能）
+        if (!map[name]) {
+          map[name] = currency;
+        }
+      }
+      setSupplierCurrencyMap(map);
     } catch (e) {
       console.error(e);
-      // 仕入先候補取得失敗しても材料マスタ自体は表示できるように握りつぶし
     }
   };
 
@@ -254,7 +269,7 @@ export default function MaterialMasterView() {
     const activeCount = rows.filter((row) => row.status === "active").length;
     const inactiveCount = rows.filter((row) => row.status === "inactive").length;
     return [
-      { label: "登録製品数", value: totalCount, tone: "primary", icon: <Box size={22} /> },
+      { label: "登録材料数", value: totalCount, tone: "primary", icon: <Box size={22} /> },
       { label: "有効", value: activeCount, tone: "success", icon: <CheckCircle size={22} /> },
       { label: "無効", value: inactiveCount, tone: "muted", icon: <Clock size={22} /> },
     ];
@@ -300,10 +315,11 @@ export default function MaterialMasterView() {
         unitOptions={getOptions("unit")}
         currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
+        supplierCurrencyMap={supplierCurrencyMap}
       />
 
       <EditMaterialModal
-        key={editingRow?.id ?? "material-edit"}
+        key={editingRow?.materialId ?? "edit-material-modal"}
         open={Boolean(editingRow)}
         material={editingRow}
         onClose={closeEdit}
@@ -314,6 +330,7 @@ export default function MaterialMasterView() {
         unitOptions={getOptions("unit")}
         currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
+        supplierCurrencyMap={supplierCurrencyMap}
       />
 
       <DeleteMaterialDialog

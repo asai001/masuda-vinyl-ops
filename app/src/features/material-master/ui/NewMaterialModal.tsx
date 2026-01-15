@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { NewMaterialInput, MaterialRow } from "../types";
+import type { NewMaterialInput, MaterialRow } from "../types";
 
 type Option = {
   value: string;
@@ -18,6 +18,7 @@ type NewMaterialModalProps = {
   unitOptions: Option[];
   currencyOptions: Option[];
   statusOptions: Option[];
+  supplierCurrencyMap: Record<string, string>;
   onClose: () => void;
   onSave: (input: NewMaterialInput) => void;
 };
@@ -31,7 +32,10 @@ const emptyErrors = {
   currency: "",
   unitPrice: "",
   status: "",
+  note: "",
 };
+
+const DEFAULT_CURRENCY_OPTIONS = ["JPY", "USD", "VND"] as const;
 
 export default function NewMaterialModal({
   open,
@@ -40,6 +44,7 @@ export default function NewMaterialModal({
   unitOptions,
   currencyOptions,
   statusOptions,
+  supplierCurrencyMap,
   onClose,
   onSave,
 }: NewMaterialModalProps) {
@@ -55,6 +60,14 @@ export default function NewMaterialModal({
     note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
+
+  const currencyLabelOptions = useMemo(() => {
+    const fromProps = currencyOptions.map((o) => o.label).filter(Boolean);
+    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
+    // 重複除去（大文字小文字は区別しない）
+    const uniq = Array.from(new Map(merged.map((v) => [v.toUpperCase(), v])).values());
+    return uniq;
+  }, [currencyOptions]);
 
   const isBlank = (v: string) => v.trim().length === 0;
 
@@ -83,6 +96,23 @@ export default function NewMaterialModal({
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleSupplierSelect = (supplier: string) => {
+    const mapped = supplierCurrencyMap[supplier]?.trim();
+
+    setForm((prev) => ({
+      ...prev,
+      supplier,
+      currency: mapped && mapped.length > 0 ? mapped : prev.currency,
+    }));
+
+    // supplier と currency のエラーを消す（currency を自動セットした場合）
+    setErrors((prev) => ({
+      ...prev,
+      supplier: "",
+      currency: mapped && mapped.length > 0 ? "" : prev.currency,
+    }));
+  };
+
   const handleSave = () => {
     const nextErrors = {
       code: isBlank(form.code) ? "空文字だけでは登録できません" : "",
@@ -93,6 +123,7 @@ export default function NewMaterialModal({
       currency: isBlank(form.currency) ? "空文字だけでは登録できません" : "",
       unitPrice: isBlank(form.unitPrice) ? "空文字だけでは登録できません" : "",
       status: isBlank(form.status) ? "空文字だけでは登録できません" : "",
+      note: "",
     };
 
     setErrors(nextErrors);
@@ -178,7 +209,7 @@ export default function NewMaterialModal({
           <Autocomplete
             options={supplierOptions}
             value={supplierOptions.find((o) => o.value === form.supplier) ?? null}
-            onChange={(_, newValue) => handleChange("supplier", newValue?.value ?? "")}
+            onChange={(_, newValue) => handleSupplierSelect(newValue?.value ?? "")}
             getOptionLabel={(opt) => opt.label}
             isOptionEqualToValue={(opt, val) => opt.value === val.value}
             renderInput={(params) => (
@@ -245,7 +276,7 @@ export default function NewMaterialModal({
           </label>
           <Autocomplete
             freeSolo
-            options={currencyOptions.map((option) => option.label)}
+            options={currencyLabelOptions}
             value={form.currency}
             inputValue={form.currency}
             onChange={(_, newValue) => handleChange("currency", newValue ?? "")}

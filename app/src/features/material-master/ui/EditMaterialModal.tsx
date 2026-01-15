@@ -19,6 +19,7 @@ type EditMaterialModalProps = {
   unitOptions: Option[];
   currencyOptions: Option[];
   statusOptions: Option[];
+  supplierCurrencyMap: Record<string, string>;
   onClose: () => void;
   onSave: (material: MaterialRow) => void;
   onDelete?: (material: MaterialRow) => void;
@@ -35,7 +36,10 @@ const emptyErrors = {
   currency: "",
   unitPrice: "",
   status: "",
+  note: "",
 };
+
+const DEFAULT_CURRENCY_OPTIONS = ["JPY", "USD", "VND"] as const;
 
 export default function EditMaterialModal({
   open,
@@ -45,6 +49,7 @@ export default function EditMaterialModal({
   unitOptions,
   currencyOptions,
   statusOptions,
+  supplierCurrencyMap,
   onClose,
   onSave,
   onDelete,
@@ -69,6 +74,22 @@ export default function EditMaterialModal({
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleSupplierSelect = (supplier: string) => {
+    const mapped = supplierCurrencyMap[supplier]?.trim();
+
+    setForm((prev) => ({
+      ...prev,
+      supplier,
+      currency: mapped && mapped.length > 0 ? mapped : prev.currency,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      supplier: "",
+      currency: mapped && mapped.length > 0 ? "" : prev.currency,
+    }));
+  };
+
   const handleSave = () => {
     const nextErrors = {
       code: isBlank(form.code) ? "空文字だけでは登録できません" : "",
@@ -79,6 +100,7 @@ export default function EditMaterialModal({
       currency: isBlank(form.currency) ? "空文字だけでは登録できません" : "",
       unitPrice: isBlank(form.unitPrice) ? "空文字だけでは登録できません" : "",
       status: isBlank(form.status) ? "空文字だけでは登録できません" : "",
+      note: "",
     };
     setErrors(nextErrors);
 
@@ -109,6 +131,13 @@ export default function EditMaterialModal({
       note: form.note, // 空OK
     });
   };
+
+  const currencyLabelOptions = useMemo(() => {
+    const fromProps = currencyOptions.map((o) => o.label).filter(Boolean);
+    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
+    const uniq = Array.from(new Map(merged.map((v) => [v.toUpperCase(), v])).values());
+    return uniq;
+  }, [currencyOptions]);
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
@@ -177,7 +206,7 @@ export default function EditMaterialModal({
           <Autocomplete
             options={supplierOptions}
             value={supplierOptions.find((o) => o.value === form.supplier) ?? null}
-            onChange={(_, newValue) => handleChange("supplier", newValue?.value ?? "")}
+            onChange={(_, newValue) => handleSupplierSelect(newValue?.value ?? "")}
             getOptionLabel={(opt) => opt.label}
             isOptionEqualToValue={(opt, val) => opt.value === val.value}
             renderInput={(params) => (
@@ -244,7 +273,7 @@ export default function EditMaterialModal({
           </label>
           <Autocomplete
             freeSolo
-            options={currencyOptions.map((option) => option.label)}
+            options={currencyLabelOptions}
             value={form.currency}
             inputValue={form.currency}
             onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
