@@ -1,5 +1,5 @@
 import { getIdTokenJwt } from "@/lib/auth/cognito";
-import type { ClientItem, ClientRow } from "../types";
+import type { ClientItem, ClientRow, NewClientInput, UpdateClientInput } from "../types";
 
 async function authFetch(input: RequestInfo, init: RequestInit = {}) {
   const token = await getIdTokenJwt();
@@ -38,40 +38,6 @@ function toRow(item: ClientItem): ClientRow {
   };
 }
 
-function toItemFromRow(row: Omit<ClientRow, "id">, displayNo?: number): Omit<ClientItem, "orgId"> {
-  return {
-    clientId: row.clientId,
-    displayNo,
-    name: row.name,
-    category: row.category ?? undefined,
-    region: row.region ?? undefined,
-    currency: row.currency ?? undefined,
-    status: row.status ?? undefined,
-    address: row.address ?? undefined,
-    phone: row.phone ?? undefined,
-    note: row.note ?? undefined,
-    taxId: row.taxId ?? undefined,
-  };
-}
-
-function toItemFromFullRow(row: ClientRow): Omit<ClientItem, "orgId"> {
-  return toItemFromRow(
-    {
-      clientId: row.clientId,
-      name: row.name,
-      category: row.category,
-      region: row.region,
-      currency: row.currency,
-      status: row.status,
-      address: row.address,
-      phone: row.phone,
-      note: row.note,
-      taxId: row.taxId,
-    },
-    row.id,
-  );
-}
-
 export async function fetchClientRows(): Promise<ClientRow[]> {
   const res = await authFetch("/api/clients", { method: "GET" });
   if (!res.ok) {
@@ -86,21 +52,37 @@ export async function fetchClientRows(): Promise<ClientRow[]> {
   return rows;
 }
 
-export async function createClient(row: Omit<ClientRow, "id">, displayNo: number): Promise<void> {
+export async function createClient(input: NewClientInput): Promise<ClientItem> {
   const res = await authFetch("/api/clients", {
     method: "POST",
-    body: JSON.stringify(toItemFromRow(row, displayNo)),
+    body: JSON.stringify(input),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Failed to create client: ${res.status} ${text}`);
   }
+  return (await res.json()) as ClientItem;
+}
+
+function toUpdateInputFromRow(row: ClientRow): UpdateClientInput {
+  return {
+    clientId: row.clientId,
+    name: row.name,
+    note: row.note,
+    address: row.address,
+    phone: row.phone,
+    taxId: row.taxId,
+    category: row.category ?? "",
+    region: row.region,
+    currency: row.currency,
+    status: row.status === "inactive" ? "inactive" : "active",
+  };
 }
 
 export async function updateClient(row: ClientRow): Promise<void> {
   const res = await authFetch("/api/clients", {
     method: "PUT",
-    body: JSON.stringify(toItemFromFullRow(row)),
+    body: JSON.stringify(toUpdateInputFromRow(row)),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

@@ -39,7 +39,7 @@ const emptyErrors = {
   note: "",
 };
 
-const DEFAULT_CURRENCY_OPTIONS = ["JPY", "USD", "VND"] as const;
+const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
 
 export default function EditMaterialModal({
   open,
