@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
-import ClientMasterTableView from "@/features/client-master/ClientMasterTableView";
-import DeleteClientDialog from "@/features/client-master/DeleteClientDialog";
-import EditClientModal from "@/features/client-master/EditClientModal";
-import NewClientModal from "@/features/client-master/NewClientModal";
-import type { ClientRow } from "./types";
-import { fetchClientRows } from "./api/client";
+import ClientMasterTableView from "@/features/client-master/ui/ClientMasterTableView";
+import DeleteClientDialog from "@/features/client-master/ui/DeleteClientDialog";
+import EditClientModal from "@/features/client-master/ui/EditClientModal";
+import NewClientModal from "@/features/client-master/ui/NewClientModal";
+import type { ClientRow } from "../types";
+import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
 
 export default function ClientMasterView() {
   const {
@@ -20,19 +20,86 @@ export default function ClientMasterView() {
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
   } = useMasterCrud<ClientRow>([], (item, nextId) => ({
     ...item,
     id: nextId,
     clientId: item.clientId ?? `local_${nextId}`,
   }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
+
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+
+  const reload = async () => {
+    const fetched = await fetchClientRows();
+    replaceRows(fetched);
+  };
+
+  const handleCreate = (item: Omit<ClientRow, "id">) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        // displayNo は UI の連番として扱う（最大+1）
+        const nextDisplayNo = rows.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
+        await createClient(item, nextDisplayNo);
+
+        await reload();
+        closeCreate();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create client";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleEdit = (next: ClientRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await updateClient(next);
+
+        await reload();
+        closeEdit();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update client";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleDelete = (row: ClientRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await deleteClient(row.clientId);
+
+        await reload();
+        closeDelete();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete client";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
 
   // DynamoDB から取引先を取得
   const [loading, setLoading] = useState(true);
@@ -76,7 +143,10 @@ export default function ClientMasterView() {
     const categoryOptions = toOptions(uniqueStrings(rows.map((r) => r.category)));
     const regionOptions = toOptions(uniqueStrings(rows.map((r) => r.region)));
     const currencyOptions = toOptions(uniqueStrings(rows.map((r) => r.currency)));
-    const statusOptions = toOptions(uniqueStrings(rows.map((r) => r.status)));
+    const statusOptions = [
+      { value: "active", label: "有効" },
+      { value: "inactive", label: "無効" },
+    ];
 
     return [
       { key: "category", label: "区分", type: "select", options: categoryOptions },
@@ -160,12 +230,18 @@ export default function ClientMasterView() {
           取引先マスタの取得に失敗しました。（{loadError}）
         </div>
       )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <ClientMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewClientModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
         currencyOptions={getOptions("currency")}
@@ -176,7 +252,7 @@ export default function ClientMasterView() {
         open={Boolean(editingRow)}
         client={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
@@ -187,7 +263,7 @@ export default function ClientMasterView() {
         open={Boolean(deletingRow)}
         client={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
     </div>
   );
