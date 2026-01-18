@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { PaymentRow } from "@/mock/paymentMasterData";
+import type { PaymentRow } from "@/features/payment-master/types";
 
 const categoryStyles: Record<string, { backgroundColor: string; color: string }> = {
   家賃: { backgroundColor: "#e8f1ff", color: "#2563eb" },
@@ -31,16 +31,21 @@ type PaymentMasterTableViewProps = {
 };
 
 export default function PaymentMasterTableView({ rows, onRowClick, onDelete }: PaymentMasterTableViewProps) {
-  const [sortKey, setSortKey] = useState<keyof PaymentRow>("id");
+  const [sortKey, setSortKey] = useState<keyof PaymentRow>("content");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const columns = useMemo<TableColumn<PaymentRow>[]>(
     () => [
       {
-        key: "id",
-        header: "NO.",
-        sortKey: "id",
-        render: (row) => <span className="text-sm">{row.id}</span>,
+        key: "content",
+        header: "内容",
+        sortKey: "content",
+        render: (row) => (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-gray-900">{row.content}</span>
+            {row.isFixedCost ? <span className="text-xs font-semibold text-blue-600">固定費</span> : null}
+          </div>
+        ),
       },
       {
         key: "category",
@@ -60,17 +65,6 @@ export default function PaymentMasterTableView({ rows, onRowClick, onDelete }: P
             />
           );
         },
-      },
-      {
-        key: "content",
-        header: "内容",
-        sortKey: "content",
-        render: (row) => (
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-gray-900">{row.content}</span>
-            {row.isFixedCost ? <span className="text-xs font-semibold text-blue-600">固定費</span> : null}
-          </div>
-        ),
       },
       {
         key: "fixedAmount",
@@ -113,7 +107,7 @@ export default function PaymentMasterTableView({ rows, onRowClick, onDelete }: P
         ),
       },
     ],
-    [onDelete]
+    [onDelete],
   );
 
   const handleSort = (key: string) => {

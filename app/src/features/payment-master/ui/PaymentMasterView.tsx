@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, Clock, DollarSign } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
-import DeletePaymentDialog from "@/features/payment-master/DeletePaymentDialog";
-import EditPaymentModal from "@/features/payment-master/EditPaymentModal";
-import NewPaymentModal from "@/features/payment-master/NewPaymentModal";
-import PaymentMasterTableView from "@/features/payment-master/PaymentMasterTableView";
-import { PaymentRow, paymentRows } from "@/mock/paymentMasterData";
+import DeletePaymentDialog from "./DeletePaymentDialog";
+import EditPaymentModal from "./EditPaymentModal";
+import NewPaymentModal from "./NewPaymentModal";
+import PaymentMasterTableView from "./PaymentMasterTableView";
+import {
+  createPaymentDefinition,
+  deletePaymentDefinition,
+  fetchPaymentRows,
+  updatePaymentDefinition,
+} from "@/features/payment-master/api/client";
+import type { NewPaymentInput, PaymentRow } from "@/features/payment-master/types";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
 const defaultCurrencies = ["JPY", "USD", "VND"];
@@ -21,20 +27,92 @@ const fixedCostOptions = [
 export default function PaymentMasterView() {
   const {
     rows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
-  } = useMasterCrud<PaymentRow>(paymentRows, (item, nextId) => ({ ...item, id: nextId }));
+  } = useMasterCrud<PaymentRow>([], (item, nextId) => ({
+    ...item,
+    id: nextId,
+    paymentDefId: item.paymentDefId ?? `local_${nextId}`,
+  }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
+
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reload = async () => {
+    const fetched = await fetchPaymentRows();
+    replaceRows(fetched);
+  };
+
+  const handleCreate = (input: NewPaymentInput) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await createPaymentDefinition(input);
+        await reload();
+
+        closeCreate();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create payment definition";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleEdit = (next: PaymentRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await updatePaymentDefinition(next);
+        await reload();
+
+        closeEdit();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update payment definition";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleDelete = (row: PaymentRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await deletePaymentDefinition(row.paymentDefId);
+        await reload();
+
+        closeDelete();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete payment definition";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
 
   const categoryOptions = useMemo(() => {
     const uniqueValues = Array.from(new Set(rows.map((row) => row.category))).filter((value) => value);
@@ -67,6 +145,33 @@ export default function PaymentMasterView() {
     ],
     [categoryOptions, currencyOptions, paymentMethodOptions]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchPaymentRows();
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows]);
 
   const filteredRows = useMemo(() => {
     const groupedFilters = filters.reduce<Record<string, FilterRow[]>>((acc, filter) => {
@@ -145,21 +250,33 @@ export default function PaymentMasterView() {
         onCreate={openCreate}
         createLabel="新規マスタ登録"
       />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          支払いマスタの取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <PaymentMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewPaymentModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         categoryOptions={categoryOptions}
         currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
       />
       <EditPaymentModal
-        key={editingRow?.id ?? "payment-edit"}
+        key={editingRow?.paymentDefId ?? "payment-edit"}
         open={Boolean(editingRow)}
         payment={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={categoryOptions}
         currencyOptions={currencyOptions}
@@ -169,7 +286,7 @@ export default function PaymentMasterView() {
         open={Boolean(deletingRow)}
         payment={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
     </div>
   );
