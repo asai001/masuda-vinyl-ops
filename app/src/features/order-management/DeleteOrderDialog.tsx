@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { OrderRow } from "@/mock/orderManagementData";
+import type { OrderRow } from "@/features/order-management/types";
 
 type DeleteOrderDialogProps = {
   open: boolean;

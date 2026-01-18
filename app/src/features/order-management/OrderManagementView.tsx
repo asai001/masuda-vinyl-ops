@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, Clock, ShoppingCart } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
@@ -10,42 +10,175 @@ import EditOrderModal from "@/features/order-management/EditOrderModal";
 import OrderIssueModal from "@/features/order-management/OrderIssueModal";
 import NewOrderModal from "@/features/order-management/NewOrderModal";
 import OrderManagementTableView from "@/features/order-management/OrderManagementTableView";
-import { clientRows } from "@/mock/clientMasterData";
-import { materialRows } from "@/mock/materialMasterData";
+import {
+  createPurchaseOrder,
+  deletePurchaseOrder,
+  fetchPurchaseOrderRows,
+  updatePurchaseOrder,
+} from "@/features/order-management/api/client";
 import {
   documentStatusOptions,
-  orderRows,
   orderStatusOptions,
-  DocumentStatusKey,
-  OrderRow,
-  OrderStatusKey,
-} from "@/mock/orderManagementData";
+  type DocumentStatusKey,
+  type NewPurchaseOrderInput,
+  type OrderRow,
+  type OrderStatusKey,
+} from "@/features/order-management/types";
+import { fetchClientRows } from "@/features/client-master/api/client";
+import { fetchMaterialRows } from "@/features/material-master/api/client";
+import type { ClientRow } from "@/features/client-master/types";
+import type { MaterialRow } from "@/features/material-master/types";
+
+const DEFAULT_CURRENCIES = ["USD", "VND", "JPY"];
 
 export default function OrderManagementView() {
-  const calculateOrderAmount = (items: OrderRow["items"]) =>
-    items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-
   const {
     rows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
-  } = useMasterCrud<OrderRow>(orderRows, (item, nextId) => ({
+  } = useMasterCrud<OrderRow>([], (item, nextId) => ({
     ...item,
     id: nextId,
-    amount: calculateOrderAmount(item.items),
+    purchaseOrderId: item.purchaseOrderId ?? `local_${nextId}`,
   }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [issuingRow, setIssuingRow] = useState<OrderRow | null>(null);
+
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [optionError, setOptionError] = useState<string | null>(null);
+  const [clientRows, setClientRows] = useState<ClientRow[]>([]);
+  const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
+
+  const reload = async () => {
+    const fetched = await fetchPurchaseOrderRows();
+    replaceRows(fetched);
+  };
+
+  const reloadMasterOptions = async () => {
+    try {
+      setOptionError(null);
+      const [materials, clients] = await Promise.all([fetchMaterialRows(), fetchClientRows()]);
+      setMaterialRows(materials);
+      setClientRows(clients);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to load master data";
+      setOptionError(msg);
+    }
+  };
+
+  const handleCreate = (input: NewPurchaseOrderInput) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await createPurchaseOrder(input);
+        await reload();
+
+        closeCreate();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleEdit = (next: OrderRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await updatePurchaseOrder(next);
+        await reload();
+
+        closeEdit();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleDelete = (row: OrderRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await deletePurchaseOrder(row.purchaseOrderId);
+        await reload();
+
+        closeDelete();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  // DynamoDB から発注データを取得
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchPurchaseOrderRows();
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows]);
+
+  // 取引先/材料の候補を初回取得
+  useEffect(() => {
+    reloadMasterOptions();
+  }, []);
+
+  // 新規/編集モーダルを開くたびに候補を最新化
+  useEffect(() => {
+    if (isCreateOpen || Boolean(editingRow)) {
+      reloadMasterOptions();
+    }
+  }, [isCreateOpen, editingRow]);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
@@ -141,23 +274,34 @@ export default function OrderManagementView() {
     ];
   }, [rows]);
 
-  const itemOptions = materialRows.map((row) => ({
-    value: row.code,
-    label: `${row.code} ${row.name}`,
-    name: row.name,
-    supplier: row.supplier,
-    unit: row.unit,
-    unitPrice: row.unitPrice,
-    currency: row.currency,
-  }));
-  const supplierOptions = clientRows.map((row) => ({ value: row.name, label: row.name }));
-  const currencyOptions = (() => {
-    const uniqueValues = (values: string[]) => Array.from(new Set(values));
-    return uniqueValues(materialRows.map((row) => row.currency)).map((value) => ({
-      value,
-      label: value,
-    }));
-  })();
+  const itemOptions = useMemo(
+    () =>
+      materialRows.map((row) => ({
+        value: row.code,
+        label: `${row.code} ${row.name}`,
+        name: row.name,
+        supplier: row.supplier,
+        unit: row.unit,
+        unitPrice: row.unitPrice,
+        currency: row.currency,
+      })),
+    [materialRows],
+  );
+
+  const supplierOptions = useMemo(() => {
+    const names = Array.from(new Set(clientRows.map((row) => row.name.trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b, "ja"),
+    );
+    return names.map((name) => ({ value: name, label: name }));
+  }, [clientRows]);
+
+  const currencyOptions = useMemo(() => {
+    const uniqueValues = Array.from(
+      new Set([...DEFAULT_CURRENCIES, ...materialRows.map((row) => row.currency).filter(Boolean)]),
+    );
+    return uniqueValues.map((value) => ({ value, label: value }));
+  }, [materialRows]);
+
   const statusOptions = orderStatusOptions.map((status) => ({ value: status.key, label: status.label }));
   const documentOptions = documentStatusOptions.map((status) => ({ value: status.key, label: status.label }));
 
@@ -185,11 +329,28 @@ export default function OrderManagementView() {
         onCreate={openCreate}
         createLabel="新規発注"
       />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          発注管理の取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {optionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          取引先・材料マスタの取得に失敗しました。（{optionError}）
+        </div>
+      )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <OrderManagementTableView rows={filteredRows} onRowClick={openEdit} onIssue={openIssue} onDelete={openDelete} />
       <NewOrderModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
         currencyOptions={currencyOptions}
@@ -201,7 +362,7 @@ export default function OrderManagementView() {
         open={Boolean(editingRow)}
         order={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
@@ -213,9 +374,9 @@ export default function OrderManagementView() {
         open={Boolean(deletingRow)}
         order={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
-      <OrderIssueModal open={Boolean(issuingRow)} order={issuingRow} onClose={closeIssue} />
+      <OrderIssueModal open={Boolean(issuingRow)} order={issuingRow} onClose={closeIssue} clients={clientRows} />
     </div>
   );
 }
