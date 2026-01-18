@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Autocomplete, Button, Checkbox, FormControlLabel, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { PaymentRow } from "@/mock/paymentMasterData";
+import type { PaymentRow } from "@/features/payment-master/types";
 
 type Option = {
   value: string;
@@ -82,6 +82,12 @@ export default function EditPaymentModal({
     const parsedPaymentDate = Number(form.paymentDate);
     if (!nextErrors.paymentDate && Number.isNaN(parsedPaymentDate)) {
       nextErrors.paymentDate = "数値で入力してください";
+    }
+    if (
+      !nextErrors.paymentDate &&
+      (!Number.isInteger(parsedPaymentDate) || parsedPaymentDate < 1 || parsedPaymentDate > 31)
+    ) {
+      nextErrors.paymentDate = "1〜31の整数で入力してください";
     }
 
     let parsedFixedAmount: number | null = null;
@@ -192,7 +198,7 @@ export default function EditPaymentModal({
             <TextField
               size="small"
               type="number"
-              inputProps={{ min: 0 }}
+              slotProps={{ htmlInput: { min: 0 } }}
               placeholder="0"
               value={form.fixedAmount}
               onChange={(event) => handleChange("fixedAmount", event.target.value)}
@@ -255,7 +261,7 @@ export default function EditPaymentModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 1, max: 31 }}
+            slotProps={{ htmlInput: { min: 1, max: 31 } }}
             placeholder="30"
             value={form.paymentDate}
             onChange={(event) => handleChange("paymentDate", event.target.value)}
