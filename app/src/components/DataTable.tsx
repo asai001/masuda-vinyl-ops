@@ -44,7 +44,7 @@ export default function DataTable<T>({
       elevation={0}
       className={`border border-gray-200 rounded-xl w-full ${containerClassName}`}
       sx={{
-        overflowX: enableHorizontalScroll ? "auto" : "visible",
+        overflowX: "auto",
         width: "100%",
         maxWidth: "100%",
       }}
@@ -56,7 +56,7 @@ export default function DataTable<T>({
                 width: "100%",
                 minWidth: "max-content",
               }
-            : undefined
+            : { width: "100%" }
         }
       >
         <TableHead>
@@ -70,7 +70,7 @@ export default function DataTable<T>({
                   fontWeight: 600,
                   color: "text.secondary",
                   width: column.width,
-                  whiteSpace: enableHorizontalScroll ? "nowrap" : "normal",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {column.sortKey && onSort ? (

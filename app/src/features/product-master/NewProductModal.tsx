@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Autocomplete, Button, Checkbox, ListItemText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ProductRow } from "@/mock/productMasterData";
+import type { NewProductInput, ProductRow } from "./types";
 
 type Option = {
   value: string;
@@ -20,7 +20,7 @@ type NewProductModalProps = {
   materialOptions: Option[];
   existingProducts: ProductRow[];
   onClose: () => void;
-  onSave: (product: Omit<ProductRow, "id">) => void;
+  onSave: (product: NewProductInput) => void;
 };
 
 const emptyErrors = {
@@ -36,6 +36,8 @@ const emptyErrors = {
   speed: "",
   materials: "",
 };
+
+const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
 
 export default function NewProductModal({
   open,
@@ -63,6 +65,13 @@ export default function NewProductModal({
     materials: [] as string[],
   });
   const [errors, setErrors] = useState(emptyErrors);
+
+  const currencyLabelOptions = useMemo(() => {
+    const fromProps = currencyOptions.map((option) => option.label).filter(Boolean);
+    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
+    const uniq = Array.from(new Map(merged.map((value) => [value.toUpperCase(), value])).values());
+    return uniq;
+  }, [currencyOptions]);
 
   const resetForm = () => {
     setForm({
@@ -291,7 +300,7 @@ export default function NewProductModal({
           </label>
           <Autocomplete
             freeSolo
-            options={currencyOptions.map((option) => option.label)}
+            options={currencyLabelOptions}
             value={form.currency}
             inputValue={form.currency}
             onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
