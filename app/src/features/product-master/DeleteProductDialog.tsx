@@ -3,7 +3,7 @@
 import React from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { ProductRow } from "@/mock/productMasterData";
+import type { ProductRow } from "./types";
 
 type DeleteProductDialogProps = {
   open: boolean;

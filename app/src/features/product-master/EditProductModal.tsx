@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Autocomplete, Button, Checkbox, ListItemText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ProductRow } from "@/mock/productMasterData";
+import type { ProductRow } from "./types";
 
 type Option = {
   value: string;
@@ -39,6 +39,8 @@ const emptyErrors = {
   materials: "",
 };
 
+const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
+
 export default function EditProductModal({
   open,
   product,
@@ -69,6 +71,13 @@ export default function EditProductModal({
 
   const [form, setForm] = useState(() => getInitialForm(product));
   const [errors, setErrors] = useState(emptyErrors);
+
+  const currencyLabelOptions = useMemo(() => {
+    const fromProps = currencyOptions.map((option) => option.label).filter(Boolean);
+    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
+    const uniq = Array.from(new Map(merged.map((value) => [value.toUpperCase(), value])).values());
+    return uniq;
+  }, [currencyOptions]);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -121,7 +130,7 @@ export default function EditProductModal({
     if (!nextErrors.code) {
       const normalizedCode = codeValue.toLowerCase();
       const isDuplicate = existingProducts.some(
-        (row) => row.id !== product?.id && row.code.trim().toLowerCase() === normalizedCode
+        (row) => row.productId !== product?.productId && row.code.trim().toLowerCase() === normalizedCode
       );
       if (isDuplicate) {
         nextErrors.code = "既存の品番と重複しています";
@@ -290,7 +299,7 @@ export default function EditProductModal({
           </label>
           <Autocomplete
             freeSolo
-            options={currencyOptions.map((option) => option.label)}
+            options={currencyLabelOptions}
             value={form.currency}
             inputValue={form.currency}
             onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
