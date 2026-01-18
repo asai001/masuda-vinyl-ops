@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { documentStatusOptions, orderStatusOptions, OrderRow } from "@/mock/orderManagementData";
+import { documentStatusOptions, orderStatusOptions, type OrderRow } from "@/features/order-management/types";
 
 const unitPriceFormatter = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 1,

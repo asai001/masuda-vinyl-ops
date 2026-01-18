@@ -60,10 +60,14 @@ function parseArgs(argv) {
     if (a === "--table" && argv[i + 1]) {
       const kv = argv[++i];
       const eq = kv.indexOf("=");
-      if (eq === -1) throw new Error(`--table expects <alias>=<tableName>. got: ${kv}`);
+      if (eq === -1) {
+        throw new Error(`--table expects <alias>=<tableName>. got: ${kv}`);
+      }
       const alias = kv.slice(0, eq).trim();
       const name = kv.slice(eq + 1).trim();
-      if (!alias || !name) throw new Error(`--table expects <alias>=<tableName>. got: ${kv}`);
+      if (!alias || !name) {
+        throw new Error(`--table expects <alias>=<tableName>. got: ${kv}`);
+      }
       args.tableOverrides[alias] = name;
       continue;
     }
@@ -101,7 +105,9 @@ function entityToTableSuffix(entity) {
 
 function chunk(arr, size) {
   const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
@@ -125,7 +131,9 @@ async function batchWriteAll(ddbDoc, tableName, items) {
       const unp = res.UnprocessedItems && res.UnprocessedItems[tableName] ? res.UnprocessedItems[tableName] : [];
       written += requestItems[tableName].length - unp.length;
 
-      if (!unp.length) break;
+      if (!unp.length) {
+        break;
+      }
 
       if (attempt >= 10) {
         throw new Error(
