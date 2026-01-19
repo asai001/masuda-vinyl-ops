@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { PaymentManagementRow, PaymentStatusKey } from "@/mock/paymentManagementData";
+import type { NewPaymentManagementInput, PaymentStatusKey } from "@/features/payment-management/types";
 
 type Option = {
   value: string;
@@ -18,7 +18,7 @@ type NewPaymentManagementModalProps = {
   paymentMethodOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
-  onSave: (payment: Omit<PaymentManagementRow, "id">) => void;
+  onSave: (payment: NewPaymentManagementInput) => void;
 };
 
 const emptyErrors = {
@@ -179,12 +179,12 @@ export default function NewPaymentManagementModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0 }}
             placeholder="0"
             value={form.amount}
             onChange={(event) => handleChange("amount", event.target.value)}
             error={Boolean(errors.amount)}
             helperText={errors.amount}
+            slotProps={{ htmlInput: { min: 0 } }}
           />
         </div>
         <div className="flex flex-col gap-2">

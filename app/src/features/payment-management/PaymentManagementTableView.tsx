@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { PaymentManagementRow } from "@/mock/paymentManagementData";
+import type { PaymentManagementRow } from "@/features/payment-management/types";
 
 const categoryStyles: Record<string, { backgroundColor: string; color: string }> = {
   家賃: { backgroundColor: "#e8f1ff", color: "#2563eb" },

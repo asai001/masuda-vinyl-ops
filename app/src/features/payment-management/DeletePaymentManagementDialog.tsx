@@ -3,7 +3,7 @@
 import React from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { PaymentManagementRow } from "@/mock/paymentManagementData";
+import type { PaymentManagementRow } from "@/features/payment-management/types";
 
 type DeletePaymentManagementDialogProps = {
   open: boolean;
