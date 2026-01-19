@@ -1,4 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { fromIni } from "@aws-sdk/credential-provider-ini";
 import {
   DeleteCommand,
   DynamoDBDocumentClient,
@@ -26,7 +27,9 @@ const SEQUENCES_TABLE_NAME = requireEnv("SEQUENCES_TABLE_NAME");
 const ddb = DynamoDBDocumentClient.from(
   new DynamoDBClient({
     region: process.env.AWS_REGION ?? "ap-northeast-1",
-    ...(process.env.VERCEL ? { credentials: awsCredentialsProvider({ roleArn: ROLE_ARN }) } : {}),
+    credentials: process.env.VERCEL
+      ? awsCredentialsProvider({ roleArn: ROLE_ARN })
+      : fromIni({ profile: requireEnv("AWS_PROFILE") }),
   }),
   { marshallOptions: { removeUndefinedValues: true } },
 );
