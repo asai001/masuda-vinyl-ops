@@ -1,49 +1,204 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { CheckCircle, Clock, Package, TrendingUp } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import useMasterCrud from "@/hooks/useMasterCrud";
-import DeleteSalesDialog from "@/features/sales-management/DeleteSalesDialog";
-import EditSalesModal from "@/features/sales-management/EditSalesModal";
+import DeleteSalesDialog from "@/features/sales-management/ui/DeleteSalesDialog";
+import EditSalesModal from "@/features/sales-management/ui/EditSalesModal";
 import { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
-import NewSalesModal from "@/features/sales-management/NewSalesModal";
-import RemainingOrderSummaryModal from "@/features/sales-management/RemainingOrderSummaryModal";
-import SalesManagementTableView from "@/features/sales-management/SalesManagementTableView";
+import NewSalesModal from "@/features/sales-management/ui/NewSalesModal";
+import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
+import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
-import { clientRows } from "@/mock/clientMasterData";
-import { materialRows } from "@/mock/materialMasterData";
-import { productRows } from "@/mock/productMasterData";
+import {
+  createSalesOrder,
+  deleteSalesOrder,
+  fetchSalesOrderRows,
+  updateSalesOrder,
+} from "@/features/sales-management/api/client";
 import {
   salesDocumentStatusOptions,
-  salesRows,
   salesStatusOptions,
-  SalesDocumentStatusKey,
-  SalesRow,
-  SalesStatusKey,
-} from "@/mock/salesManagementData";
+  type NewSalesOrderInput,
+  type SalesDocumentStatusKey,
+  type SalesRow,
+  type SalesStatusKey,
+} from "@/features/sales-management/types";
+import { fetchClientRows } from "@/features/client-master/api/client";
+import { fetchMaterialRows } from "@/features/material-master/api/client";
+import { fetchProductRows } from "@/features/product-master/api/client";
+import { fetchExchangeRates } from "@/features/settings/api/client";
+import type { ClientRow } from "@/features/client-master/types";
+import type { MaterialRow } from "@/features/material-master/types";
+import type { ProductRow } from "@/features/product-master/types";
+import type { ExchangeRates } from "@/features/settings/types";
+
+const DEFAULT_CURRENCIES = ["USD", "VND", "JPY"];
+const defaultExchangeRates: ExchangeRates = {
+  jpyPerUsd: 150,
+  vndPerUsd: 25000,
+};
+const normalizeRate = (value: number, fallback: number) =>
+  Number.isFinite(value) && value > 0 ? value : fallback;
 
 export default function SalesManagementView() {
   const {
     rows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
-  } = useMasterCrud<SalesRow>(salesRows, (item, nextId) => ({ ...item, id: nextId }));
+  } = useMasterCrud<SalesRow>([], (item, nextId) => ({
+    ...item,
+    id: nextId,
+    salesOrderId: item.salesOrderId ?? `local_${nextId}`,
+  }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
+
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [optionError, setOptionError] = useState<string | null>(null);
+  const [clientRows, setClientRows] = useState<ClientRow[]>([]);
+  const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
+  const [productRows, setProductRows] = useState<ProductRow[]>([]);
+
+  const reload = async () => {
+    const fetched = await fetchSalesOrderRows();
+    replaceRows(fetched);
+  };
+
+  const reloadMasterOptions = async () => {
+    try {
+      setOptionError(null);
+      const [clients, materials, products] = await Promise.all([
+        fetchClientRows(),
+        fetchMaterialRows(),
+        fetchProductRows(),
+      ]);
+      setClientRows(clients);
+      setMaterialRows(materials);
+      setProductRows(products);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to load master data";
+      setOptionError(msg);
+    }
+  };
+
+  const handleCreate = (input: NewSalesOrderInput) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await createSalesOrder(input);
+        await reload();
+
+        closeCreate();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create sales order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleEdit = (next: SalesRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await updateSalesOrder(next);
+        await reload();
+
+        closeEdit();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update sales order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  const handleDelete = (row: SalesRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutateError(null);
+
+        await deleteSalesOrder(row.salesOrderId);
+        await reload();
+
+        closeDelete();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete sales order";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+      }
+    })();
+  };
+
+  // DynamoDB から受注データを取得
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchSalesOrderRows();
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows]);
+
+  // 取引先/材料/製品の候補を初回取得
+  useEffect(() => {
+    reloadMasterOptions();
+  }, []);
+
+  // 新規/編集モーダルを開くたびに候補を最新化
+  useEffect(() => {
+    if (isCreateOpen || Boolean(editingRow)) {
+      reloadMasterOptions();
+    }
+  }, [isCreateOpen, editingRow]);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
@@ -208,30 +363,33 @@ export default function SalesManagementView() {
       length: row.length,
       speed: row.speed,
     }));
-  }, []);
+  }, [materialRows, productRows]);
 
   const customerOptions = useMemo(
     () =>
       clientRows
-        .filter((row) => row.category === "顧客" && row.status === "active")
+        .filter((row) => row.status !== "inactive" && row.name.trim() !== "")
+        .sort((a, b) => a.name.localeCompare(b.name, "ja"))
         .map((row) => ({
           value: row.name,
           label: row.name,
           region: row.region,
           currency: row.currency,
         })),
-    []
+    [clientRows]
   );
 
   const currencyOptions = useMemo(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
-    return uniqueValues([...clientRows.map((row) => row.currency), ...productRows.map((row) => row.currency)]).map(
-      (value) => ({
-        value,
-        label: value,
-      })
-    );
-  }, []);
+    return uniqueValues([
+      ...DEFAULT_CURRENCIES,
+      ...clientRows.map((row) => row.currency),
+      ...productRows.map((row) => row.currency),
+    ]).map((value) => ({
+      value,
+      label: value,
+    }));
+  }, [clientRows, productRows]);
 
   const statusOptions = useMemo(
     () => salesStatusOptions.map((status) => ({ value: status.key, label: status.label })),
@@ -268,6 +426,24 @@ export default function SalesManagementView() {
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
     const destinationCountry = countryLabelMap[region] ?? region;
+    let exchangeRates = defaultExchangeRates;
+    try {
+      exchangeRates = await fetchExchangeRates();
+    } catch (error) {
+      console.error("Failed to load exchange rates", error);
+    }
+    const safeRates = {
+      jpyPerUsd: normalizeRate(exchangeRates.jpyPerUsd, defaultExchangeRates.jpyPerUsd),
+      vndPerUsd: normalizeRate(exchangeRates.vndPerUsd, defaultExchangeRates.vndPerUsd),
+    };
+    const currency = row.currency?.toUpperCase();
+    const usdRate =
+      currency === "JPY"
+        ? 1 / safeRates.jpyPerUsd
+        : currency === "VND"
+          ? 1 / safeRates.vndPerUsd
+          : 1;
+    const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
     const items = row.items.map((item) => {
       const product = productRows.find((productRow) => productRow.code === item.productCode);
       return {
@@ -276,7 +452,7 @@ export default function SalesManagementView() {
         poNo: row.orderNo,
         unit: product?.unit ?? "",
         quantity: item.orderQuantity,
-        unitPrice: item.unitPrice,
+        unitPrice: item.unitPrice * safeUsdRate,
       };
     });
     const payload: InvoicePackingPayload = {
@@ -342,11 +518,28 @@ export default function SalesManagementView() {
           </Button>
         }
       />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          受注管理の取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {optionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          取引先・材料・製品マスタの取得に失敗しました。（{optionError}）
+        </div>
+      )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <SalesManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} onIssue={handleIssue} />
       <NewSalesModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         productOptions={productOptions}
         customerOptions={customerOptions}
         currencyOptions={currencyOptions}
@@ -354,11 +547,11 @@ export default function SalesManagementView() {
         documentOptions={documentOptions}
       />
       <EditSalesModal
-        key={editingRow?.id ?? "sales-edit"}
+        key={`sales-edit-${editingRow?.id ?? "default"}`}
         open={Boolean(editingRow)}
         sales={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         productOptions={productOptions}
         customerOptions={customerOptions}
@@ -370,9 +563,9 @@ export default function SalesManagementView() {
         open={Boolean(deletingRow)}
         sales={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
-      <RemainingOrderSummaryModal key={summaryKey} open={isSummaryOpen} rows={rows} onClose={closeSummary} />
+      <RemainingOrderSummaryModal key={`summary-${summaryKey}`} open={isSummaryOpen} rows={rows} onClose={closeSummary} />
     </div>
   );
 }

@@ -25,6 +25,7 @@ const emptyErrors = {
   name: "",
   address: "",
   phone: "",
+  taxId: "",
   category: "",
   region: "",
   currency: "",
@@ -47,6 +48,7 @@ export default function NewClientModal({
     name: "",
     address: "",
     phone: "",
+    taxId: "",
     category: "",
     region: "",
     currency: "",
@@ -72,6 +74,7 @@ export default function NewClientModal({
       name: "",
       address: "",
       phone: "",
+      taxId: "",
       category: "",
       region: "",
       currency: "",
@@ -98,6 +101,7 @@ export default function NewClientModal({
       name: isBlank(form.name) ? "空白だけでは登録できません" : "",
       address: "",
       phone: "",
+      taxId: "",
       category: isBlank(form.category) ? "空白だけでは登録できません" : "",
       region: isBlank(form.region) ? "空白だけでは登録できません" : "",
       currency: isBlank(form.currency) ? "空白だけでは登録できません" : "",
@@ -116,6 +120,7 @@ export default function NewClientModal({
       note: form.note.trim(),
       address: form.address.trim(),
       phone: form.phone.trim(),
+      taxId: form.taxId.trim(),
       category: form.category.trim(),
       region: form.region.trim(),
       currency: form.currency.trim(),
@@ -182,6 +187,18 @@ export default function NewClientModal({
             helperText={errors.phone}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">TAX ID</label>
+        <TextField
+          size="small"
+          placeholder="e.g. 123456789"
+          value={form.taxId}
+          onChange={(event) => handleChange("taxId", event.target.value)}
+          error={Boolean(errors.taxId)}
+          helperText={errors.taxId}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

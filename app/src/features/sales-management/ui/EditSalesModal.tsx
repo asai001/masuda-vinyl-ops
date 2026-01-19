@@ -15,7 +15,12 @@ import {
 } from "@mui/material";
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { SalesDocumentStatusKey, SalesLineItem, SalesRow, SalesStatusKey } from "@/mock/salesManagementData";
+import type {
+  SalesDocumentStatusKey,
+  SalesLineItem,
+  SalesRow,
+  SalesStatusKey,
+} from "@/features/sales-management/types";
 
 type Option = {
   value: string;
@@ -69,15 +74,17 @@ type LineItemError = {
   shippedQuantity?: string;
 };
 
-type NewSalesModalProps = {
+type EditSalesModalProps = {
   open: boolean;
+  sales: SalesRow | null;
   productOptions: ProductOption[];
   customerOptions: CustomerOption[];
   currencyOptions: Option[];
   statusOptions: StatusOption[];
   documentOptions: DocumentOption[];
   onClose: () => void;
-  onSave: (order: Omit<SalesRow, "id">) => void;
+  onSave: (order: SalesRow) => void;
+  onDelete?: (order: SalesRow) => void;
 };
 
 const emptyErrors = {
@@ -91,14 +98,6 @@ const emptyErrors = {
 type ErrorKey = keyof typeof emptyErrors;
 
 const amountFormatter = new Intl.NumberFormat("en-US");
-
-const getTodayString = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 const createEmptyItem = (id: number): LineItemForm => ({
   id,
@@ -114,8 +113,9 @@ const createEmptyItem = (id: number): LineItemForm => ({
   speed: null,
 });
 
-export default function NewSalesModal({
+export default function EditSalesModal({
   open,
+  sales,
   productOptions,
   customerOptions,
   currencyOptions,
@@ -123,59 +123,50 @@ export default function NewSalesModal({
   documentOptions,
   onClose,
   onSave,
-}: NewSalesModalProps) {
-  const [form, setForm] = useState({
-    orderNo: "",
-    orderDate: getTodayString(),
-    deliveryDate: "",
-    customerName: "",
-    customerRegion: "",
-    currency: "",
-    note: "",
-    status: {
+  onDelete,
+}: EditSalesModalProps) {
+  const getInitialForm = (row: SalesRow | null) => ({
+    orderNo: row?.orderNo ?? "",
+    orderDate: row?.orderDate ?? "",
+    deliveryDate: row?.deliveryDate ?? "",
+    customerName: row?.customerName ?? "",
+    customerRegion: row?.customerRegion ?? "",
+    currency: row?.currency ?? "",
+    note: row?.note ?? "",
+    status: row?.status ?? {
       shipped: false,
       delivered: false,
       paid: false,
     },
-    documentStatus: {
+    documentStatus: row?.documentStatus ?? {
       orderReceived: false,
       deliverySent: false,
       invoiceSent: false,
     },
-    items: [] as LineItemForm[],
+    items:
+      row?.items.map((item) => ({
+        id: item.id,
+        productCode: item.productCode,
+        productName: item.productName,
+        materials: item.materials,
+        orderQuantity: String(item.orderQuantity),
+        unitPrice: String(item.unitPrice),
+        stockQuantity: item.stockQuantity === null ? "0" : String(item.stockQuantity),
+        shippedQuantity: String(item.shippedQuantity),
+        weight: item.weight,
+        length: item.length,
+        speed: item.speed,
+      })) ?? [],
   });
+
+  const [form, setForm] = useState(() => getInitialForm(sales));
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
   const [itemsError, setItemsError] = useState("");
-
-  const resetForm = () => {
-    setForm({
-      orderNo: "",
-      orderDate: getTodayString(),
-      deliveryDate: "",
-      customerName: "",
-      customerRegion: "",
-      currency: "",
-      note: "",
-      status: {
-        shipped: false,
-        delivered: false,
-        paid: false,
-      },
-      documentStatus: {
-        orderReceived: false,
-        deliverySent: false,
-        invoiceSent: false,
-      },
-      items: [],
-    });
-    setErrors(emptyErrors);
-    setLineErrors({});
-    setItemsError("");
-  };
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleClose = () => {
-    resetForm();
+    setActionError(null);
     onClose();
   };
 
@@ -300,6 +291,7 @@ export default function NewSalesModal({
   }, [amountValue, form.currency]);
 
   const handleSave = () => {
+    setActionError(null);
     const nextErrors = {
       orderNo: form.orderNo ? "" : "必須項目です",
       orderDate: form.orderDate ? "" : "必須項目です",
@@ -325,19 +317,22 @@ export default function NewSalesModal({
       if (!item.unitPrice) {
         itemError.unitPrice = "必須項目です";
       }
-      if (!item.stockQuantity) {
-        itemError.stockQuantity = "必須項目です";
-      }
-      if (!item.shippedQuantity) {
-        itemError.shippedQuantity = "必須項目です";
-      }
       if (Object.keys(itemError).length) {
         nextLineErrors[item.id] = itemError;
       }
     });
     setLineErrors(nextLineErrors);
 
-    if (Object.values(nextErrors).some((message) => message) || !form.items.length || Object.keys(nextLineErrors).length) {
+    const hasRequiredErrors =
+      Object.values(nextErrors).some((message) => message) ||
+      !form.items.length ||
+      Object.keys(nextLineErrors).length;
+    if (hasRequiredErrors) {
+      setActionError("必須項目が入力されていません");
+      return;
+    }
+
+    if (!sales) {
       return;
     }
 
@@ -386,33 +381,39 @@ export default function NewSalesModal({
     }
 
     onSave({
+      ...sales,
       orderNo: form.orderNo,
       orderDate: form.orderDate,
       customerName: form.customerName,
       customerRegion: form.customerRegion,
       deliveryDate: form.deliveryDate,
-      currency: form.currency as SalesRow["currency"],
+      currency: form.currency,
       note: form.note,
       items: parsedItems,
       status: form.status,
       documentStatus: form.documentStatus,
     });
-    resetForm();
   };
 
   return (
     <Modal
       open={open}
-      title="新規受注"
+      title="編集"
       onClose={handleClose}
       actions={
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
+        <div className="flex w-full items-center gap-2">
+          <Button variant="outlined" color="error" onClick={() => sales && onDelete?.(sales)} disabled={!sales}>
+            削除
           </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
         </div>
       }
     >
@@ -532,6 +533,12 @@ export default function NewSalesModal({
         <div className="flex flex-col gap-4">
           {form.items.map((item, index) => {
             const itemError = lineErrors[item.id];
+            const selectedOption = productOptions.find((option) => option.value === item.productCode);
+            const showCurrencyMismatch =
+              Boolean(item.productCode) &&
+              Boolean(form.currency) &&
+              Boolean(selectedOption?.currency) &&
+              selectedOption?.currency !== form.currency;
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
@@ -543,8 +550,13 @@ export default function NewSalesModal({
 
                 <div className="mt-3 flex flex-col gap-3">
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-gray-700">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       品目/品番 <span className="text-red-500">*</span>
+                      {showCurrencyMismatch && (
+                        <span className="text-xs font-normal text-amber-600">
+                          マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
+                        </span>
+                      )}
                     </label>
                     <FormControl size="small" error={Boolean(itemError?.productCode)}>
                       <Select
@@ -599,9 +611,7 @@ export default function NewSalesModal({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        在庫数 <span className="text-red-500">*</span>
-                      </label>
+                      <label className="text-sm font-semibold text-gray-700">在庫数</label>
                       <TextField
                         size="small"
                         type="number"
@@ -613,9 +623,7 @@ export default function NewSalesModal({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        出荷数 <span className="text-red-500">*</span>
-                      </label>
+                      <label className="text-sm font-semibold text-gray-700">出荷数</label>
                       <TextField
                         size="small"
                         type="number"

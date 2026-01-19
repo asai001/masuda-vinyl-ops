@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
-import { SalesRow } from "@/mock/salesManagementData";
+import type { SalesRow } from "@/features/sales-management/types";
 
 type DeleteSalesDialogProps = {
   open: boolean;
