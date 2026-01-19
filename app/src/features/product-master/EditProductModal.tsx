@@ -285,12 +285,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.unitPrice}
             onChange={(event) => handleChange("unitPrice", event.target.value)}
             error={Boolean(errors.unitPrice)}
             helperText={errors.unitPrice}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -361,12 +361,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.weight}
             onChange={(event) => handleChange("weight", event.target.value)}
             error={Boolean(errors.weight)}
             helperText={errors.weight}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -376,12 +376,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.length}
             onChange={(event) => handleChange("length", event.target.value)}
             error={Boolean(errors.length)}
             helperText={errors.length}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -391,12 +391,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.speed}
             onChange={(event) => handleChange("speed", event.target.value)}
             error={Boolean(errors.speed)}
             helperText={errors.speed}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
       </div>

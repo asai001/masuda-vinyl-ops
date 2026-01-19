@@ -299,16 +299,16 @@ export default function NewMaterialModal({
           <label className="text-sm font-semibold text-gray-700">
             標準単価 <span className="text-red-500">*</span>
           </label>
-          <TextField
-            size="small"
-            type="number"
-            inputProps={{ min: 0, step: "0.1" }}
-            placeholder="例: 3.5"
-            value={form.unitPrice}
-            onChange={(event) => handleChange("unitPrice", event.target.value)}
-            error={Boolean(errors.unitPrice)}
-            helperText={errors.unitPrice}
-          />
+        <TextField
+          size="small"
+          type="number"
+          placeholder="例: 3.5"
+          value={form.unitPrice}
+          onChange={(event) => handleChange("unitPrice", event.target.value)}
+          error={Boolean(errors.unitPrice)}
+          helperText={errors.unitPrice}
+          slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+        />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">

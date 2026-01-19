@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { PaymentManagementRow, PaymentStatusKey } from "@/mock/paymentManagementData";
+import type { PaymentManagementRow, PaymentStatusKey } from "@/features/payment-management/types";
 
 type Option = {
   value: string;
@@ -174,12 +174,12 @@ export default function EditPaymentManagementModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0 }}
             placeholder="0"
             value={form.amount}
             onChange={(event) => handleChange("amount", event.target.value)}
             error={Boolean(errors.amount)}
             helperText={errors.amount}
+            slotProps={{ htmlInput: { min: 0 } }}
           />
         </div>
         <div className="flex flex-col gap-2">

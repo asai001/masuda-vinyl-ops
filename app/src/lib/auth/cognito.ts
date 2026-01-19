@@ -262,22 +262,6 @@ export const getIdTokenJwt = async (): Promise<string | null> => {
   return session.getIdToken().getJwtToken();
 };
 
-const getCurrentUserFromStorages = (config: CognitoConfig): { user: CognitoUser; storage: Storage } | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const storages = [window.localStorage, window.sessionStorage] as const;
-  for (const storage of storages) {
-    const pool = createUserPool(config, storage);
-    const user = pool.getCurrentUser();
-    if (user) {
-      return { user, storage };
-    }
-  }
-  return null;
-};
-
 export type MyProfile = {
   userName: string;
   departmentName: string;

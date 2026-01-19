@@ -598,11 +598,11 @@ export default function NewSalesModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0 }}
                         value={item.orderQuantity}
                         onChange={(event) => handleLineChange(item.id, "orderQuantity", event.target.value)}
                         error={Boolean(itemError?.orderQuantity)}
                         helperText={itemError?.orderQuantity}
+                        slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -612,11 +612,11 @@ export default function NewSalesModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0, step: "0.1" }}
                         value={item.unitPrice}
                         onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
                         error={Boolean(itemError?.unitPrice)}
                         helperText={itemError?.unitPrice}
+                        slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -624,11 +624,11 @@ export default function NewSalesModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0 }}
                         value={item.stockQuantity}
                         onChange={(event) => handleLineChange(item.id, "stockQuantity", event.target.value)}
                         error={Boolean(itemError?.stockQuantity)}
                         helperText={itemError?.stockQuantity}
+                        slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -636,11 +636,11 @@ export default function NewSalesModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0 }}
                         value={item.shippedQuantity}
                         onChange={(event) => handleLineChange(item.id, "shippedQuantity", event.target.value)}
                         error={Boolean(itemError?.shippedQuantity)}
                         helperText={itemError?.shippedQuantity}
+                        slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                   </div>
