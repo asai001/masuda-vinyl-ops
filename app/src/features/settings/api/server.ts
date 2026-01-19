@@ -1,4 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { fromIni } from "@aws-sdk/credential-provider-ini";
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand, type UpdateCommandInput } from "@aws-sdk/lib-dynamodb";
 import { awsCredentialsProvider } from "@vercel/oidc-aws-credentials-provider";
 
@@ -35,7 +36,9 @@ const REGION = requireEnv("AWS_REGION");
 const ROLE_ARN = requireEnv("AWS_ROLE_ARN");
 const dynamoDBClient = new DynamoDBClient({
   region: REGION,
-  ...(process.env.VERCEL ? { credentials: awsCredentialsProvider({ roleArn: ROLE_ARN }) } : {}),
+  credentials: process.env.VERCEL
+    ? awsCredentialsProvider({ roleArn: ROLE_ARN })
+    : fromIni({ profile: requireEnv("AWS_PROFILE") }),
 });
 const ddb = DynamoDBDocumentClient.from(dynamoDBClient, { marshallOptions: { removeUndefinedValues: true } }); // removeUndefinedValues: true → udefined のプロパティを自動で省いてくれる
 
