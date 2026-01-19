@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
-import { SalesRow } from "@/mock/salesManagementData";
+import type { SalesRow } from "@/features/sales-management/types";
 
 type SummaryRow = {
   customerName: string;

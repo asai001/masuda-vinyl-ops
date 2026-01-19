@@ -5,12 +5,8 @@ import { Button, Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
-import {
-  salesDocumentStatusOptions,
-  salesStatusOptions,
-  SalesLineItem,
-  SalesRow,
-} from "@/mock/salesManagementData";
+import { salesDocumentStatusOptions, salesStatusOptions } from "@/features/sales-management/types";
+import type { SalesLineItem, SalesRow } from "@/features/sales-management/types";
 
 const amountFormatter = new Intl.NumberFormat("en-US");
 const timeFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

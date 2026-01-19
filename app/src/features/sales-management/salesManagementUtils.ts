@@ -1,4 +1,4 @@
-import { SalesLineItem } from "@/mock/salesManagementData";
+import type { SalesLineItem } from "@/features/sales-management/types";
 
 export type SalesMetrics = {
   orderQuantity: number;
