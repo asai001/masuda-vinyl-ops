@@ -174,7 +174,7 @@ export default function SettingsView() {
       setFontScale(normalizedScale);
       localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(normalizedScale));
       document.documentElement.style.setProperty("--app-font-scale", String(normalizedScale));
-    } catch (e) {
+    } catch {
       setErrorMessage("文字サイズの保存に失敗しました。時間をおいて再度お試しください。");
     } finally {
       setSavingFontScale(false);
@@ -304,7 +304,7 @@ export default function SettingsView() {
               select
               size="small"
               value={fontScale}
-              onChange={(event) => setFontScale(Number(event.target.value))}
+              onChange={(event) => setFontScale(normalizeFontScale(event.target.value))}
               disabled={savingFontScale}
               sx={{ maxWidth: 200 }}
             >

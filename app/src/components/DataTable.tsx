@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow } from "@mui/material";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
@@ -44,23 +44,20 @@ export default function DataTable<T>({
 }: TableProps<T>) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
-
-  useEffect(() => {
-    if (page > 0 && page * rowsPerPage >= rows.length) {
-      setPage(0);
-    }
-  }, [page, rows.length, rowsPerPage]);
+  const totalPages = rowsPerPage > 0 ? Math.ceil(rows.length / rowsPerPage) : 0;
+  const maxPage = Math.max(totalPages - 1, 0);
+  const safePage = Math.min(page, maxPage);
 
   const pagedRows = useMemo(() => {
     if (!rows.length) {
       return rows;
     }
-    const start = page * rowsPerPage;
+    const start = safePage * rowsPerPage;
     return rows.slice(start, start + rowsPerPage);
-  }, [page, rows, rowsPerPage]);
+  }, [rows, rowsPerPage, safePage]);
 
   const handleChangePage = (_event: unknown, nextPage: number) => {
-    setPage(nextPage);
+    setPage(Math.min(nextPage, maxPage));
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +156,7 @@ export default function DataTable<T>({
         <TablePagination
           component="div"
           count={rows.length}
-          page={page}
+          page={safePage}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
