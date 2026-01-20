@@ -43,6 +43,8 @@ const dynamoDBClient = new DynamoDBClient({
 const ddb = DynamoDBDocumentClient.from(dynamoDBClient, { marshallOptions: { removeUndefinedValues: true } }); // removeUndefinedValues: true → udefined のプロパティを自動で省いてくれる
 
 const DEFAULT_SETTINGS_KEY = "DEFAULT";
+const DEFAULT_JPY_PER_USD = 150;
+const DEFAULT_VND_PER_USD = 25000;
 
 export async function getSettings(orgId: string, settingsKey: string = DEFAULT_SETTINGS_KEY): Promise<SettingsItem | null> {
   const res = await ddb.send(
@@ -59,12 +61,12 @@ export async function getExchangeRates(orgId: string, settingsKey: string = DEFA
   const settings = await getSettings(orgId, settingsKey);
 
   // データが未作成でも UI が落ちないようにデフォルトを返す
-  const jpyPerUsd = Number(settings?.exchangeRates?.jpyPerUsd ?? 150);
-  const vndPerUsd = Number(settings?.exchangeRates?.vndPerUsd ?? 25000);
+  const jpyPerUsd = Number(settings?.exchangeRates?.jpyPerUsd ?? DEFAULT_JPY_PER_USD);
+  const vndPerUsd = Number(settings?.exchangeRates?.vndPerUsd ?? DEFAULT_VND_PER_USD);
 
   return {
-    jpyPerUsd: Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? jpyPerUsd : 150,
-    vndPerUsd: Number.isFinite(vndPerUsd) && vndPerUsd > 0 ? vndPerUsd : 25000,
+    jpyPerUsd: Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? jpyPerUsd : DEFAULT_JPY_PER_USD,
+    vndPerUsd: Number.isFinite(vndPerUsd) && vndPerUsd > 0 ? vndPerUsd : DEFAULT_VND_PER_USD,
   };
 }
 
@@ -102,5 +104,8 @@ export async function updateExchangeRates(
   const jpyPerUsd = Number(item?.exchangeRates?.jpyPerUsd ?? input.jpyPerUsd);
   const vndPerUsd = Number(item?.exchangeRates?.vndPerUsd ?? input.vndPerUsd);
 
-  return { jpyPerUsd, vndPerUsd };
+  return {
+    jpyPerUsd: Number.isFinite(jpyPerUsd) && jpyPerUsd > 0 ? jpyPerUsd : DEFAULT_JPY_PER_USD,
+    vndPerUsd: Number.isFinite(vndPerUsd) && vndPerUsd > 0 ? vndPerUsd : DEFAULT_VND_PER_USD,
+  };
 }

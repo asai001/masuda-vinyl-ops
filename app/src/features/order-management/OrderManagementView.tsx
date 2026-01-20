@@ -29,8 +29,6 @@ import { fetchMaterialRows } from "@/features/material-master/api/client";
 import type { ClientRow } from "@/features/client-master/types";
 import type { MaterialRow } from "@/features/material-master/types";
 
-const DEFAULT_CURRENCIES = ["USD", "VND", "JPY"];
-
 export default function OrderManagementView() {
   const {
     rows,
@@ -295,12 +293,6 @@ export default function OrderManagementView() {
     return names.map((name) => ({ value: name, label: name }));
   }, [clientRows]);
 
-  const currencyOptions = useMemo(() => {
-    const uniqueValues = Array.from(
-      new Set([...DEFAULT_CURRENCIES, ...materialRows.map((row) => row.currency).filter(Boolean)]),
-    );
-    return uniqueValues.map((value) => ({ value, label: value }));
-  }, [materialRows]);
 
   const statusOptions = orderStatusOptions.map((status) => ({ value: status.key, label: status.label }));
   const documentOptions = documentStatusOptions.map((status) => ({ value: status.key, label: status.label }));
@@ -353,7 +345,6 @@ export default function OrderManagementView() {
         onSave={handleCreate}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
-        currencyOptions={currencyOptions}
         statusOptions={statusOptions}
         documentOptions={documentOptions}
       />
@@ -366,7 +357,6 @@ export default function OrderManagementView() {
         onDelete={handleEditDelete}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
-        currencyOptions={currencyOptions}
         statusOptions={statusOptions}
         documentOptions={documentOptions}
       />

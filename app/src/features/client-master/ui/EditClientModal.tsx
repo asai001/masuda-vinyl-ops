@@ -5,6 +5,7 @@ import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { ClientRow } from "../types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -16,7 +17,6 @@ type EditClientModalProps = {
   client: ClientRow | null;
   categoryOptions: Option[];
   regionOptions: Option[];
-  currencyOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
   onSave: (client: ClientRow) => void;
@@ -35,14 +35,11 @@ const emptyErrors = {
   note: "",
 };
 
-const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
-
 export default function EditClientModal({
   open,
   client,
   categoryOptions,
   regionOptions,
-  currencyOptions,
   statusOptions,
   onClose,
   onSave,
@@ -67,14 +64,6 @@ export default function EditClientModal({
   const [form, setForm] = useState(() => getInitialForm(client));
   const [errors, setErrors] = useState(emptyErrors);
 
-  const currencyLabelOptions = useMemo(() => {
-    const fromProps = currencyOptions.map((o) => o.label).filter(Boolean);
-    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
-    // 重複除去（大文字小文字は区別しない）
-    const uniq = Array.from(new Map(merged.map((v) => [v.toUpperCase(), v])).values());
-    return uniq;
-  }, [currencyOptions]);
-
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
@@ -91,7 +80,7 @@ export default function EditClientModal({
       region: isBlank(form.region) ? "空白だけでは登録できません" : "",
       currency: isBlank(form.currency) ? "空白だけでは登録できません" : "",
       status: isBlank(form.status) ? "空白だけでは登録できません" : "",
-      note: isBlank(form.note) ? "空白だけでは登録できません" : "", // ✅備考も必須
+      note: "",
     };
     setErrors(nextErrors);
 
@@ -247,23 +236,20 @@ export default function EditClientModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyLabelOptions}
+          <Select
+            size="small"
             value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.currency)}
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Autocomplete, Button, Checkbox, FormControlLabel, TextField } from "@mui/material";
+import { Autocomplete, Button, Checkbox, FormControlLabel, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { PaymentRow } from "@/features/payment-master/types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -15,7 +16,6 @@ type EditPaymentModalProps = {
   open: boolean;
   payment: PaymentRow | null;
   categoryOptions: Option[];
-  currencyOptions: Option[];
   paymentMethodOptions: Option[];
   onClose: () => void;
   onSave: (payment: PaymentRow) => void;
@@ -35,7 +35,6 @@ export default function EditPaymentModal({
   open,
   payment,
   categoryOptions,
-  currencyOptions,
   paymentMethodOptions,
   onClose,
   onSave,
@@ -211,23 +210,20 @@ export default function EditPaymentModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyOptions.map((option) => option.label)}
+          <Select
+            size="small"
             value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.currency)}
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
       </div>
 

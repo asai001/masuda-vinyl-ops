@@ -5,6 +5,7 @@ import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import { MaterialRow } from "../types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -14,10 +15,10 @@ type Option = {
 type EditMaterialModalProps = {
   open: boolean;
   material: MaterialRow | null;
+  existingMaterials: MaterialRow[];
   categoryOptions: Option[];
   supplierOptions: Option[];
   unitOptions: Option[];
-  currencyOptions: Option[];
   statusOptions: Option[];
   supplierCurrencyMap: Record<string, string>;
   onClose: () => void;
@@ -26,6 +27,7 @@ type EditMaterialModalProps = {
 };
 
 const isBlank = (v: string) => v.trim().length === 0;
+const normalizeCode = (value: string) => value.trim().toLowerCase();
 
 const emptyErrors = {
   code: "",
@@ -39,15 +41,13 @@ const emptyErrors = {
   note: "",
 };
 
-const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
-
 export default function EditMaterialModal({
   open,
   material,
+  existingMaterials,
   categoryOptions,
   supplierOptions,
   unitOptions,
-  currencyOptions,
   statusOptions,
   supplierCurrencyMap,
   onClose,
@@ -75,18 +75,19 @@ export default function EditMaterialModal({
   };
 
   const handleSupplierSelect = (supplier: string) => {
-    const mapped = supplierCurrencyMap[supplier]?.trim();
+    const mapped = supplierCurrencyMap[supplier]?.trim().toUpperCase();
+    const normalizedCurrency = mapped && CURRENCY_OPTIONS.includes(mapped as (typeof CURRENCY_OPTIONS)[number]) ? mapped : "";
 
     setForm((prev) => ({
       ...prev,
       supplier,
-      currency: mapped && mapped.length > 0 ? mapped : prev.currency,
+      currency: normalizedCurrency ? normalizedCurrency : prev.currency,
     }));
 
     setErrors((prev) => ({
       ...prev,
       supplier: "",
-      currency: mapped && mapped.length > 0 ? "" : prev.currency,
+      currency: normalizedCurrency ? "" : prev.currency,
     }));
   };
 
@@ -118,6 +119,20 @@ export default function EditMaterialModal({
       return;
     }
 
+    const normalizedCode = normalizeCode(form.code);
+    if (normalizedCode) {
+      const hasDuplicate = existingMaterials.some((row) => {
+        if (row.materialId === material.materialId) {
+          return false;
+        }
+        return normalizeCode(row.code) === normalizedCode;
+      });
+      if (hasDuplicate) {
+        setErrors((prev) => ({ ...prev, code: "品番が既に登録されています" }));
+        return;
+      }
+    }
+
     onSave({
       ...material,
       code: form.code.trim(),
@@ -131,13 +146,6 @@ export default function EditMaterialModal({
       note: form.note, // 空OK
     });
   };
-
-  const currencyLabelOptions = useMemo(() => {
-    const fromProps = currencyOptions.map((o) => o.label).filter(Boolean);
-    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
-    const uniq = Array.from(new Map(merged.map((v) => [v.toUpperCase(), v])).values());
-    return uniq;
-  }, [currencyOptions]);
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
@@ -271,23 +279,20 @@ export default function EditMaterialModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyLabelOptions}
+          <Select
+            size="small"
             value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.currency)}
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
       </div>
 

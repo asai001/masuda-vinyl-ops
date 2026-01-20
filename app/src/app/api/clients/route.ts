@@ -14,7 +14,7 @@ function isNewClientInput(v: unknown): v is NewClientInput {
 
   return (
     isNonEmptyString(r.name) &&
-    isNonEmptyString(r.note) && // ✅ 備考も必須＆空白のみNG
+    isOptionalString(r.note) &&
     isNonEmptyString(r.category) &&
     isNonEmptyString(r.region) &&
     isNonEmptyString(r.currency) &&
@@ -34,7 +34,7 @@ function isUpdateClientInput(v: unknown): v is UpdateClientInput {
   return (
     isNonEmptyString(r.clientId) &&
     isNonEmptyString(r.name) &&
-    isNonEmptyString(r.note) &&
+    isOptionalString(r.note) &&
     isNonEmptyString(r.category) &&
     isNonEmptyString(r.region) &&
     isNonEmptyString(r.currency) &&

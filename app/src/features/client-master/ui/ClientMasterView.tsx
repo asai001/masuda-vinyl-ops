@@ -10,6 +10,7 @@ import EditClientModal from "@/features/client-master/ui/EditClientModal";
 import NewClientModal from "@/features/client-master/ui/NewClientModal";
 import type { NewClientInput, ClientRow } from "../types";
 import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 export default function ClientMasterView() {
   const {
@@ -140,7 +141,7 @@ export default function ClientMasterView() {
     // [{value: "材料", label: "材料"}, {value: "加工", label: "加工"}
     const categoryOptions = toOptions(uniqueStrings(rows.map((r) => r.category)));
     const regionOptions = toOptions(uniqueStrings(rows.map((r) => r.region)));
-    const currencyOptions = toOptions(uniqueStrings(rows.map((r) => r.currency)));
+    const currencyOptions = CURRENCY_OPTION_ITEMS;
     const statusOptions = [
       { value: "active", label: "有効" },
       { value: "inactive", label: "無効" },
@@ -242,7 +243,6 @@ export default function ClientMasterView() {
         onSave={handleCreate}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
-        currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
       />
       <EditClientModal
@@ -254,7 +254,6 @@ export default function ClientMasterView() {
         onDelete={handleEditDelete}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
-        currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
       />
       <DeleteClientDialog

@@ -2,9 +2,15 @@
 
 import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, TextField } from "@mui/material";
+import { Button, MenuItem, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import { fetchExchangeRates, saveExchangeRates } from "@/features/settings/api/client";
+import {
+  DEFAULT_FONT_SCALE,
+  FONT_SCALE_OPTIONS,
+  FONT_SCALE_STORAGE_KEY,
+  normalizeFontScale,
+} from "@/features/settings/fontScale";
 import { getMyProfile, updateMyProfileAttributes } from "@/lib/auth/cognito";
 
 const initialRates = {
@@ -47,6 +53,10 @@ export default function SettingsView() {
   const [loadingRates, setLoadingRates] = useState(true);
   const [savingRates, setSavingRates] = useState(false);
 
+  // font scale
+  const [fontScale, setFontScale] = useState(DEFAULT_FONT_SCALE);
+  const [savingFontScale, setSavingFontScale] = useState(false);
+
   // profile
   const [profile, setProfile] = useState<ProfileState>(initialProfile);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -60,6 +70,7 @@ export default function SettingsView() {
 
   const canSubmitRates = !loadingRates && !savingRates && jpy !== null && vnd !== null;
   const canSubmitProfile = !loadingProfile && !savingProfile;
+  const canSubmitFontScale = !savingFontScale;
 
   // 初期ロード：レート + プロフィール
   useEffect(() => {
@@ -109,6 +120,13 @@ export default function SettingsView() {
     return () => ac.abort();
   }, [router]);
 
+  useEffect(() => {
+    const stored = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    const normalizedScale = normalizeFontScale(stored);
+    setFontScale(normalizedScale);
+    document.documentElement.style.setProperty("--app-font-scale", String(normalizedScale));
+  }, []);
+
   // handlers: rates
   const handleRateChange = (key: ExchangeRateKey) => (event: ChangeEvent<HTMLInputElement>) => {
     setErrorMessage(null);
@@ -139,6 +157,27 @@ export default function SettingsView() {
       setErrorMessage("保存に失敗しました。時間をおいて再度お試しください。");
     } finally {
       setSavingRates(false);
+    }
+  };
+
+  const handleFontScaleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+
+    if (!canSubmitFontScale) {
+      return;
+    }
+
+    setSavingFontScale(true);
+    try {
+      const normalizedScale = normalizeFontScale(fontScale);
+      setFontScale(normalizedScale);
+      localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(normalizedScale));
+      document.documentElement.style.setProperty("--app-font-scale", String(normalizedScale));
+    } catch (e) {
+      setErrorMessage("文字サイズの保存に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setSavingFontScale(false);
     }
   };
 
@@ -246,6 +285,46 @@ export default function SettingsView() {
               disabled={!canSubmitProfile}
             >
               {savingProfile ? "保存中..." : "保存"}
+            </Button>
+          </div>
+        </div>
+      </form>
+
+      {/* 文字サイズ */}
+      <form onSubmit={handleFontScaleSubmit}>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">文字サイズ</h2>
+            <p className="text-sm text-gray-600">アプリ全体の文字サイズを設定します</p>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-2">
+            <span className="text-sm font-semibold text-gray-800">サイズ</span>
+            <TextField
+              select
+              size="small"
+              value={fontScale}
+              onChange={(event) => setFontScale(Number(event.target.value))}
+              disabled={savingFontScale}
+              sx={{ maxWidth: 200 }}
+            >
+              {FONT_SCALE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </div>
+
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<Save size={16} />}
+              className="whitespace-nowrap"
+              disabled={!canSubmitFontScale}
+            >
+              {savingFontScale ? "保存中..." : "保存"}
             </Button>
           </div>
         </div>

@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentSession, getMyProfile } from "@/lib/auth/cognito";
+import { FONT_SCALE_STORAGE_KEY, normalizeFontScale } from "@/features/settings/fontScale";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -52,6 +53,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (isCheckingAuth) {
+      return;
+    }
+    const stored = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    const scale = normalizeFontScale(stored);
+    document.documentElement.style.setProperty("--app-font-scale", String(scale));
+  }, [isCheckingAuth]);
+
   const pageTitles: Record<string, string> = {
     "/": "ダッシュボード",
     "/dashboard": "ダッシュボード",
@@ -79,11 +89,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen text-gray-900">
+    <div className="flex h-screen overflow-hidden text-gray-900">
       <Sidebar onNavigate={handleNavigate} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header pageTitle={pageTitle} userName={userName} userRole={departmentName} />
-        <main className="flex-1 bg-gray-50 p-6 min-w-0 overflow-x-hidden">{children}</main>
+        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 p-6">{children}</main>
       </div>
     </div>
   );

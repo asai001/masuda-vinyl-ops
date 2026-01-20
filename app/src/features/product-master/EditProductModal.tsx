@@ -5,6 +5,7 @@ import { Autocomplete, Button, Checkbox, ListItemText, MenuItem, Select, TextFie
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { ProductRow } from "./types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -16,7 +17,6 @@ type EditProductModalProps = {
   product: ProductRow | null;
   categoryOptions: Option[];
   unitOptions: Option[];
-  currencyOptions: Option[];
   statusOptions: Option[];
   materialOptions: Option[];
   existingProducts: ProductRow[];
@@ -39,14 +39,11 @@ const emptyErrors = {
   materials: "",
 };
 
-const DEFAULT_CURRENCY_OPTIONS = ["USD", "VND", "JPY"] as const;
-
 export default function EditProductModal({
   open,
   product,
   categoryOptions,
   unitOptions,
-  currencyOptions,
   statusOptions,
   materialOptions,
   existingProducts,
@@ -71,13 +68,6 @@ export default function EditProductModal({
 
   const [form, setForm] = useState(() => getInitialForm(product));
   const [errors, setErrors] = useState(emptyErrors);
-
-  const currencyLabelOptions = useMemo(() => {
-    const fromProps = currencyOptions.map((option) => option.label).filter(Boolean);
-    const merged = [...DEFAULT_CURRENCY_OPTIONS, ...fromProps];
-    const uniq = Array.from(new Map(merged.map((value) => [value.toUpperCase(), value])).values());
-    return uniq;
-  }, [currencyOptions]);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -297,23 +287,20 @@ export default function EditProductModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyLabelOptions}
+          <Select
+            size="small"
             value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力してください"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.currency)}
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
       </div>
 

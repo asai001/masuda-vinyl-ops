@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Chip, IconButton } from "@mui/material";
+import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
@@ -92,9 +92,16 @@ type SalesManagementTableViewProps = {
   onRowClick?: (row: SalesRow) => void;
   onDelete?: (row: SalesRow) => void;
   onIssue?: (row: SalesRow) => void;
+  issuingRowId?: number | null;
 };
 
-export default function SalesManagementTableView({ rows, onRowClick, onDelete, onIssue }: SalesManagementTableViewProps) {
+export default function SalesManagementTableView({
+  rows,
+  onRowClick,
+  onDelete,
+  onIssue,
+  issuingRowId,
+}: SalesManagementTableViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -276,18 +283,23 @@ export default function SalesManagementTableView({ rows, onRowClick, onDelete, o
         </div>
       ),
       align: "center",
-      render: (row) => (
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={(event) => {
-            event.stopPropagation();
-            onIssue?.(row);
-          }}
-        >
-          発行
-        </Button>
-      ),
+      render: (row) => {
+        const isIssuing = issuingRowId === row.id;
+        return (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={isIssuing}
+            startIcon={isIssuing ? <CircularProgress size={16} /> : null}
+            onClick={(event) => {
+              event.stopPropagation();
+              onIssue?.(row);
+            }}
+          >
+            {isIssuing ? "発行中..." : "発行"}
+          </Button>
+        );
+      },
     },
     {
       key: "delete",
@@ -309,7 +321,7 @@ export default function SalesManagementTableView({ rows, onRowClick, onDelete, o
           <Trash2 size={16} className="text-red-500" />
         ),
     },
-  ], [onDelete, onIssue]);
+  ], [issuingRowId, onDelete, onIssue]);
 
   const handleSort = (key: string) => {
     const typedKey = key as SortKey;
