@@ -35,8 +35,8 @@ import type { ClientRow } from "@/features/client-master/types";
 import type { MaterialRow } from "@/features/material-master/types";
 import type { ProductRow } from "@/features/product-master/types";
 import type { ExchangeRates } from "@/features/settings/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
-const DEFAULT_CURRENCIES = ["USD", "VND", "JPY"];
 const defaultExchangeRates: ExchangeRates = {
   jpyPerUsd: 150,
   vndPerUsd: 25000,
@@ -65,6 +65,7 @@ export default function SalesManagementView() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
+  const [issuingRowId, setIssuingRowId] = useState<number | null>(null);
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
@@ -379,17 +380,7 @@ export default function SalesManagementView() {
     [clientRows]
   );
 
-  const currencyOptions = useMemo(() => {
-    const uniqueValues = (values: string[]) => Array.from(new Set(values));
-    return uniqueValues([
-      ...DEFAULT_CURRENCIES,
-      ...clientRows.map((row) => row.currency),
-      ...productRows.map((row) => row.currency),
-    ]).map((value) => ({
-      value,
-      label: value,
-    }));
-  }, [clientRows, productRows]);
+  const currencyOptions = CURRENCY_OPTION_ITEMS;
 
   const statusOptions = useMemo(
     () => salesStatusOptions.map((status) => ({ value: status.key, label: status.label })),
@@ -423,6 +414,10 @@ export default function SalesManagementView() {
   const sanitizeFileName = (value: string) => value.replace(/[^A-Za-z0-9-_]/g, "") || "invoice";
 
   const handleIssue = async (row: SalesRow) => {
+    if (issuingRowId !== null) {
+      return;
+    }
+    setIssuingRowId(row.id);
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
     const destinationCountry = countryLabelMap[region] ?? region;
@@ -485,6 +480,8 @@ export default function SalesManagementView() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to download invoice packing list", error);
+    } finally {
+      setIssuingRowId(null);
     }
   };
 
@@ -535,7 +532,13 @@ export default function SalesManagementView() {
       )}
       {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
-      <SalesManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} onIssue={handleIssue} />
+      <SalesManagementTableView
+        rows={filteredRows}
+        onRowClick={openEdit}
+        onDelete={openDelete}
+        onIssue={handleIssue}
+        issuingRowId={issuingRowId}
+      />
       <NewSalesModal
         open={isCreateOpen}
         onClose={closeCreate}

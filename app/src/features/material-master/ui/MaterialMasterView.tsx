@@ -12,6 +12,7 @@ import NewMaterialModal from "@/features/material-master/ui/NewMaterialModal";
 import type { NewMaterialInput, MaterialRow } from "../types";
 import { createMaterial, deleteMaterial, fetchMaterialRows, updateMaterial } from "../api/client";
 import { fetchClientRows } from "@/features/client-master/api/client";
+import { CURRENCY_OPTIONS, CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const statusLabels: Record<string, string> = {
   active: "有効",
@@ -64,8 +65,11 @@ export default function MaterialMasterView() {
       const map: Record<string, string> = {};
       for (const c of clients) {
         const name = c.name?.trim();
-        const currency = c.currency?.trim();
+        const currency = c.currency?.trim().toUpperCase();
         if (!name || !currency) {
+          continue;
+        }
+        if (!CURRENCY_OPTIONS.includes(currency as (typeof CURRENCY_OPTIONS)[number])) {
           continue;
         }
         // 同名が複数ある場合は先勝ち（必要ならここは方針変更可能）
@@ -188,7 +192,7 @@ export default function MaterialMasterView() {
     const categoryOptions = uniqueValues(rows.map((row) => row.category)).map((value) => ({ value, label: value }));
     const supplierOptions = uniqueValues(rows.map((row) => row.supplier)).map((value) => ({ value, label: value }));
     const unitOptions = uniqueValues(rows.map((row) => row.unit)).map((value) => ({ value, label: value }));
-    const currencyOptions = uniqueValues(rows.map((row) => row.currency)).map((value) => ({ value, label: value }));
+    const currencyOptions = CURRENCY_OPTION_ITEMS;
     const statusOptions = [
       { value: "active", label: statusLabels.active },
       { value: "inactive", label: statusLabels.inactive },
@@ -310,10 +314,10 @@ export default function MaterialMasterView() {
         open={isCreateOpen}
         onClose={closeCreate}
         onSave={handleCreate}
+        existingMaterials={rows}
         categoryOptions={getOptions("category")}
         supplierOptions={supplierOptionsFromClients}
         unitOptions={getOptions("unit")}
-        currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
         supplierCurrencyMap={supplierCurrencyMap}
       />
@@ -325,10 +329,10 @@ export default function MaterialMasterView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
+        existingMaterials={rows}
         categoryOptions={getOptions("category")}
         supplierOptions={supplierOptionsFromClients}
         unitOptions={getOptions("unit")}
-        currencyOptions={getOptions("currency")}
         statusOptions={getOptions("status")}
         supplierCurrencyMap={supplierCurrencyMap}
       />

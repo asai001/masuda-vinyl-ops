@@ -5,6 +5,7 @@ import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewPaymentManagementInput, PaymentStatusKey } from "@/features/payment-management/types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -14,7 +15,6 @@ type Option = {
 type NewPaymentManagementModalProps = {
   open: boolean;
   categoryOptions: Option[];
-  currencyOptions: Option[];
   paymentMethodOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
@@ -34,7 +34,6 @@ const emptyErrors = {
 export default function NewPaymentManagementModal({
   open,
   categoryOptions,
-  currencyOptions,
   paymentMethodOptions,
   statusOptions,
   onClose,
@@ -191,23 +190,20 @@ export default function NewPaymentManagementModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyOptions.map((option) => option.label)}
+          <Select
+            size="small"
             value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            error={Boolean(errors.currency)}
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
         </div>
       </div>
 

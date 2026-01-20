@@ -18,6 +18,7 @@ import {
 import type { NewProductInput, ProductRow } from "@/features/product-master/types";
 import { fetchMaterialRows } from "@/features/material-master/api/client";
 import type { MaterialRow } from "@/features/material-master/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const statusLabels: Record<string, string> = {
   active: "有効",
@@ -192,10 +193,7 @@ export default function ProductMasterView() {
       value,
       label: value,
     }));
-    const currencyOptions = uniqueValues(rows.map((row) => row.currency)).map((value) => ({
-      value,
-      label: value,
-    }));
+    const currencyOptions = CURRENCY_OPTION_ITEMS;
     const materialLabelMap = new Map(materialOptions.map((option) => [option.value, option.label]));
     const materialFilterOptions = uniqueValues(rows.flatMap((row) => row.materials)).map((value) => ({
       value,
@@ -330,7 +328,6 @@ export default function ProductMasterView() {
         onSave={handleCreate}
         categoryOptions={filterDefinitions.find((definition) => definition.key === "category")?.options ?? []}
         unitOptions={filterDefinitions.find((definition) => definition.key === "unit")?.options ?? []}
-        currencyOptions={filterDefinitions.find((definition) => definition.key === "currency")?.options ?? []}
         statusOptions={filterDefinitions.find((definition) => definition.key === "status")?.options ?? []}
         materialOptions={materialOptions}
         existingProducts={rows}
@@ -344,7 +341,6 @@ export default function ProductMasterView() {
         onDelete={handleEditDelete}
         categoryOptions={filterDefinitions.find((definition) => definition.key === "category")?.options ?? []}
         unitOptions={filterDefinitions.find((definition) => definition.key === "unit")?.options ?? []}
-        currencyOptions={filterDefinitions.find((definition) => definition.key === "currency")?.options ?? []}
         statusOptions={filterDefinitions.find((definition) => definition.key === "status")?.options ?? []}
         materialOptions={materialOptions}
         existingProducts={rows}

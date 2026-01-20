@@ -16,9 +16,9 @@ import {
   updatePaymentDefinition,
 } from "@/features/payment-master/api/client";
 import type { NewPaymentInput, PaymentRow } from "@/features/payment-master/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
-const defaultCurrencies = ["JPY", "USD", "VND"];
 const fixedCostOptions = [
   { value: "fixed", label: "固定費" },
   { value: "variable", label: "変動費" },
@@ -126,12 +126,7 @@ export default function PaymentMasterView() {
     return uniqueValues.map((value) => ({ value, label: value }));
   }, [rows]);
 
-  const currencyOptions = useMemo(() => {
-    const uniqueValues = Array.from(new Set([...rows.map((row) => row.currency), ...defaultCurrencies])).filter(
-      (value) => value
-    );
-    return uniqueValues.map((value) => ({ value, label: value }));
-  }, [rows]);
+  const currencyOptions = CURRENCY_OPTION_ITEMS;
 
   const filterDefinitions = useMemo<FilterDefinition[]>(
     () => [
@@ -268,7 +263,6 @@ export default function PaymentMasterView() {
         onClose={closeCreate}
         onSave={handleCreate}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
       />
       <EditPaymentModal
@@ -279,7 +273,6 @@ export default function PaymentMasterView() {
         onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
       />
       <DeletePaymentDialog

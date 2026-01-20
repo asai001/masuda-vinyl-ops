@@ -25,9 +25,9 @@ import {
   type PaymentManagementRow,
 } from "@/features/payment-management/types";
 import type { PaymentRow as PaymentDefinitionRow } from "@/features/payment-master/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
-const defaultCurrencies = ["JPY", "USD", "VND"];
 
 export default function PaymentManagementView() {
   const defaultTargetMonth = new Date().toISOString().slice(0, 7);
@@ -195,16 +195,7 @@ export default function PaymentManagementView() {
     return uniqueValues.map((value) => ({ value, label: value }));
   }, [paymentDefinitionRows, rows]);
 
-  const currencyOptions = useMemo(() => {
-    const uniqueValues = Array.from(
-      new Set([
-        ...rows.map((row) => row.currency),
-        ...paymentDefinitionRows.map((row) => row.currency),
-        ...defaultCurrencies,
-      ]),
-    ).filter((value) => value);
-    return uniqueValues.map((value) => ({ value, label: value }));
-  }, [paymentDefinitionRows, rows]);
+  const currencyOptions = CURRENCY_OPTION_ITEMS;
 
   const statusOptions = useMemo(
     () => paymentStatusOptions.map((option) => ({ value: option.key, label: option.label })),
@@ -378,7 +369,6 @@ export default function PaymentManagementView() {
         onClose={closeCreate}
         onSave={handleCreate}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
         statusOptions={statusOptions}
       />
@@ -390,7 +380,6 @@ export default function PaymentManagementView() {
         onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
         statusOptions={statusOptions}
       />
