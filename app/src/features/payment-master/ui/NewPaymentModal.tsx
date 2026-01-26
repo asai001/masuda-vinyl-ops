@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Autocomplete, Button, Checkbox, FormControlLabel, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewPaymentInput } from "@/features/payment-master/types";
@@ -214,20 +214,21 @@ export default function NewPaymentModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Select
-            size="small"
-            value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            error={Boolean(errors.currency)}
-            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
-          >
-            {CURRENCY_OPTIONS.map((currency) => (
-              <MenuItem key={currency} value={currency}>
-                {currency}
-              </MenuItem>
-            ))}
-          </Select>
+          <FormControl size="small" error={Boolean(errors.currency)}>
+            <Select
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+            >
+              {CURRENCY_OPTIONS.map((currency) => (
+                <MenuItem key={currency} value={currency}>
+                  {currency}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.currency}</FormHelperText>
+          </FormControl>
         </div>
       </div>
 

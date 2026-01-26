@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewPaymentManagementInput, PaymentStatusKey } from "@/features/payment-management/types";
@@ -190,20 +190,21 @@ export default function NewPaymentManagementModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Select
-            size="small"
-            value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            error={Boolean(errors.currency)}
-            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
-          >
-            {CURRENCY_OPTIONS.map((currency) => (
-              <MenuItem key={currency} value={currency}>
-                {currency}
-              </MenuItem>
-            ))}
-          </Select>
+          <FormControl size="small" error={Boolean(errors.currency)}>
+            <Select
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+            >
+              {CURRENCY_OPTIONS.map((currency) => (
+                <MenuItem key={currency} value={currency}>
+                  {currency}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.currency}</FormHelperText>
+          </FormControl>
         </div>
       </div>
 
@@ -249,20 +250,21 @@ export default function NewPaymentManagementModal({
         <label className="text-sm font-semibold text-gray-700">
           ステータス <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.status}
-          onChange={(event) => handleChange("status", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.status)}
-          renderValue={() => statusLabel}
-        >
-          {statusOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.status)}>
+          <Select
+            value={form.status}
+            onChange={(event) => handleChange("status", event.target.value)}
+            displayEmpty
+            renderValue={() => statusLabel}
+          >
+            {statusOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.status}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">
