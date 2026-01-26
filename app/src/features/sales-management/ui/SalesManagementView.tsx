@@ -5,6 +5,7 @@ import { Button } from "@mui/material";
 import { CheckCircle, Clock, Package, TrendingUp } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteSalesDialog from "@/features/sales-management/ui/DeleteSalesDialog";
 import EditSalesModal from "@/features/sales-management/ui/EditSalesModal";
@@ -69,6 +70,7 @@ export default function SalesManagementView() {
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -105,18 +107,20 @@ export default function SalesManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createSalesOrder(input);
         await reload();
-
-        closeCreate();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create sales order";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -125,18 +129,20 @@ export default function SalesManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updateSalesOrder(next);
         await reload();
-
-        closeEdit();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update sales order";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -145,18 +151,20 @@ export default function SalesManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deleteSalesOrder(row.salesOrderId);
         await reload();
-
-        closeDelete();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete sales order";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -494,6 +502,8 @@ export default function SalesManagementView() {
     setIsSummaryOpen(false);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -530,7 +540,6 @@ export default function SalesManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <SalesManagementTableView
         rows={filteredRows}
@@ -569,6 +578,7 @@ export default function SalesManagementView() {
         onConfirm={handleDelete}
       />
       <RemainingOrderSummaryModal key={`summary-${summaryKey}`} open={isSummaryOpen} rows={rows} onClose={closeSummary} />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

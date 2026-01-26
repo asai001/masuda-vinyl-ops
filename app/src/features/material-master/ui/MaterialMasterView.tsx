@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, CheckCircle, Clock } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteMaterialDialog from "@/features/material-master/ui/DeleteMaterialDialog";
 import EditMaterialModal from "@/features/material-master/ui/EditMaterialModal";
@@ -41,6 +42,7 @@ export default function MaterialMasterView() {
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
 
   const reload = async () => {
     const fetched = await fetchMaterialRows();
@@ -99,18 +101,20 @@ export default function MaterialMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createMaterial(input);
         await reload();
-
-        closeCreate();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create material";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -119,18 +123,21 @@ export default function MaterialMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updateMaterial(next);
 
         await reload();
-        closeEdit();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update material";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -139,18 +146,21 @@ export default function MaterialMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deleteMaterial(row.materialId);
 
         await reload();
-        closeDelete();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete material";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -284,6 +294,8 @@ export default function MaterialMasterView() {
     openDelete(material);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -305,7 +317,6 @@ export default function MaterialMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
 
       <MaterialMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
@@ -343,6 +354,7 @@ export default function MaterialMasterView() {
         onClose={closeDelete}
         onConfirm={handleDelete}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

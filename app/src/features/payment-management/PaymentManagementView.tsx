@@ -5,6 +5,7 @@ import { Button } from "@mui/material";
 import { CheckCircle, Clock, DollarSign, Plus } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeletePaymentManagementDialog from "@/features/payment-management/DeletePaymentManagementDialog";
 import EditPaymentManagementModal from "@/features/payment-management/EditPaymentManagementModal";
@@ -49,6 +50,7 @@ export default function PaymentManagementView() {
   const [paymentDefinitionRows, setPaymentDefinitionRows] = useState<PaymentDefinitionRow[]>([]);
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | "generate" | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [optionError, setOptionError] = useState<string | null>(null);
@@ -78,18 +80,20 @@ export default function PaymentManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createPayment(input);
         await reload(targetMonth);
-
-        closeCreate();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create payment";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -98,18 +102,20 @@ export default function PaymentManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updatePayment(next);
         await reload(targetMonth);
-
-        closeEdit();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update payment";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -118,18 +124,20 @@ export default function PaymentManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deletePayment(row.paymentId, row.yearMonth);
         await reload(targetMonth);
-
-        closeDelete();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete payment";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -300,6 +308,9 @@ export default function PaymentManagementView() {
     openDelete(row);
   };
 
+  const savingMessage =
+    mutatingAction === "delete" ? "削除中" : mutatingAction === "generate" ? "生成中" : "保存中";
+
   const handleGenerate = () => {
     if (!targetMonth) {
       return;
@@ -307,6 +318,7 @@ export default function PaymentManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("generate");
         setMutateError(null);
 
         await generatePayments(targetMonth);
@@ -317,6 +329,7 @@ export default function PaymentManagementView() {
         setMutateError(msg);
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -361,7 +374,6 @@ export default function PaymentManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <PaymentManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewPaymentManagementModal
@@ -389,6 +401,7 @@ export default function PaymentManagementView() {
         onClose={closeDelete}
         onConfirm={handleDelete}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }
