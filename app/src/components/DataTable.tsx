@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow } from "@mui/material";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
@@ -42,6 +42,7 @@ export default function DataTable<T>({
   defaultRowsPerPage = 10,
   rowsPerPageOptions = [10, 25, 50],
 }: TableProps<T>) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
   const totalPages = rowsPerPage > 0 ? Math.ceil(rows.length / rowsPerPage) : 0;
@@ -56,17 +57,65 @@ export default function DataTable<T>({
     return rows.slice(start, start + rowsPerPage);
   }, [rows, rowsPerPage, safePage]);
 
+  const scrollToTop = (behavior: ScrollBehavior = "auto") => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const startNode = rootRef.current;
+    let el: HTMLElement | null = startNode;
+    while (el) {
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
+      const isScrollable =
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") && el.scrollHeight > el.clientHeight;
+      if (isScrollable) {
+        el.scrollTo({ top: 0, behavior });
+        return;
+      }
+      el = el.parentElement;
+    }
+    const mainEl = document.querySelector("main");
+    if (mainEl instanceof HTMLElement) {
+      mainEl.scrollTo({ top: 0, behavior });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior });
+  };
+
+  const blurActiveElement = () => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+  };
+
+  const scheduleScrollToTop = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const run = () => scrollToTop("auto");
+    window.requestAnimationFrame(run);
+    window.requestAnimationFrame(run);
+  };
+
   const handleChangePage = (_event: unknown, nextPage: number) => {
+    blurActiveElement();
     setPage(Math.min(nextPage, maxPage));
+    scheduleScrollToTop();
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    blurActiveElement();
     setRowsPerPage(Number(event.target.value));
     setPage(0);
+    scheduleScrollToTop();
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" ref={rootRef}>
       <TableContainer
         component={Paper}
         elevation={0}
