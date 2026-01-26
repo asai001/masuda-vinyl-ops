@@ -455,46 +455,48 @@ export default function NewOrderModal({
         <label className="text-sm font-semibold text-gray-700">
           仕入先 <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.supplier}
-          onChange={(event) => handleChange("supplier", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.supplier)}
-          renderValue={(selected) => {
-            if (!selected) {
-              return <span className="text-gray-400">選択してください</span>;
-            }
-            const option = supplierOptions.find((item) => item.value === selected);
-            return option?.label ?? selected;
-          }}
-        >
-          {supplierOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.supplier)}>
+          <Select
+            value={form.supplier}
+            onChange={(event) => handleChange("supplier", event.target.value)}
+            displayEmpty
+            renderValue={(selected) => {
+              if (!selected) {
+                return <span className="text-gray-400">選択してください</span>;
+              }
+              const option = supplierOptions.find((item) => item.value === selected);
+              return option?.label ?? selected;
+            }}
+          >
+            {supplierOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.supplier}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
           通貨 <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.currency}
-          onChange={(event) => handleChange("currency", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.currency)}
-          renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
-        >
-          {CURRENCY_OPTIONS.map((currency) => (
-            <MenuItem key={currency} value={currency}>
-              {currency}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.currency)}>
+          <Select
+            value={form.currency}
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.currency}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex items-center justify-between">

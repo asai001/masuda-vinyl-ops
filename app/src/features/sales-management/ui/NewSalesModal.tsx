@@ -473,26 +473,27 @@ export default function NewSalesModal({
         <label className="text-sm font-semibold text-gray-700">
           顧客名 <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.customerName}
-          onChange={(event) => handleCustomerChange(event.target.value)}
-          displayEmpty
-          error={Boolean(errors.customerName)}
-          renderValue={(selected) => {
-            if (!selected) {
-              return <span className="text-gray-400">選択してください</span>;
-            }
-            const option = customerOptions.find((item) => item.value === selected);
-            return option?.label ?? selected;
-          }}
-        >
-          {customerOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.customerName)}>
+          <Select
+            value={form.customerName}
+            onChange={(event) => handleCustomerChange(event.target.value)}
+            displayEmpty
+            renderValue={(selected) => {
+              if (!selected) {
+                return <span className="text-gray-400">選択してください</span>;
+              }
+              const option = customerOptions.find((item) => item.value === selected);
+              return option?.label ?? selected;
+            }}
+          >
+            {customerOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.customerName}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">
