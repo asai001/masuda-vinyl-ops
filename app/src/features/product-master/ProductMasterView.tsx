@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, CheckCircle, Clock } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteProductDialog from "@/features/product-master/DeleteProductDialog";
 import EditProductModal from "@/features/product-master/EditProductModal";
@@ -52,6 +53,7 @@ export default function ProductMasterView() {
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -77,18 +79,20 @@ export default function ProductMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createProduct(input);
         await reload();
-
-        closeCreate();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create product";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -97,18 +101,20 @@ export default function ProductMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updateProduct(next);
         await reload();
-
-        closeEdit();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update product";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -117,18 +123,20 @@ export default function ProductMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deleteProduct(row.productId);
         await reload();
-
-        closeDelete();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete product";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -294,6 +302,8 @@ export default function ProductMasterView() {
     openDelete(product);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -319,7 +329,6 @@ export default function ProductMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <ProductMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewProductModal
@@ -351,6 +360,7 @@ export default function ProductMasterView() {
         onClose={closeDelete}
         onConfirm={handleDelete}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

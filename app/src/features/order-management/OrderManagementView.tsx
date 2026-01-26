@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, Clock, ShoppingCart } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteOrderDialog from "@/features/order-management/DeleteOrderDialog";
 import EditOrderModal from "@/features/order-management/EditOrderModal";
@@ -52,6 +53,7 @@ export default function OrderManagementView() {
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -82,18 +84,20 @@ export default function OrderManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createPurchaseOrder(input);
         await reload();
-
-        closeCreate();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create order";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -102,18 +106,20 @@ export default function OrderManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updatePurchaseOrder(next);
         await reload();
-
-        closeEdit();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update order";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -122,18 +128,20 @@ export default function OrderManagementView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deletePurchaseOrder(row.purchaseOrderId);
         await reload();
-
-        closeDelete();
       } catch (e) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete order";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -311,6 +319,8 @@ export default function OrderManagementView() {
     openDelete(row);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -336,7 +346,6 @@ export default function OrderManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <OrderManagementTableView rows={filteredRows} onRowClick={openEdit} onIssue={openIssue} onDelete={openDelete} />
       <NewOrderModal
@@ -367,6 +376,7 @@ export default function OrderManagementView() {
         onConfirm={handleDelete}
       />
       <OrderIssueModal open={Boolean(issuingRow)} order={issuingRow} onClose={closeIssue} clients={clientRows} />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }
