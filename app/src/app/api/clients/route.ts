@@ -16,7 +16,7 @@ function isNewClientInput(v: unknown): v is NewClientInput {
     isNonEmptyString(r.name) &&
     isOptionalString(r.note) &&
     isNonEmptyString(r.category) &&
-    isNonEmptyString(r.region) &&
+    isOptionalString(r.region) &&
     isNonEmptyString(r.currency) &&
     (r.status === "active" || r.status === "inactive") &&
     isOptionalString(r.address) &&
@@ -36,7 +36,7 @@ function isUpdateClientInput(v: unknown): v is UpdateClientInput {
     isNonEmptyString(r.name) &&
     isOptionalString(r.note) &&
     isNonEmptyString(r.category) &&
-    isNonEmptyString(r.region) &&
+    isOptionalString(r.region) &&
     isNonEmptyString(r.currency) &&
     (r.status === "active" || r.status === "inactive") &&
     isOptionalString(r.address) &&

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import ClientMasterTableView from "@/features/client-master/ui/ClientMasterTableView";
 import DeleteClientDialog from "@/features/client-master/ui/DeleteClientDialog";
@@ -34,6 +35,7 @@ export default function ClientMasterView() {
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
 
   const reload = async () => {
     const fetched = await fetchClientRows();
@@ -44,7 +46,9 @@ export default function ClientMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("create");
         setMutateError(null);
+        closeCreate();
 
         await createClient(input);
 
@@ -54,8 +58,10 @@ export default function ClientMasterView() {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to create client";
         setMutateError(msg);
+        closeCreate();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -64,7 +70,9 @@ export default function ClientMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("edit");
         setMutateError(null);
+        closeEdit();
 
         await updateClient(next);
 
@@ -74,8 +82,10 @@ export default function ClientMasterView() {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to update client";
         setMutateError(msg);
+        closeEdit();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -84,7 +94,9 @@ export default function ClientMasterView() {
     (async () => {
       try {
         setMutating(true);
+        setMutatingAction("delete");
         setMutateError(null);
+        closeDelete();
 
         await deleteClient(row.clientId);
 
@@ -94,8 +106,10 @@ export default function ClientMasterView() {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to delete client";
         setMutateError(msg);
+        closeDelete();
       } finally {
         setMutating(false);
+        setMutatingAction(null);
       }
     })();
   };
@@ -153,6 +167,9 @@ export default function ClientMasterView() {
       { key: "currency", label: "通貨", type: "select", options: currencyOptions },
       { key: "status", label: "ステータス", type: "select", options: statusOptions },
       { key: "name", label: "取引先", type: "text" },
+      { key: "address", label: "住所", type: "text" },
+      { key: "phone", label: "電話番号", type: "text" },
+      { key: "taxId", label: "TAX ID", type: "text" },
     ];
   }, [rows]);
 
@@ -192,6 +209,12 @@ export default function ClientMasterView() {
             return values.some((value) => value.value === row.status);
           case "name":
             return values.some((value) => row.name.toLowerCase().includes(value.value.toLowerCase()));
+          case "address":
+            return values.some((value) => row.address.toLowerCase().includes(value.value.toLowerCase()));
+          case "phone":
+            return values.some((value) => row.phone.toLowerCase().includes(value.value.toLowerCase()));
+          case "taxId":
+            return values.some((value) => (row.taxId ?? "").toLowerCase().includes(value.value.toLowerCase()));
           default:
             return true;
         }
@@ -215,6 +238,8 @@ export default function ClientMasterView() {
     openDelete(client);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -234,13 +259,13 @@ export default function ClientMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {mutating && <div className="text-sm text-gray-500">保存中...</div>}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <ClientMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewClientModal
         open={isCreateOpen}
         onClose={closeCreate}
         onSave={handleCreate}
+        isSaving={mutating && mutatingAction === "create"}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
         statusOptions={getOptions("status")}
@@ -252,6 +277,7 @@ export default function ClientMasterView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
+        isSaving={mutating && mutatingAction === "edit"}
         categoryOptions={getOptions("category")}
         regionOptions={getOptions("region")}
         statusOptions={getOptions("status")}
@@ -261,7 +287,9 @@ export default function ClientMasterView() {
         client={deletingRow}
         onClose={closeDelete}
         onConfirm={handleDelete}
+        isDeleting={mutating && mutatingAction === "delete"}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

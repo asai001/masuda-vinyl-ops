@@ -10,9 +10,10 @@ type DeleteClientDialogProps = {
   client: ClientRow | null;
   onClose: () => void;
   onConfirm: (client: ClientRow) => void;
+  isDeleting?: boolean;
 };
 
-export default function DeleteClientDialog({ open, client, onClose, onConfirm }: DeleteClientDialogProps) {
+export default function DeleteClientDialog({ open, client, onClose, onConfirm, isDeleting = false }: DeleteClientDialogProps) {
   const [confirmed, setConfirmed] = React.useState(false);
 
   React.useEffect(() => {
@@ -28,10 +29,15 @@ export default function DeleteClientDialog({ open, client, onClose, onConfirm }:
       onClose={onClose}
       actions={
         <>
-          <Button variant="outlined" onClick={onClose}>
+          <Button variant="outlined" onClick={onClose} disabled={isDeleting}>
             キャンセル
           </Button>
-          <Button variant="contained" color="error" onClick={() => client && onConfirm(client)} disabled={!confirmed}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => client && onConfirm(client)}
+            disabled={!confirmed || isDeleting}
+          >
             削除
           </Button>
         </>
@@ -41,7 +47,13 @@ export default function DeleteClientDialog({ open, client, onClose, onConfirm }:
         {client ? `「${client.name}」を削除してもよろしいですか？` : "削除してもよろしいですか？"}
       </div>
       <FormControlLabel
-        control={<Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />}
+        control={
+          <Checkbox
+            checked={confirmed}
+            onChange={(event) => setConfirmed(event.target.checked)}
+            disabled={isDeleting}
+          />
+        }
         label="削除することを確認しました"
       />
     </Modal>

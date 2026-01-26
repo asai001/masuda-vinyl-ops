@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewClientInput } from "../types";
@@ -14,6 +14,7 @@ type Option = {
 
 type NewClientModalProps = {
   open: boolean;
+  isSaving?: boolean;
   categoryOptions: Option[];
   regionOptions: Option[];
   statusOptions: Option[];
@@ -35,6 +36,7 @@ const emptyErrors = {
 
 export default function NewClientModal({
   open,
+  isSaving = false,
   categoryOptions,
   regionOptions,
   statusOptions,
@@ -92,7 +94,7 @@ export default function NewClientModal({
       phone: "",
       taxId: "",
       category: isBlank(form.category) ? "空白だけでは登録できません" : "",
-      region: isBlank(form.region) ? "空白だけでは登録できません" : "",
+      region: "",
       currency: isBlank(form.currency) ? "空白だけでは登録できません" : "",
       status: isBlank(form.status) ? "空白だけでは登録できません" : "",
       note: "",
@@ -130,10 +132,10 @@ export default function NewClientModal({
       onClose={handleClose}
       actions={
         <>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" onClick={handleClose} disabled={isSaving}>
             キャンセル
           </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave} disabled={isSaving}>
             保存
           </Button>
         </>
@@ -148,6 +150,7 @@ export default function NewClientModal({
           placeholder="例: Nguyen Trading Co., Ltd."
           value={form.name}
           onChange={(event) => handleChange("name", event.target.value)}
+          disabled={isSaving}
           error={Boolean(errors.name)}
           helperText={errors.name}
         />
@@ -161,6 +164,7 @@ export default function NewClientModal({
             placeholder="例: No.102, Huu Nghi Road, VSIP Bac Ninh"
             value={form.address}
             onChange={(event) => handleChange("address", event.target.value)}
+            disabled={isSaving}
             error={Boolean(errors.address)}
             helperText={errors.address}
           />
@@ -172,6 +176,7 @@ export default function NewClientModal({
             placeholder="例: 0241-3906-120"
             value={form.phone}
             onChange={(event) => handleChange("phone", event.target.value)}
+            disabled={isSaving}
             error={Boolean(errors.phone)}
             helperText={errors.phone}
           />
@@ -185,6 +190,7 @@ export default function NewClientModal({
           placeholder="e.g. 123456789"
           value={form.taxId}
           onChange={(event) => handleChange("taxId", event.target.value)}
+          disabled={isSaving}
           error={Boolean(errors.taxId)}
           helperText={errors.taxId}
         />
@@ -202,11 +208,13 @@ export default function NewClientModal({
             inputValue={form.category}
             onChange={(_, newValue) => handleChange("category", newValue ?? "")}
             onInputChange={(_, newValue) => handleChange("category", newValue)}
+            disabled={isSaving}
             renderInput={(params) => (
               <TextField
                 {...params}
                 size="small"
                 placeholder="選択または入力"
+                disabled={isSaving}
                 error={Boolean(errors.category)}
                 helperText={errors.category}
               />
@@ -214,9 +222,7 @@ export default function NewClientModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            地域 <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-semibold text-gray-700">地域</label>
           <Autocomplete
             freeSolo
             options={regionOptions.map((option) => option.label)}
@@ -224,11 +230,13 @@ export default function NewClientModal({
             inputValue={form.region}
             onChange={(_, newValue) => handleChange("region", newValue ?? "")}
             onInputChange={(_, newValue) => handleChange("region", newValue)}
+            disabled={isSaving}
             renderInput={(params) => (
               <TextField
                 {...params}
                 size="small"
                 placeholder="選択または入力"
+                disabled={isSaving}
                 error={Boolean(errors.region)}
                 helperText={errors.region}
               />
@@ -242,20 +250,22 @@ export default function NewClientModal({
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Select
-            size="small"
-            value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            error={Boolean(errors.currency)}
-            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
-          >
-            {CURRENCY_OPTIONS.map((currency) => (
-              <MenuItem key={currency} value={currency}>
-                {currency}
-              </MenuItem>
-            ))}
-          </Select>
+          <FormControl size="small" error={Boolean(errors.currency)} disabled={isSaving}>
+            <Select
+              size="small"
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+            >
+              {CURRENCY_OPTIONS.map((currency) => (
+                <MenuItem key={currency} value={currency}>
+                  {currency}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.currency}</FormHelperText>
+          </FormControl>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
@@ -266,6 +276,7 @@ export default function NewClientModal({
             value={form.status}
             onChange={(event) => handleChange("status", event.target.value)}
             displayEmpty
+            disabled={isSaving}
             error={Boolean(errors.status)}
             renderValue={() => statusLabel}
           >
@@ -290,6 +301,7 @@ export default function NewClientModal({
           placeholder="備考を入力してください"
           value={form.note}
           onChange={(event) => handleChange("note", event.target.value)}
+          disabled={isSaving}
           error={Boolean(errors.note)}
           helperText={errors.note}
         />
