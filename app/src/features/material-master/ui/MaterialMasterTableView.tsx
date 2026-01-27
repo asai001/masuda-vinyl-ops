@@ -142,7 +142,7 @@ export default function MaterialMasterTableView({ rows, onRowClick, onDelete }: 
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.materialId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

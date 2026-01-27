@@ -187,7 +187,7 @@ export default function ProductMasterTableView({ rows, onRowClick, onDelete }: P
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.productId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

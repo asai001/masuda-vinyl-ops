@@ -126,7 +126,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
         ),
       },
     ],
-    [onDelete]
+    [onDelete],
   );
 
   const handleSort = (key: string) => {
@@ -158,7 +158,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.paymentId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

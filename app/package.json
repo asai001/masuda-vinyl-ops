@@ -12,7 +12,10 @@
     "clients:test": "node scripts/seed-clients-master-test.mjs",
     "materials:clear": "node scripts/clear-materials-master.mjs",
     "materials:seed": "node scripts/seed-materials-master.mjs",
-    "materials:test": "node scripts/seed-materials-master-test.mjs"
+    "materials:test": "node scripts/seed-materials-master-test.mjs",
+    "purchaseOrders:clear": "node scripts/clear-purchase-orders.mjs",
+    "purchaseOrders:seed": "node scripts/seed-purchase-orders.mjs",
+    "purchaseOrders:test": "node scripts/seed-purchase-orders-test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.966.0",
