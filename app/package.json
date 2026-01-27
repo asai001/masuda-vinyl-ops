@@ -9,7 +9,10 @@
     "lint": "eslint",
     "clients:clear": "node scripts/clear-clients-master.mjs",
     "clients:seed": "node scripts/seed-clients-master.mjs",
-    "clients:test": "node scripts/seed-clients-master-test.mjs"
+    "clients:test": "node scripts/seed-clients-master-test.mjs",
+    "materials:clear": "node scripts/clear-materials-master.mjs",
+    "materials:seed": "node scripts/seed-materials-master.mjs",
+    "materials:test": "node scripts/seed-materials-master-test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.966.0",

@@ -130,6 +130,10 @@ export default function NewMaterialModal({
       setErrors((prev) => ({ ...prev, unitPrice: "数値で入力してください" }));
       return;
     }
+    if (parsedPrice < 0) {
+      setErrors((prev) => ({ ...prev, unitPrice: "0以上で入力してください" }));
+      return;
+    }
 
     const normalizedCode = normalizeCode(form.code);
     if (normalizedCode) {
