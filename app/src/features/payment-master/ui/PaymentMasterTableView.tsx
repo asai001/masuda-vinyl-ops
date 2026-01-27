@@ -145,7 +145,7 @@ export default function PaymentMasterTableView({ rows, onRowClick, onDelete }: P
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.paymentDefId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

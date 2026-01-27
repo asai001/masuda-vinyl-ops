@@ -247,7 +247,7 @@ export default function OrderManagementTableView({
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.purchaseOrderId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

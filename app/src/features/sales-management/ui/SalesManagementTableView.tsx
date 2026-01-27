@@ -105,223 +105,226 @@ export default function SalesManagementTableView({
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const columns = useMemo<TableColumn<SalesRow>[]>(() => [
-    {
-      key: "orderNo",
-      header: "PO NO.",
-      sortKey: "orderNo",
-      render: (row) => <span className="text-sm font-semibold text-blue-600">{row.orderNo}</span>,
-    },
-    {
-      key: "orderDate",
-      header: "受注日",
-      sortKey: "orderDate",
-      render: (row) => <span className="text-sm">{row.orderDate}</span>,
-    },
-    {
-      key: "customerName",
-      header: "顧客名",
-      sortKey: "customerName",
-      render: (row) => (
-        <div className="flex flex-col text-sm">
-          <span className="font-semibold">{row.customerName}</span>
-          <span className="text-gray-500">{row.customerRegion}</span>
-        </div>
-      ),
-    },
-    {
-      key: "product",
-      header: "品目/品番",
-      sortKey: "productCode",
-      render: (row) => {
-        const summary = getItemSummary(row.items);
-        return (
+  const columns = useMemo<TableColumn<SalesRow>[]>(
+    () => [
+      {
+        key: "orderNo",
+        header: "PO NO.",
+        sortKey: "orderNo",
+        render: (row) => <span className="text-sm font-semibold text-blue-600">{row.orderNo}</span>,
+      },
+      {
+        key: "orderDate",
+        header: "受注日",
+        sortKey: "orderDate",
+        render: (row) => <span className="text-sm">{row.orderDate}</span>,
+      },
+      {
+        key: "customerName",
+        header: "顧客名",
+        sortKey: "customerName",
+        render: (row) => (
           <div className="flex flex-col text-sm">
-            <span className="font-semibold">{summary.code}</span>
-            <span className="text-gray-600">{summary.name}</span>
-            {summary.extraCount ? <span className="text-xs text-gray-500">他{summary.extraCount}件</span> : null}
+            <span className="font-semibold">{row.customerName}</span>
+            <span className="text-gray-500">{row.customerRegion}</span>
           </div>
-        );
+        ),
       },
-    },
-    {
-      key: "materials",
-      header: "使用材料",
-      render: (row) => {
-        const materials = getMaterials(row.items);
-        return materials.length ? (
-          <div className="flex flex-wrap gap-1">
-            {materials.map((material) => (
-              <Chip
-                key={material}
-                label={material}
-                size="small"
-                sx={{
-                  backgroundColor: "#e8f1ff",
-                  color: "#2563eb",
-                  fontWeight: 600,
-                }}
-              />
-            ))}
+      {
+        key: "product",
+        header: "品目/品番",
+        sortKey: "productCode",
+        render: (row) => {
+          const summary = getItemSummary(row.items);
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="font-semibold">{summary.code}</span>
+              <span className="text-gray-600">{summary.name}</span>
+              {summary.extraCount ? <span className="text-xs text-gray-500">他{summary.extraCount}件</span> : null}
+            </div>
+          );
+        },
+      },
+      {
+        key: "materials",
+        header: "使用材料",
+        render: (row) => {
+          const materials = getMaterials(row.items);
+          return materials.length ? (
+            <div className="flex flex-wrap gap-1">
+              {materials.map((material) => (
+                <Chip
+                  key={material}
+                  label={material}
+                  size="small"
+                  sx={{
+                    backgroundColor: "#e8f1ff",
+                    color: "#2563eb",
+                    fontWeight: 600,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          );
+        },
+      },
+      {
+        key: "stockQuantity",
+        header: "在庫数",
+        align: "right",
+        render: (row) => <span className="text-sm">{getStockLabel(row.items)}</span>,
+      },
+      {
+        key: "orderQuantity",
+        header: "注数",
+        sortKey: "orderQuantity",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          return <span className="text-sm">{amountFormatter.format(metrics.orderQuantity)}</span>;
+        },
+      },
+      {
+        key: "shippedQuantity",
+        header: "出荷数",
+        sortKey: "shippedQuantity",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          return <span className="text-sm">{amountFormatter.format(metrics.shippedQuantity)}</span>;
+        },
+      },
+      {
+        key: "remainingQuantity",
+        header: "残注数",
+        sortKey: "remainingQuantity",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          return <span className="text-sm font-semibold">{amountFormatter.format(metrics.remainingQuantity)}</span>;
+        },
+      },
+      {
+        key: "unitPrice",
+        header: "単価",
+        sortKey: "unitPrice",
+        align: "right",
+        render: (row) => <span className="text-sm font-semibold">{getUnitPriceLabel(row.items, row.currency)}</span>,
+      },
+      {
+        key: "amount",
+        header: "金額",
+        sortKey: "amount",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          return <span className="text-sm font-semibold">{formatCurrency(row.currency, metrics.amount)}</span>;
+        },
+      },
+      {
+        key: "requiredMaterial",
+        header: "必要材料量",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          if (metrics.requiredMaterial === null) {
+            return <span className="text-sm text-gray-400">-</span>;
+          }
+          return <span className="text-sm">{amountFormatter.format(metrics.requiredMaterial)} kg</span>;
+        },
+      },
+      {
+        key: "moldingTime",
+        header: "成形時間",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items);
+          if (metrics.moldingTime === null) {
+            return <span className="text-sm text-gray-400">-</span>;
+          }
+          return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} 時間</span>;
+        },
+      },
+      {
+        key: "deliveryDate",
+        header: "納品予定日",
+        sortKey: "deliveryDate",
+        render: (row) => <span className="text-sm">{row.deliveryDate}</span>,
+      },
+      {
+        key: "status",
+        header: "ステータス",
+        render: (row) =>
+          renderStatusItems(
+            salesStatusOptions.map((status) => ({
+              label: status.label,
+              active: row.status[status.key],
+            })),
+          ),
+      },
+      {
+        key: "documentStatus",
+        header: "請求状況",
+        render: (row) =>
+          renderStatusItems(
+            salesDocumentStatusOptions.map((status) => ({
+              label: status.label,
+              active: row.documentStatus[status.key],
+            })),
+          ),
+      },
+      {
+        key: "download",
+        header: (
+          <div className="flex flex-col leading-tight">
+            <span>インボイス</span>
+            <span>パッキングリスト</span>
           </div>
-        ) : (
-          <span className="text-sm text-gray-400">-</span>
-        );
-      },
-    },
-    {
-      key: "stockQuantity",
-      header: "在庫数",
-      align: "right",
-      render: (row) => <span className="text-sm">{getStockLabel(row.items)}</span>,
-    },
-    {
-      key: "orderQuantity",
-      header: "注数",
-      sortKey: "orderQuantity",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        return <span className="text-sm">{amountFormatter.format(metrics.orderQuantity)}</span>;
-      },
-    },
-    {
-      key: "shippedQuantity",
-      header: "出荷数",
-      sortKey: "shippedQuantity",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        return <span className="text-sm">{amountFormatter.format(metrics.shippedQuantity)}</span>;
-      },
-    },
-    {
-      key: "remainingQuantity",
-      header: "残注数",
-      sortKey: "remainingQuantity",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        return <span className="text-sm font-semibold">{amountFormatter.format(metrics.remainingQuantity)}</span>;
-      },
-    },
-    {
-      key: "unitPrice",
-      header: "単価",
-      sortKey: "unitPrice",
-      align: "right",
-      render: (row) => <span className="text-sm font-semibold">{getUnitPriceLabel(row.items, row.currency)}</span>,
-    },
-    {
-      key: "amount",
-      header: "金額",
-      sortKey: "amount",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        return <span className="text-sm font-semibold">{formatCurrency(row.currency, metrics.amount)}</span>;
-      },
-    },
-    {
-      key: "requiredMaterial",
-      header: "必要材料量",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        if (metrics.requiredMaterial === null) {
-          return <span className="text-sm text-gray-400">-</span>;
-        }
-        return <span className="text-sm">{amountFormatter.format(metrics.requiredMaterial)} kg</span>;
-      },
-    },
-    {
-      key: "moldingTime",
-      header: "成形時間",
-      align: "right",
-      render: (row) => {
-        const metrics = calculateSalesMetrics(row.items);
-        if (metrics.moldingTime === null) {
-          return <span className="text-sm text-gray-400">-</span>;
-        }
-        return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} 時間</span>;
-      },
-    },
-    {
-      key: "deliveryDate",
-      header: "納品予定日",
-      sortKey: "deliveryDate",
-      render: (row) => <span className="text-sm">{row.deliveryDate}</span>,
-    },
-    {
-      key: "status",
-      header: "ステータス",
-      render: (row) =>
-        renderStatusItems(
-          salesStatusOptions.map((status) => ({
-            label: status.label,
-            active: row.status[status.key],
-          }))
         ),
-    },
-    {
-      key: "documentStatus",
-      header: "請求状況",
-      render: (row) =>
-        renderStatusItems(
-          salesDocumentStatusOptions.map((status) => ({
-            label: status.label,
-            active: row.documentStatus[status.key],
-          }))
-        ),
-    },
-    {
-      key: "download",
-      header: (
-        <div className="flex flex-col leading-tight">
-          <span>インボイス</span>
-          <span>パッキングリスト</span>
-        </div>
-      ),
-      align: "center",
-      render: (row) => {
-        const isIssuing = issuingRowId === row.id;
-        return (
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={isIssuing}
-            startIcon={isIssuing ? <CircularProgress size={16} /> : null}
-            onClick={(event) => {
-              event.stopPropagation();
-              onIssue?.(row);
-            }}
-          >
-            {isIssuing ? "発行中..." : "発行"}
-          </Button>
-        );
+        align: "center",
+        render: (row) => {
+          const isIssuing = issuingRowId === row.id;
+          return (
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={isIssuing}
+              startIcon={isIssuing ? <CircularProgress size={16} /> : null}
+              onClick={(event) => {
+                event.stopPropagation();
+                onIssue?.(row);
+              }}
+            >
+              {isIssuing ? "発行中..." : "発行"}
+            </Button>
+          );
+        },
       },
-    },
-    {
-      key: "delete",
-      header: <span>削除</span>,
-      align: "center",
-      render: (row) =>
-        onDelete ? (
-          <IconButton
-            size="small"
-            aria-label="delete"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete(row);
-            }}
-          >
+      {
+        key: "delete",
+        header: <span>削除</span>,
+        align: "center",
+        render: (row) =>
+          onDelete ? (
+            <IconButton
+              size="small"
+              aria-label="delete"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(row);
+              }}
+            >
+              <Trash2 size={16} className="text-red-500" />
+            </IconButton>
+          ) : (
             <Trash2 size={16} className="text-red-500" />
-          </IconButton>
-        ) : (
-          <Trash2 size={16} className="text-red-500" />
-        ),
-    },
-  ], [issuingRowId, onDelete, onIssue]);
+          ),
+      },
+    ],
+    [issuingRowId, onDelete, onIssue],
+  );
 
   const handleSort = (key: string) => {
     const typedKey = key as SortKey;
@@ -379,7 +382,7 @@ export default function SalesManagementTableView({
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.salesOrderId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

@@ -1,4 +1,4 @@
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 import {
@@ -74,6 +74,27 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
 import type { Browser } from "puppeteer-core";
 const isVercel = !!process.env.VERCEL;
 
+const findLocalChromePath = () => {
+  const envPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH;
+  if (envPath && existsSync(envPath)) {
+    return envPath;
+  }
+  const candidates = [
+    "C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
+    "C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
+    "C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
+    "C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge",
+  ];
+  return candidates.find((path) => existsSync(path)) ?? null;
+};
+
 async function launchBrowser(): Promise<Browser> {
   if (isVercel) {
     const chromiumMod = await import("@sparticuz/chromium");
@@ -89,6 +110,16 @@ async function launchBrowser(): Promise<Browser> {
       headless,
       // PDF生成だけなら viewport 指定は必須じゃない（必要なら自分で設定）
       // defaultViewport: { width: 1280, height: 720 },
+    });
+  }
+
+  const localExecutablePath = findLocalChromePath();
+  if (localExecutablePath) {
+    const puppeteer = (await import("puppeteer-core")).default;
+    return puppeteer.launch({
+      headless: true,
+      executablePath: localExecutablePath,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
   }
 
