@@ -1,6 +1,17 @@
-{
-  "exchangeRates": {
-    "jpyPerUsd": "150",
-    "vndPerUsd": "25000"
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "settingsKey": "DEFAULT",
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "defaultCurrency": "VND",
+    "issuerName": "増田ビニール（Vietnam）",
+    "issuerAddress": "Binh Duong, Vietnam",
+    "issuerPhone": "+84-28-000001",
+    "invoiceFooterNote": "シード設定",
+    "exchangeRates": {
+      "jpyPerUsd": 150,
+      "vndPerUsd": 25000
+    }
   }
-}
+]

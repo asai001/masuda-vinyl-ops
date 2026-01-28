@@ -1,6 +1,32 @@
-{
-  "exchangeRates": {
-    "jpyPerUsd": "155",
-    "vndPerUsd": "26225"
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "settingsKey": "DEFAULT",
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "defaultCurrency": "USD",
+    "issuerName": "増田ビニール（テスト）",
+    "issuerAddress": "Test Address",
+    "issuerPhone": "000-0000-0000",
+    "invoiceFooterNote": "テスト設定",
+    "exchangeRates": {
+      "jpyPerUsd": 155,
+      "vndPerUsd": 25500
+    }
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "settingsKey": "ALT",
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "defaultCurrency": "JPY",
+    "issuerName": "増田ビニール（別設定）",
+    "issuerAddress": "Alt Address",
+    "issuerPhone": "111-1111-1111",
+    "invoiceFooterNote": "別設定",
+    "exchangeRates": {
+      "jpyPerUsd": 160,
+      "vndPerUsd": 26000
+    }
   }
-}
+]

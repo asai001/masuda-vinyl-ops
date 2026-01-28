@@ -20,8 +20,14 @@ function parseArgs(argv) {
   const args = { dryRun: false, profile: process.env.AWS_PROFILE };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--dry-run") { args.dryRun = true; continue; }
-    if (a === "--profile" && argv[i + 1]) { args.profile = argv[++i]; continue; }
+    if (a === "--dry-run") {
+      args.dryRun = true;
+      continue;
+    }
+    if (a === "--profile" && argv[i + 1]) {
+      args.profile = argv[++i];
+      continue;
+    }
     if (a === "--help" || a === "-h") {
       console.log(`\nClear Purchase Orders (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`);
       process.exit(0);
@@ -33,11 +39,15 @@ function parseArgs(argv) {
 
 function chunk(arr, size) {
   const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 async function batchDeleteAll(ddbDoc, keys) {
   const batches = chunk(keys, 25);
@@ -55,7 +65,9 @@ async function batchDeleteAll(ddbDoc, keys) {
       const unp = res.UnprocessedItems?.[TABLE_NAME] ?? [];
       deleted += requestItems[TABLE_NAME].length - unp.length;
 
-      if (!unp.length) break;
+      if (!unp.length) {
+        break;
+      }
 
       if (attempt >= 10) {
         throw new Error(`UnprocessedItems remain after ${attempt} attempts: ${unp.length}`);
@@ -78,19 +90,23 @@ async function scanAllKeys(ddbDoc) {
   let ExclusiveStartKey = undefined;
 
   while (true) {
-    const res = await ddbDoc.send(new ScanCommand({
-      TableName: TABLE_NAME,
-      ProjectionExpression: "orgId, purchaseOrderId",
-      ExclusiveStartKey,
-    }));
+    const res = await ddbDoc.send(
+      new ScanCommand({
+        TableName: TABLE_NAME,
+        ProjectionExpression: "orgId, purchaseOrderId",
+        ExclusiveStartKey,
+      }),
+    );
 
-    for (const item of (res.Items ?? [])) {
+    for (const item of res.Items ?? []) {
       if (item?.orgId && item?.purchaseOrderId) {
         keys.push({ orgId: item.orgId, purchaseOrderId: item.purchaseOrderId });
       }
     }
 
-    if (!res.LastEvaluatedKey) break;
+    if (!res.LastEvaluatedKey) {
+      break;
+    }
     ExclusiveStartKey = res.LastEvaluatedKey;
   }
 

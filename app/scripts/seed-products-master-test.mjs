@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Seed script for Settings (各種設定) SEED DATA (dev only)
+ * Seed script for Products Master (製品マスタ) TEST DATA (dev only)
  * Fixed settings:
  * - region: ap-northeast-1
- * - table : masuda-vinyl-ops-settings-dev
- * - data  : ./seed_settings.json (relative to this script)
+ * - table : masuda-vinyl-ops-products-master-dev
+ * - data  : ./test_products_master.json (relative to this script)
  *
  * Options:
  *   --dry-run              print count only
@@ -16,8 +16,8 @@ import { BatchWriteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb
 import { fromIni } from "@aws-sdk/credential-provider-ini";
 
 const REGION = "ap-northeast-1";
-const TABLE_NAME = "masuda-vinyl-ops-settings-dev";
-const DATA_URL = new URL("./seed_settings.json", import.meta.url);
+const TABLE_NAME = "masuda-vinyl-ops-products-master-dev";
+const DATA_URL = new URL("./test_products_master.json", import.meta.url);
 
 function parseArgs(argv) {
   const args = { dryRun: false, profile: process.env.AWS_PROFILE };
@@ -92,7 +92,7 @@ async function main() {
   const raw = await readFile(DATA_URL, "utf-8");
   const items = JSON.parse(raw);
   if (!Array.isArray(items)) {
-    throw new Error("seed_settings.json must be a JSON array.");
+    throw new Error("test_products_master.json must be a JSON array.");
   }
 
   console.log("Seed target:");

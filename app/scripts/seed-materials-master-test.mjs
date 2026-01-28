@@ -23,8 +23,14 @@ function parseArgs(argv) {
   const args = { dryRun: false, profile: process.env.AWS_PROFILE };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--dry-run") { args.dryRun = true; continue; }
-    if (a === "--profile" && argv[i + 1]) { args.profile = argv[++i]; continue; }
+    if (a === "--dry-run") {
+      args.dryRun = true;
+      continue;
+    }
+    if (a === "--profile" && argv[i + 1]) {
+      args.profile = argv[++i];
+      continue;
+    }
     if (a === "--help" || a === "-h") {
       console.log(`\nSeed Materials Master TEST (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`);
       process.exit(0);
@@ -36,11 +42,15 @@ function parseArgs(argv) {
 
 function chunk(arr, size) {
   const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 async function batchWriteAll(ddbDoc, items) {
   const batches = chunk(items, 25);
@@ -58,7 +68,9 @@ async function batchWriteAll(ddbDoc, items) {
       const unp = res.UnprocessedItems?.[TABLE_NAME] ?? [];
       written += requestItems[TABLE_NAME].length - unp.length;
 
-      if (!unp.length) break;
+      if (!unp.length) {
+        break;
+      }
 
       if (attempt >= 10) {
         throw new Error(`UnprocessedItems remain after ${attempt} attempts: ${unp.length}`);

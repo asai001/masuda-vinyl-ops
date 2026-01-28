@@ -1,0 +1,124 @@
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_seed_001",
+    "displayNo": 1,
+    "orderNo": "SO-0001",
+    "orderDate": "2026-01-12",
+    "deliveryDate": "2026-01-25",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "USD",
+    "note": "シードデータ（出荷済み）",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "PRD-0002",
+        "productName": "ラベルステッカーA",
+        "materials": [
+          "MAT-0002"
+        ],
+        "stockQuantity": 1000,
+        "orderQuantity": 2000,
+        "shippedQuantity": 500,
+        "unitPrice": 12,
+        "weight": 0.001,
+        "length": 50,
+        "speed": 40
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-12",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-25",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2026-01-12",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "so-0001#so_seed_001",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-12"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_seed_002",
+    "displayNo": 2,
+    "orderNo": "SO-0002",
+    "orderDate": "2026-01-15",
+    "deliveryDate": "2026-01-20",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "VND",
+    "note": "シードデータ（完了）",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "PRD-0001",
+        "productName": "ビニール袋 小",
+        "materials": [
+          "MAT-0004",
+          "MAT-0003"
+        ],
+        "stockQuantity": 500,
+        "orderQuantity": 1000,
+        "shippedQuantity": 1000,
+        "unitPrice": 2500,
+        "weight": 0.012,
+        "length": 200,
+        "speed": 25
+      },
+      {
+        "id": 2,
+        "productCode": "PRD-0003",
+        "productName": "梱包用テープ",
+        "materials": [
+          "MAT-0001"
+        ],
+        "stockQuantity": 200,
+        "orderQuantity": 300,
+        "shippedQuantity": 300,
+        "unitPrice": 2.5,
+        "weight": null,
+        "length": null,
+        "speed": null
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": true,
+      "paid": true
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": true,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-15",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-20",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2026-01-15",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "so-0002#so_seed_002",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-15",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-15",
+    "paidStatusIndexPk": "masuda-vinyl-vietnam",
+    "paidStatusIndexSk": "2026-01-15"
+  }
+]

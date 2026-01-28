@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Clear script for Materials Master (dev only)
+ * Clear script for Payment Definitions Master (支払マスタ) (dev only)
  * Fixed:
  * - region: ap-northeast-1
- * - table : masuda-vinyl-ops-materials-master-dev
+ * - table : masuda-vinyl-ops-payment-definitions-master-dev
  *
  * Options:
  *   --dry-run
@@ -14,7 +14,7 @@ import { BatchWriteCommand, DynamoDBDocumentClient, ScanCommand } from "@aws-sdk
 import { fromIni } from "@aws-sdk/credential-provider-ini";
 
 const REGION = "ap-northeast-1";
-const TABLE_NAME = "masuda-vinyl-ops-materials-master-dev";
+const TABLE_NAME = "masuda-vinyl-ops-payment-definitions-master-dev";
 
 function parseArgs(argv) {
   const args = { dryRun: false, profile: process.env.AWS_PROFILE };
@@ -29,7 +29,9 @@ function parseArgs(argv) {
       continue;
     }
     if (a === "--help" || a === "-h") {
-      console.log(`\nClear Materials Master (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`);
+      console.log(
+        `\nClear Payment Definitions Master (支払マスタ) (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`,
+      );
       process.exit(0);
     }
     throw new Error(`Unknown arg: ${a}`);
@@ -93,14 +95,14 @@ async function scanAllKeys(ddbDoc) {
     const res = await ddbDoc.send(
       new ScanCommand({
         TableName: TABLE_NAME,
-        ProjectionExpression: "orgId, materialId",
+        ProjectionExpression: "orgId, paymentDefId",
         ExclusiveStartKey,
       }),
     );
 
     for (const item of res.Items ?? []) {
-      if (item?.orgId && item?.materialId) {
-        keys.push({ orgId: item.orgId, materialId: item.materialId });
+      if (item?.orgId && item?.paymentDefId) {
+        keys.push({ orgId: item.orgId, paymentDefId: item.paymentDefId });
       }
     }
 

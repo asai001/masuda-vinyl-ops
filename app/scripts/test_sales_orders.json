@@ -1,0 +1,646 @@
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_001",
+    "displayNo": 101,
+    "orderNo": "TSO-0001",
+    "orderDate": "2026-01-06",
+    "deliveryDate": "2026-01-16",
+    "customerName": "Masuda Test B",
+    "customerRegion": "US",
+    "currency": "USD",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-003",
+        "productName": "テスト製品03",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": 1010,
+        "orderQuantity": 11,
+        "shippedQuantity": 5,
+        "unitPrice": 23,
+        "weight": 0.03,
+        "length": 115,
+        "speed": 23
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-06",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-16",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test B",
+    "customerIndexSk": "2026-01-06",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0001#so_test_001",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-06"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_002",
+    "displayNo": 102,
+    "orderNo": "TSO-0002",
+    "orderDate": "2026-01-07",
+    "deliveryDate": "2026-01-17",
+    "customerName": "Masuda Test C",
+    "customerRegion": "JP",
+    "currency": "JPY",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-005",
+        "productName": "テスト製品05",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": 1020,
+        "orderQuantity": 12,
+        "shippedQuantity": 5,
+        "unitPrice": 1.0,
+        "weight": 0.05,
+        "length": null,
+        "speed": 25
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-07",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-17",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test C",
+    "customerIndexSk": "2026-01-07",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0002#so_test_002",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-07"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_003",
+    "displayNo": 103,
+    "orderNo": "TSO-0003",
+    "orderDate": "2026-01-08",
+    "deliveryDate": "2026-01-18",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "VND",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-007",
+        "productName": "テスト製品07",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 13,
+        "shippedQuantity": 5,
+        "unitPrice": 1070,
+        "weight": 0.07,
+        "length": 135,
+        "speed": 27
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": true,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-08",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-18",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2026-01-08",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0003#so_test_003"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_004",
+    "displayNo": 104,
+    "orderNo": "TSO-0004",
+    "orderDate": "2026-01-09",
+    "deliveryDate": "2026-01-19",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "USD",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-009",
+        "productName": "テスト製品09",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": 1040,
+        "orderQuantity": 14,
+        "shippedQuantity": 0,
+        "unitPrice": 29,
+        "weight": 0.09,
+        "length": 145,
+        "speed": 29
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-09",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-19",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2026-01-09",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0004#so_test_004"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_005",
+    "displayNo": 105,
+    "orderNo": "TSO-0005",
+    "orderDate": "2026-01-10",
+    "deliveryDate": "2026-01-20",
+    "customerName": "Masuda Test A",
+    "customerRegion": "VN",
+    "currency": "JPY",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-012",
+        "productName": "テスト製品12",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": 1050,
+        "orderQuantity": 15,
+        "shippedQuantity": 5,
+        "unitPrice": 32,
+        "weight": null,
+        "length": 160,
+        "speed": null
+      },
+      {
+        "id": 2,
+        "productCode": "TPR-006",
+        "productName": "テスト製品06",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 8,
+        "shippedQuantity": 0,
+        "unitPrice": 26,
+        "weight": 0.06,
+        "length": 130,
+        "speed": null
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-10",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-20",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test A",
+    "customerIndexSk": "2026-01-10",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0005#so_test_005",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-10"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_006",
+    "displayNo": 106,
+    "orderNo": "TSO-0006",
+    "orderDate": "2026-01-11",
+    "deliveryDate": "2026-01-21",
+    "customerName": "Masuda Test B",
+    "customerRegion": "US",
+    "currency": "VND",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-002",
+        "productName": "テスト製品02",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 16,
+        "shippedQuantity": 5,
+        "unitPrice": 0.7,
+        "weight": 0.02,
+        "length": 110,
+        "speed": 22
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": true,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-11",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-21",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test B",
+    "customerIndexSk": "2026-01-11",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0006#so_test_006",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-11",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-11"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_007",
+    "displayNo": 107,
+    "orderNo": "TSO-0007",
+    "orderDate": "2026-01-12",
+    "deliveryDate": "2026-01-22",
+    "customerName": "Masuda Test C",
+    "customerRegion": "JP",
+    "currency": "USD",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-004",
+        "productName": "テスト製品04",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": 1070,
+        "orderQuantity": 17,
+        "shippedQuantity": 5,
+        "unitPrice": 1040,
+        "weight": null,
+        "length": 120,
+        "speed": 24
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": false,
+      "paid": true
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-12",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-22",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test C",
+    "customerIndexSk": "2026-01-12",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0007#so_test_007",
+    "paidStatusIndexPk": "masuda-vinyl-vietnam",
+    "paidStatusIndexSk": "2026-01-12"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_008",
+    "displayNo": 108,
+    "orderNo": "TSO-0008",
+    "orderDate": "2026-01-13",
+    "deliveryDate": "2026-01-23",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "JPY",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-006",
+        "productName": "テスト製品06",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": 1080,
+        "orderQuantity": 18,
+        "shippedQuantity": 0,
+        "unitPrice": 26,
+        "weight": 0.06,
+        "length": 130,
+        "speed": null
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-13",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-23",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2026-01-13",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0008#so_test_008"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_009",
+    "displayNo": 109,
+    "orderNo": "TSO-0009",
+    "orderDate": "2026-01-14",
+    "deliveryDate": "2026-01-24",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "VND",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-008",
+        "productName": "テスト製品08",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 19,
+        "shippedQuantity": 5,
+        "unitPrice": 1.3,
+        "weight": null,
+        "length": 140,
+        "speed": 28
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": true,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-14",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-24",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2026-01-14",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0009#so_test_009",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-14"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_010",
+    "displayNo": 110,
+    "orderNo": "TSO-0010",
+    "orderDate": "2026-01-15",
+    "deliveryDate": "2026-01-25",
+    "customerName": "Masuda Test A",
+    "customerRegion": "VN",
+    "currency": "USD",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-010",
+        "productName": "テスト製品10",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": 1100,
+        "orderQuantity": 20,
+        "shippedQuantity": 5,
+        "unitPrice": 1100,
+        "weight": 0.1,
+        "length": null,
+        "speed": 30
+      },
+      {
+        "id": 2,
+        "productCode": "TPR-010",
+        "productName": "テスト製品10",
+        "materials": [
+          "TST-001",
+          "TST-011"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 13,
+        "shippedQuantity": 13,
+        "unitPrice": 1100,
+        "weight": 0.1,
+        "length": null,
+        "speed": 30
+      }
+    ],
+    "status": {
+      "shipped": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-15",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-25",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test A",
+    "customerIndexSk": "2026-01-15",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0010#so_test_010",
+    "shippedStatusIndexPk": "masuda-vinyl-vietnam",
+    "shippedStatusIndexSk": "2026-01-15"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_011",
+    "displayNo": 111,
+    "orderNo": "TSO-0011",
+    "orderDate": "2026-01-16",
+    "deliveryDate": "2026-01-26",
+    "customerName": "Masuda Test B",
+    "customerRegion": "US",
+    "currency": "JPY",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-001",
+        "productName": "テスト製品01",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": 1110,
+        "orderQuantity": 21,
+        "shippedQuantity": 5,
+        "unitPrice": 1010,
+        "weight": 0.01,
+        "length": 105,
+        "speed": 21
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": false,
+      "invoiceSent": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-16",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-26",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test B",
+    "customerIndexSk": "2026-01-16",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0011#so_test_011"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "salesOrderId": "so_test_012",
+    "displayNo": 112,
+    "orderNo": "TSO-0012",
+    "orderDate": "2026-01-17",
+    "deliveryDate": "2026-01-27",
+    "customerName": "Masuda Test C",
+    "customerRegion": "JP",
+    "currency": "VND",
+    "note": "テストデータ",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "TPR-003",
+        "productName": "テスト製品03",
+        "materials": [
+          "TST-003"
+        ],
+        "stockQuantity": null,
+        "orderQuantity": 22,
+        "shippedQuantity": 0,
+        "unitPrice": 23,
+        "weight": 0.03,
+        "length": 115,
+        "speed": 23
+      }
+    ],
+    "status": {
+      "shipped": false,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderReceived": true,
+      "deliverySent": true,
+      "invoiceSent": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-17",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-27",
+    "customerIndexPk": "masuda-vinyl-vietnam#Masuda Test C",
+    "customerIndexSk": "2026-01-17",
+    "orderNoIndexPk": "masuda-vinyl-vietnam",
+    "orderNoIndexSk": "tso-0012#so_test_012",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-17"
+  }
+]
