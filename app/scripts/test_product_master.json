@@ -1,0 +1,17 @@
+[
+  {
+    "id": 999,
+    "code": "TEST-0001",
+    "name": "テスト製品",
+    "category": "完成品",
+    "unit": "pcs",
+    "currency": "USD",
+    "unitPrice": 1.23,
+    "materials": ["PI-001"],
+    "weight": null,
+    "length": null,
+    "speed": null,
+    "status": "inactive",
+    "note": "E2Eテスト用"
+  }
+]

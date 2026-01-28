@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "code": "LDBA043800-2",
+    "name": "RAIL TOP",
+    "category": "部品",
+    "unit": "pcs",
+    "currency": "USD",
+    "unitPrice": 150,
+    "materials": ["PI-001", "PI-002"],
+    "weight": 50,
+    "length": 100,
+    "speed": 0.6,
+    "status": "active",
+    "note": ""
+  },
+  {
+    "id": 4,
+    "code": "LDBA045001-2",
+    "name": "DOOR OUTER SASH L-S500",
+    "category": "完成品",
+    "unit": "pcs",
+    "currency": "JPY",
+    "unitPrice": 25,
+    "materials": ["PI-003"],
+    "weight": 80,
+    "length": 150,
+    "speed": 0.6,
+    "status": "active",
+    "note": ""
+  }
+]

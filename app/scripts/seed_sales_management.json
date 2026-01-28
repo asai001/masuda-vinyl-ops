@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "orderNo": "SO-2025-001",
+    "orderDate": "2025-11-15",
+    "customerName": "パナソニック株式会社",
+    "customerRegion": "日本",
+    "deliveryDate": "2025-11-25",
+    "currency": "JPY",
+    "note": "",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "LDBA045001-2",
+        "productName": "DOOR OUTER SASH L-S500",
+        "materials": ["PI-003"],
+        "stockQuantity": null,
+        "orderQuantity": 2000,
+        "shippedQuantity": 1500,
+        "unitPrice": 25,
+        "weight": 80,
+        "length": 150,
+        "speed": 0.6
+      }
+    ],
+    "status": { "shipped": true, "delivered": false, "paid": false },
+    "documentStatus": { "orderReceived": true, "deliverySent": false, "invoiceSent": false }
+  },
+  {
+    "id": 2,
+    "orderNo": "SO-2025-002",
+    "orderDate": "2025-11-18",
+    "customerName": "株式会社リケン",
+    "customerRegion": "日本",
+    "deliveryDate": "2025-11-28",
+    "currency": "USD",
+    "note": "",
+    "items": [
+      {
+        "id": 1,
+        "productCode": "LDBA043800-2",
+        "productName": "RAIL TOP",
+        "materials": ["PI-001", "PI-002"],
+        "stockQuantity": null,
+        "orderQuantity": 1500,
+        "shippedQuantity": 0,
+        "unitPrice": 150,
+        "weight": 50,
+        "length": 100,
+        "speed": 0.6
+      }
+    ],
+    "status": { "shipped": false, "delivered": false, "paid": false },
+    "documentStatus": { "orderReceived": true, "deliverySent": false, "invoiceSent": false }
+  }
+]
