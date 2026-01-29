@@ -53,12 +53,14 @@ export default function EditPaymentModal({
 
   const [form, setForm] = useState(() => getInitialForm(payment));
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleChange = (key: keyof typeof form, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (typeof value === "string") {
       setErrors((prev) => ({ ...prev, [key]: "" }));
     }
+    setActionError(null);
   };
 
   const handleFixedCostChange = (checked: boolean) => {
@@ -66,6 +68,7 @@ export default function EditPaymentModal({
     if (!checked) {
       setErrors((prev) => ({ ...prev, fixedAmount: "" }));
     }
+    setActionError(null);
   };
 
   const handleSave = () => {
@@ -104,8 +107,10 @@ export default function EditPaymentModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     if (!payment) {
       return;
@@ -130,11 +135,12 @@ export default function EditPaymentModal({
       title="支払いマスタ編集"
       onClose={onClose}
       actions={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center gap-2">
           <Button variant="outlined" color="error" onClick={() => payment && onDelete?.(payment)} disabled={!payment}>
             削除
           </Button>
-          <div className="flex items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
             <Button variant="outlined" onClick={onClose}>
               キャンセル
             </Button>
