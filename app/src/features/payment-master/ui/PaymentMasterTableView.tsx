@@ -14,14 +14,12 @@ const categoryStyles: Record<string, { backgroundColor: string; color: string }>
 };
 
 const formatFixedAmount = (amount: number, currency: string) => {
-  if (!currency) {
-    return amount.toLocaleString("ja-JP");
+  const normalizedCurrency = currency?.toUpperCase();
+  const formattedAmount = amount.toLocaleString("ja-JP");
+  if (!normalizedCurrency) {
+    return formattedAmount;
   }
-  try {
-    return new Intl.NumberFormat("ja-JP", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `${currency} ${amount.toLocaleString("ja-JP")}`;
-  }
+  return `${normalizedCurrency} ${formattedAmount}`;
 };
 
 type PaymentMasterTableViewProps = {
