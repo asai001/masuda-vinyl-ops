@@ -16,6 +16,13 @@ interface DynamoDbResourcesProps {
 export class DynamoDbResources extends Construct {
   public readonly settingsTable: dynamodb.Table;
   public readonly clientsMasterTable: dynamodb.Table;
+  public readonly materialsMasterTable: dynamodb.Table;
+  public readonly productsMasterTable: dynamodb.Table;
+  public readonly productMaterialLinksTable: dynamodb.Table;
+  public readonly purchaseOrdersTable: dynamodb.Table;
+  public readonly salesOrdersTable: dynamodb.Table;
+  public readonly paymentDefinitionsTable: dynamodb.Table;
+  public readonly paymentsTable: dynamodb.Table;
   public readonly sequencesTable: dynamodb.Table;
 
   private readonly pointInTimeRecoveryEnabled: boolean;
@@ -75,6 +82,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "materialId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.materialsMasterTable = materials.table;
 
     materials.table.addGlobalSecondaryIndex({
       indexName: "MaterialsByCategoryIndex",
@@ -136,6 +144,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "productId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.productsMasterTable = products.table;
 
     products.table.addGlobalSecondaryIndex({
       indexName: "ProductsByCategoryIndex",
@@ -209,6 +218,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "productId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.productMaterialLinksTable = productMaterialLinks.table;
 
     // ---- purchase_orders ----
     const purchaseOrders = this.createTable({
@@ -217,6 +227,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "purchaseOrderId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.purchaseOrdersTable = purchaseOrders.table;
 
     // 発注日レンジ
     purchaseOrders.table.addGlobalSecondaryIndex({
@@ -289,6 +300,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "salesOrderId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.salesOrdersTable = salesOrders.table;
 
     salesOrders.table.addGlobalSecondaryIndex({
       indexName: "SalesOrdersByOrderDateIndex",
@@ -345,6 +357,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "paymentDefId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.paymentDefinitionsTable = paymentDefs.table;
 
     paymentDefs.table.addGlobalSecondaryIndex({
       indexName: "PaymentDefsByCategoryIndex",
@@ -396,6 +409,7 @@ export class DynamoDbResources extends Construct {
       sk: { name: "paymentId", type: dynamodb.AttributeType.STRING },
       removalPolicy,
     });
+    this.paymentsTable = payments.table;
 
     // 月内の支払日で並べたい用
     payments.table.addGlobalSecondaryIndex({

@@ -13,6 +13,13 @@ interface UserPoolResourcesProps {
   tables: {
     settings: Table;
     clientsMaster: Table;
+    materialsMaster: Table;
+    productsMaster: Table;
+    productMaterialLinks: Table;
+    purchaseOrders: Table;
+    salesOrders: Table;
+    paymentDefinitions: Table;
+    payments: Table;
     sequences: Table;
   };
 }
@@ -94,6 +101,13 @@ export class UserPoolResources extends Construct {
 
     props.tables.settings.grantReadWriteData(vercelRole);
     props.tables.clientsMaster.grantReadWriteData(vercelRole);
+    props.tables.materialsMaster.grantReadWriteData(vercelRole);
+    props.tables.productsMaster.grantReadWriteData(vercelRole);
+    props.tables.productMaterialLinks.grantReadWriteData(vercelRole);
+    props.tables.purchaseOrders.grantReadWriteData(vercelRole);
+    props.tables.salesOrders.grantReadWriteData(vercelRole);
+    props.tables.paymentDefinitions.grantReadWriteData(vercelRole);
+    props.tables.payments.grantReadWriteData(vercelRole);
     props.tables.sequences.grantReadWriteData(vercelRole);
   }
 }

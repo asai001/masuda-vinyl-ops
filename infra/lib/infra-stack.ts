@@ -25,6 +25,13 @@ export class InfraStack extends cdk.Stack {
       tables: {
         settings: dynamodb.settingsTable,
         clientsMaster: dynamodb.clientsMasterTable,
+        materialsMaster: dynamodb.materialsMasterTable,
+        productsMaster: dynamodb.productsMasterTable,
+        productMaterialLinks: dynamodb.productMaterialLinksTable,
+        purchaseOrders: dynamodb.purchaseOrdersTable,
+        salesOrders: dynamodb.salesOrdersTable,
+        paymentDefinitions: dynamodb.paymentDefinitionsTable,
+        payments: dynamodb.paymentsTable,
         sequences: dynamodb.sequencesTable,
       },
     });
