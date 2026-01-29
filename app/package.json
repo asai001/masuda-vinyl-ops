@@ -15,7 +15,22 @@
     "materials:test": "node scripts/seed-materials-master-test.mjs",
     "purchaseOrders:clear": "node scripts/clear-purchase-orders.mjs",
     "purchaseOrders:seed": "node scripts/seed-purchase-orders.mjs",
-    "purchaseOrders:test": "node scripts/seed-purchase-orders-test.mjs"
+    "purchaseOrders:test": "node scripts/seed-purchase-orders-test.mjs",
+    "products:clear": "node scripts/clear-products-master.mjs",
+    "products:seed": "node scripts/seed-products-master.mjs",
+    "products:test": "node scripts/seed-products-master-test.mjs",
+    "salesOrders:clear": "node scripts/clear-sales-orders.mjs",
+    "salesOrders:seed": "node scripts/seed-sales-orders.mjs",
+    "salesOrders:test": "node scripts/seed-sales-orders-test.mjs",
+    "paymentDefinitions:clear": "node scripts/clear-payment-definitions-master.mjs",
+    "paymentDefinitions:seed": "node scripts/seed-payment-definitions-master.mjs",
+    "paymentDefinitions:test": "node scripts/seed-payment-definitions-master-test.mjs",
+    "payments:clear": "node scripts/clear-payments.mjs",
+    "payments:seed": "node scripts/seed-payments.mjs",
+    "payments:test": "node scripts/seed-payments-test.mjs",
+    "settings:clear": "node scripts/clear-settings.mjs",
+    "settings:seed": "node scripts/seed-settings.mjs",
+    "settings:test": "node scripts/seed-settings-test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.966.0",
