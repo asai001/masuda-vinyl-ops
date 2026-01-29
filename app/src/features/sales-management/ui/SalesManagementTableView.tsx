@@ -11,18 +11,12 @@ import type { SalesLineItem, SalesRow } from "@/features/sales-management/types"
 const amountFormatter = new Intl.NumberFormat("en-US");
 const timeFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const currencySymbols: Record<string, string> = {
-  JPY: "¥",
-  USD: "$",
-  VND: "₫",
-};
-
-const formatCurrency = (currency: string, value: number) => {
-  const symbol = currencySymbols[currency];
-  if (symbol) {
-    return `${symbol}${amountFormatter.format(value)}`;
+const formatCurrencyValue = (currency: string, value: number) => {
+  const normalizedCurrency = currency?.toUpperCase();
+  if (!normalizedCurrency) {
+    return amountFormatter.format(value);
   }
-  return `${currency} ${amountFormatter.format(value)}`;
+  return `${normalizedCurrency} ${amountFormatter.format(value)}`;
 };
 
 const getItemSummary = (items: SalesLineItem[]) => {
@@ -59,7 +53,7 @@ const getUnitPriceLabel = (items: SalesLineItem[], currency: string) => {
   const values = items.map((item) => item.unitPrice);
   const uniqueValues = new Set(values);
   if (uniqueValues.size === 1) {
-    return formatCurrency(currency, values[0]);
+    return formatCurrencyValue(currency, values[0]);
   }
   return "複数";
 };
@@ -220,7 +214,7 @@ export default function SalesManagementTableView({
         align: "right",
         render: (row) => {
           const metrics = calculateSalesMetrics(row.items);
-          return <span className="text-sm font-semibold">{formatCurrency(row.currency, metrics.amount)}</span>;
+          return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.amount)}</span>;
         },
       },
       {

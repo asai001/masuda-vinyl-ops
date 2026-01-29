@@ -42,8 +42,7 @@ const defaultExchangeRates: ExchangeRates = {
   jpyPerUsd: 150,
   vndPerUsd: 25000,
 };
-const normalizeRate = (value: number, fallback: number) =>
-  Number.isFinite(value) && value > 0 ? value : fallback;
+const normalizeRate = (value: number, fallback: number) => (Number.isFinite(value) && value > 0 ? value : fallback);
 
 export default function SalesManagementView() {
   const {
@@ -71,6 +70,7 @@ export default function SalesManagementView() {
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
   const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
+  const [issueError, setIssueError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -209,18 +209,20 @@ export default function SalesManagementView() {
     }
   }, [isCreateOpen, editingRow]);
 
+  const currencyOptions = CURRENCY_OPTION_ITEMS;
+
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));
     const customerOptions = uniqueValues(rows.map((row) => row.customerName)).map((value) => ({
       value,
       label: value,
     }));
-    const materialOptions = uniqueValues(
-      rows.flatMap((row) => row.items.flatMap((item) => item.materials))
-    ).map((value) => ({
-      value,
-      label: value,
-    }));
+    const materialOptions = uniqueValues(rows.flatMap((row) => row.items.flatMap((item) => item.materials))).map(
+      (value) => ({
+        value,
+        label: value,
+      }),
+    );
     const statusFilterOptions = salesStatusOptions.map((status) => ({
       value: status.key,
       label: status.label,
@@ -234,6 +236,7 @@ export default function SalesManagementView() {
       { key: "orderNo", label: "PO NO.", type: "text" },
       { key: "orderDate", label: "受注日", type: "date-range" },
       { key: "customer", label: "顧客名", type: "select", options: customerOptions },
+      { key: "currency", label: "通貨", type: "select", options: currencyOptions },
       { key: "productCode", label: "品番", type: "text" },
       { key: "productName", label: "品目", type: "text" },
       { key: "material", label: "使用材料", type: "select", options: materialOptions },
@@ -249,7 +252,7 @@ export default function SalesManagementView() {
       { key: "status", label: "ステータス", type: "select", options: statusFilterOptions },
       { key: "documentStatus", label: "請求状況", type: "select", options: documentFilterOptions },
     ];
-  }, [rows]);
+  }, [currencyOptions, rows]);
 
   const filteredRows = useMemo(() => {
     const groupedFilters = filters.reduce<Record<string, FilterRow[]>>((acc, filter) => {
@@ -301,22 +304,20 @@ export default function SalesManagementView() {
             return values.some((value) => matchesDateRange(row.orderDate, value));
           case "customer":
             return values.some((value) => value.value === row.customerName);
+          case "currency":
+            return values.some((value) => value.value === row.currency);
           case "productCode":
             return values.some((value) =>
-              row.items.some((item) => item.productCode.toLowerCase().includes(value.value.toLowerCase()))
+              row.items.some((item) => item.productCode.toLowerCase().includes(value.value.toLowerCase())),
             );
           case "productName":
             return values.some((value) =>
-              row.items.some((item) => item.productName.toLowerCase().includes(value.value.toLowerCase()))
+              row.items.some((item) => item.productName.toLowerCase().includes(value.value.toLowerCase())),
             );
           case "material":
-            return values.some((value) =>
-              row.items.some((item) => item.materials.includes(value.value))
-            );
+            return values.some((value) => row.items.some((item) => item.materials.includes(value.value)));
           case "stockQuantity":
-            return values.some((value) =>
-              row.items.some((item) => matchesNumberRange(item.stockQuantity, value))
-            );
+            return values.some((value) => row.items.some((item) => matchesNumberRange(item.stockQuantity, value)));
           case "orderQuantity":
             return values.some((value) => matchesNumberRange(metrics.orderQuantity, value));
           case "shippedQuantity":
@@ -324,9 +325,7 @@ export default function SalesManagementView() {
           case "remainingQuantity":
             return values.some((value) => matchesNumberRange(metrics.remainingQuantity, value));
           case "unitPrice":
-            return values.some((value) =>
-              row.items.some((item) => matchesNumberRange(item.unitPrice, value))
-            );
+            return values.some((value) => row.items.some((item) => matchesNumberRange(item.unitPrice, value)));
           case "amount":
             return values.some((value) => matchesNumberRange(metrics.amount, value));
           case "requiredMaterial":
@@ -385,18 +384,16 @@ export default function SalesManagementView() {
           region: row.region,
           currency: row.currency,
         })),
-    [clientRows]
+    [clientRows],
   );
-
-  const currencyOptions = CURRENCY_OPTION_ITEMS;
 
   const statusOptions = useMemo(
     () => salesStatusOptions.map((status) => ({ value: status.key, label: status.label })),
-    []
+    [],
   );
   const documentOptions = useMemo(
     () => salesDocumentStatusOptions.map((status) => ({ value: status.key, label: status.label })),
-    []
+    [],
   );
 
   const handleEditDelete = (row: SalesRow) => {
@@ -426,6 +423,7 @@ export default function SalesManagementView() {
       return;
     }
     setIssuingRowId(row.id);
+    setIssueError(null);
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
     const destinationCountry = countryLabelMap[region] ?? region;
@@ -440,12 +438,7 @@ export default function SalesManagementView() {
       vndPerUsd: normalizeRate(exchangeRates.vndPerUsd, defaultExchangeRates.vndPerUsd),
     };
     const currency = row.currency?.toUpperCase();
-    const usdRate =
-      currency === "JPY"
-        ? 1 / safeRates.jpyPerUsd
-        : currency === "VND"
-          ? 1 / safeRates.vndPerUsd
-          : 1;
+    const usdRate = currency === "JPY" ? 1 / safeRates.jpyPerUsd : currency === "VND" ? 1 / safeRates.vndPerUsd : 1;
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
     const items = row.items.map((item) => {
       const product = productRows.find((productRow) => productRow.code === item.productCode);
@@ -477,7 +470,7 @@ export default function SalesManagementView() {
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        throw new Error(`Excel生成に失敗しました (${response.status})`);
+        throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -488,6 +481,8 @@ export default function SalesManagementView() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to download invoice packing list", error);
+      const msg = "Excelファイルの発行に失敗しました";
+      setIssueError(msg);
     } finally {
       setIssuingRowId(null);
     }
@@ -540,6 +535,9 @@ export default function SalesManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
+      {issueError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{issueError}</div>
+      )}
       {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <SalesManagementTableView
         rows={filteredRows}
@@ -577,7 +575,12 @@ export default function SalesManagementView() {
         onClose={closeDelete}
         onConfirm={handleDelete}
       />
-      <RemainingOrderSummaryModal key={`summary-${summaryKey}`} open={isSummaryOpen} rows={rows} onClose={closeSummary} />
+      <RemainingOrderSummaryModal
+        key={`summary-${summaryKey}`}
+        open={isSummaryOpen}
+        rows={rows}
+        onClose={closeSummary}
+      />
       <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
