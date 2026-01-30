@@ -29,6 +29,10 @@ import type { PaymentRow as PaymentDefinitionRow } from "@/features/payment-mast
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
+const fixedCostOptions = [
+  { value: "fixed", label: "固定費" },
+  { value: "variable", label: "変動費" },
+];
 
 export default function PaymentManagementView() {
   const defaultTargetMonth = new Date().toISOString().slice(0, 7);
@@ -214,6 +218,7 @@ export default function PaymentManagementView() {
     () => [
       { key: "category", label: "カテゴリ", type: "select", options: categoryOptions },
       { key: "content", label: "内容", type: "text" },
+      { key: "fixedCost", label: "固定費区分", type: "select", options: fixedCostOptions },
       { key: "amount", label: "金額", type: "range" },
       { key: "currency", label: "通貨", type: "select", options: currencyOptions },
       { key: "paymentMethod", label: "支払方法", type: "select", options: paymentMethodOptions },
@@ -275,6 +280,8 @@ export default function PaymentManagementView() {
             return values.some((value) => value.value === row.category);
           case "content":
             return values.some((value) => row.content.toLowerCase().includes(value.value.toLowerCase()));
+          case "fixedCost":
+            return values.some((value) => (value.value === "fixed" ? row.isFixedCost : !row.isFixedCost));
           case "amount":
             return values.some((value) => matchesNumberRange(row.amount, value));
           case "currency":
