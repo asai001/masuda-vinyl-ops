@@ -50,6 +50,7 @@ export default function NewPaymentManagementModal({
     note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm({
@@ -63,6 +64,7 @@ export default function NewPaymentManagementModal({
       note: "",
     });
     setErrors(emptyErrors);
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -76,6 +78,7 @@ export default function NewPaymentManagementModal({
   };
 
   const handleSave = () => {
+    setActionError(null);
     const nextErrors = {
       category: form.category ? "" : "必須項目です",
       content: form.content ? "" : "必須項目です",
@@ -94,6 +97,7 @@ export default function NewPaymentManagementModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("必須項目が入力されていません");
       return;
     }
 
@@ -122,14 +126,17 @@ export default function NewPaymentManagementModal({
       title="新規支払"
       onClose={handleClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
-        </>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

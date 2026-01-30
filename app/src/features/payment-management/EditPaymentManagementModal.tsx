@@ -56,13 +56,20 @@ export default function EditPaymentManagementModal({
 
   const [form, setForm] = useState(() => getInitialForm(payment));
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleClose = () => {
+    setActionError(null);
+    onClose();
+  };
+
   const handleSave = () => {
+    setActionError(null);
     const nextErrors = {
       category: form.category ? "" : "必須項目です",
       content: form.content ? "" : "必須項目です",
@@ -81,6 +88,7 @@ export default function EditPaymentManagementModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("必須項目が入力されていません");
       return;
     }
 
@@ -110,14 +118,15 @@ export default function EditPaymentManagementModal({
     <Modal
       open={open}
       title="支払編集"
-      onClose={onClose}
+      onClose={handleClose}
       actions={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center gap-2">
           <Button variant="outlined" color="error" onClick={() => payment && onDelete?.(payment)} disabled={!payment}>
             削除
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outlined" onClick={onClose}>
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
               キャンセル
             </Button>
             <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
