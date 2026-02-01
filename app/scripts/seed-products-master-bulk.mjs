@@ -36,7 +36,9 @@ function parseArgs(argv) {
 
 function chunk(arr, size) {
   const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
@@ -58,7 +60,9 @@ async function batchWriteAll(ddbDoc, items) {
       const unp = res.UnprocessedItems?.[TABLE_NAME] ?? [];
       written += requestItems[TABLE_NAME].length - unp.length;
 
-      if (!unp.length) break;
+      if (!unp.length) {
+        break;
+      }
 
       if (attempt >= 10) {
         throw new Error(`UnprocessedItems remain after ${attempt} attempts: ${unp.length}`);

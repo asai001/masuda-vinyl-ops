@@ -10,7 +10,7 @@ type ModalProps = {
   children: React.ReactNode;
   actions?: React.ReactNode;
   onClose: () => void;
-  maxWidth?: "xs" | "sm" | "md" | "lg" | "xl";
+  maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
   fullWidth?: boolean;
   showCloseButton?: boolean;
 };
