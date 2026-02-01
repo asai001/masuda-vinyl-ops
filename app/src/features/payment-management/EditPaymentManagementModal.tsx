@@ -63,6 +63,13 @@ export default function EditPaymentManagementModal({
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleNumberChange = (key: "amount", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
+  };
+
   const handleClose = () => {
     setActionError(null);
     onClose();
@@ -83,12 +90,14 @@ export default function EditPaymentManagementModal({
     const parsedAmount = Number(form.amount);
     if (!nextErrors.amount && Number.isNaN(parsedAmount)) {
       nextErrors.amount = "数値で入力してください";
+    } else if (!nextErrors.amount && parsedAmount < 0) {
+      nextErrors.amount = "0以上で入力してください";
     }
 
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
-      setActionError("必須項目が入力されていません");
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -184,7 +193,7 @@ export default function EditPaymentManagementModal({
             type="number"
             placeholder="0"
             value={form.amount}
-            onChange={(event) => handleChange("amount", event.target.value)}
+            onChange={(event) => handleNumberChange("amount", event.target.value)}
             error={Boolean(errors.amount)}
             helperText={errors.amount}
             slotProps={{ htmlInput: { min: 0 } }}

@@ -62,6 +62,7 @@ export default function NewProductModal({
     materials: [] as string[],
   });
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm({
@@ -79,6 +80,7 @@ export default function NewProductModal({
       materials: [],
     });
     setErrors(emptyErrors);
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -89,11 +91,20 @@ export default function NewProductModal({
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
+  };
+
+  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
   };
 
   const handleMaterialsChange = (value: string[]) => {
     setForm((prev) => ({ ...prev, materials: value }));
     setErrors((prev) => ({ ...prev, materials: "" }));
+    setActionError(null);
   };
 
   const handleSave = () => {
@@ -115,6 +126,8 @@ export default function NewProductModal({
     const parsedPrice = Number(form.unitPrice);
     if (!nextErrors.unitPrice && Number.isNaN(parsedPrice)) {
       nextErrors.unitPrice = "数値で入力してください";
+    } else if (!nextErrors.unitPrice && parsedPrice < 0) {
+      nextErrors.unitPrice = "0以上で入力してください";
     }
 
     const parseRequiredNumber = (value: string, key: "weight" | "length" | "speed") => {
@@ -125,6 +138,10 @@ export default function NewProductModal({
       const parsed = Number(value);
       if (Number.isNaN(parsed)) {
         nextErrors[key] = "数値で入力してください";
+        return null;
+      }
+      if (parsed < 0) {
+        nextErrors[key] = "0以上で入力してください";
         return null;
       }
       return parsed;
@@ -145,8 +162,10 @@ export default function NewProductModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     onSave({
       code: codeValue,
@@ -182,14 +201,17 @@ export default function NewProductModal({
       title="新規製品"
       onClose={handleClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
-        </>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -278,7 +300,7 @@ export default function NewProductModal({
             type="number"
             placeholder="0"
             value={form.unitPrice}
-            onChange={(event) => handleChange("unitPrice", event.target.value)}
+            onChange={(event) => handleNumberChange("unitPrice", event.target.value)}
             error={Boolean(errors.unitPrice)}
             helperText={errors.unitPrice}
             slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
@@ -353,7 +375,7 @@ export default function NewProductModal({
             type="number"
             placeholder="0"
             value={form.weight}
-            onChange={(event) => handleChange("weight", event.target.value)}
+            onChange={(event) => handleNumberChange("weight", event.target.value)}
             error={Boolean(errors.weight)}
             helperText={errors.weight}
             slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
@@ -368,7 +390,7 @@ export default function NewProductModal({
             type="number"
             placeholder="0"
             value={form.length}
-            onChange={(event) => handleChange("length", event.target.value)}
+            onChange={(event) => handleNumberChange("length", event.target.value)}
             error={Boolean(errors.length)}
             helperText={errors.length}
             slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
@@ -383,7 +405,7 @@ export default function NewProductModal({
             type="number"
             placeholder="0"
             value={form.speed}
-            onChange={(event) => handleChange("speed", event.target.value)}
+            onChange={(event) => handleNumberChange("speed", event.target.value)}
             error={Boolean(errors.speed)}
             helperText={errors.speed}
             slotProps={{ htmlInput: { min: 0, step: "0.1" } }}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
@@ -55,6 +55,7 @@ export default function NewClientModal({
     note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // statusOptions は画面上「有効/無効」の二択に固定するため、入力値としては使用しないと明示
   // ESLint/TS の「未使用変数」警告を消すための行
@@ -73,6 +74,7 @@ export default function NewClientModal({
       note: "",
     });
     setErrors(emptyErrors);
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -83,6 +85,7 @@ export default function NewClientModal({
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
   };
 
   const isBlank = (v: string) => v.trim().length === 0;
@@ -102,8 +105,10 @@ export default function NewClientModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some(Boolean)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     const normalizedStatus: NewClientInput["status"] = form.status === "inactive" ? "inactive" : "active";
     onSave({
@@ -131,14 +136,17 @@ export default function NewClientModal({
       title="新規登録"
       onClose={handleClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={handleClose} disabled={isSaving}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave} disabled={isSaving}>
-            保存
-          </Button>
-        </>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose} disabled={isSaving}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave} disabled={isSaving}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="flex flex-col gap-2">

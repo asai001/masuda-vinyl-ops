@@ -228,6 +228,9 @@ export default function NewSalesModal({
     key: "orderQuantity" | "unitPrice" | "stockQuantity" | "shippedQuantity",
     value: string
   ) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
@@ -344,7 +347,7 @@ export default function NewSalesModal({
       !form.items.length ||
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
-      setActionError("必須項目が入力されていません");
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -367,6 +370,18 @@ export default function NewSalesModal({
       }
       if (Number.isNaN(shippedQuantity)) {
         itemError.shippedQuantity = "数値で入力してください";
+      }
+      if (!itemError.orderQuantity && orderQuantity < 0) {
+        itemError.orderQuantity = "0以上で入力してください";
+      }
+      if (!itemError.unitPrice && unitPrice < 0) {
+        itemError.unitPrice = "0以上で入力してください";
+      }
+      if (!itemError.stockQuantity && stockQuantity < 0) {
+        itemError.stockQuantity = "0以上で入力してください";
+      }
+      if (!itemError.shippedQuantity && shippedQuantity < 0) {
+        itemError.shippedQuantity = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;

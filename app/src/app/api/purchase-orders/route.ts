@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyCognitoIdToken } from "@/lib/auth/verifyCognitoIdToken";
+import { writeAuditLog } from "@/lib/audit";
+import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 import {
   deletePurchaseOrder,
   listPurchaseOrders,
@@ -82,79 +83,209 @@ function isUpdatePurchaseOrderInput(value: unknown): value is UpdatePurchaseOrde
   return isNonEmptyString(record.purchaseOrderId) && isNewPurchaseOrderInput(record);
 }
 
-function getBearer(req: Request) {
-  const v = req.headers.get("authorization") ?? "";
-  const m = v.match(/^Bearer\s+(.+)$/i);
-  return m?.[1];
-}
+const resource = "purchase-orders";
 
-async function requireOrgId(req: Request): Promise<string | NextResponse> {
-  const token = getBearer(req);
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+const toPurchaseOrderTarget = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
   }
-
-  const payload = await verifyCognitoIdToken(token);
-  const orgId = String(payload["custom:orgId"] ?? "");
-  if (!orgId) {
-    return NextResponse.json({ error: "Missing orgId claim" }, { status: 403 });
-  }
-  return orgId;
-}
+  const record = value as Record<string, unknown>;
+  return {
+    purchaseOrderId: typeof record.purchaseOrderId === "string" ? record.purchaseOrderId : undefined,
+    supplier: typeof record.supplier === "string" ? record.supplier : undefined,
+  };
+};
 
 export async function GET(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "purchase-orders.list";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
-
     const items = await listPurchaseOrders(orgId);
+    await writeAuditLog({ req, orgId, actor, action, resource, result: "success", statusCode: 200 });
     return NextResponse.json(items, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to list purchase orders";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to list purchase orders" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "purchase-orders.create";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isNewPurchaseOrderInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isNewPurchaseOrderInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPurchaseOrderTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     const saved = await upsertPurchaseOrder(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { purchaseOrderId: saved.purchaseOrderId, supplier: saved.supplier },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to create purchase order";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPurchaseOrderTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to create purchase order" }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "purchase-orders.update";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isUpdatePurchaseOrderInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isUpdatePurchaseOrderInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPurchaseOrderTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     const saved = await upsertPurchaseOrder(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { purchaseOrderId: saved.purchaseOrderId, supplier: saved.supplier },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to update purchase order";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPurchaseOrderTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to update purchase order" }, { status: 500 });
   }
@@ -169,21 +300,78 @@ function isDeletePurchaseOrderBody(value: unknown): value is { purchaseOrderId: 
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "purchase-orders.delete";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isDeletePurchaseOrderBody(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isDeletePurchaseOrderBody(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     await deletePurchaseOrder(orgId, bodyUnknown.purchaseOrderId);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { purchaseOrderId: bodyUnknown.purchaseOrderId },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to delete purchase order";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { purchaseOrderId: (bodyUnknown as { purchaseOrderId?: string }).purchaseOrderId },
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to delete purchase order" }, { status: 500 });
   }

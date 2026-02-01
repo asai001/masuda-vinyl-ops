@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyCognitoIdToken } from "@/lib/auth/verifyCognitoIdToken";
+import { writeAuditLog } from "@/lib/audit";
+import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 import { deleteClient, listClients, upsertClient } from "@/features/client-master/api/server";
 import type { NewClientInput, UpdateClientInput } from "@/features/client-master/types";
 
@@ -45,79 +46,212 @@ function isUpdateClientInput(v: unknown): v is UpdateClientInput {
   );
 }
 
-function getBearer(req: Request) {
-  const v = req.headers.get("authorization") ?? "";
-  const m = v.match(/^Bearer\s+(.+)$/i);
-  return m?.[1];
-}
+const resource = "clients";
 
-async function requireOrgId(req: Request): Promise<string | NextResponse> {
-  const token = getBearer(req);
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+const toClientTarget = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
   }
-
-  const payload = await verifyCognitoIdToken(token);
-  const orgId = String(payload["custom:orgId"] ?? "");
-  if (!orgId) {
-    return NextResponse.json({ error: "Missing orgId claim" }, { status: 403 });
-  }
-  return orgId;
-}
+  const record = value as Record<string, unknown>;
+  return {
+    clientId: typeof record.clientId === "string" ? record.clientId : undefined,
+    name: typeof record.name === "string" ? record.name : undefined,
+    category: typeof record.category === "string" ? record.category : undefined,
+  };
+};
 
 export async function GET(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "clients.list";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
-
     const items = await listClients(orgId);
+    await writeAuditLog({ req, orgId, actor, action, resource, result: "success", statusCode: 200 });
     return NextResponse.json(items, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to list clients";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to list clients" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "clients.create";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: undefined,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isNewClientInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isNewClientInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toClientTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const saved = await upsertClient(orgId, bodyUnknown); // ✅ serverでUUID採番
+  try {
+    const saved = await upsertClient(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { clientId: saved.clientId, name: saved.name },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to create client";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toClientTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "clients.update";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: undefined,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isUpdateClientInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isUpdateClientInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toClientTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     const saved = await upsertClient(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { clientId: saved.clientId, name: saved.name },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to update client";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toClientTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to update client" }, { status: 500 });
   }
@@ -132,22 +266,78 @@ function isDeleteClientBody(v: unknown): v is { clientId: string } {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "clients.delete";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isDeleteClientBody(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isDeleteClientBody(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     await deleteClient(orgId, bodyUnknown.clientId);
-
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { clientId: bodyUnknown.clientId },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to delete client";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { clientId: (bodyUnknown as { clientId?: string }).clientId },
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to delete client" }, { status: 500 });
   }

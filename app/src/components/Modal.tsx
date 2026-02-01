@@ -21,12 +21,18 @@ export default function Modal({
   children,
   actions,
   onClose,
-  maxWidth = "sm",
+  maxWidth = false,
   fullWidth = true,
   showCloseButton = true,
 }: ModalProps) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={maxWidth}
+      fullWidth={fullWidth}
+      PaperProps={{ sx: { maxWidth: 800, width: "100%" } }}
+    >
       <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
         {title}
         {showCloseButton ? (

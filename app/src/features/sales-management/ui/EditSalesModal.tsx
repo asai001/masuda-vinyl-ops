@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -85,6 +85,8 @@ type EditSalesModalProps = {
   onClose: () => void;
   onSave: (order: SalesRow) => void;
   onDelete?: (order: SalesRow) => void;
+  onIssue?: (order: SalesRow) => void;
+  isIssuing?: boolean;
 };
 
 const emptyErrors = {
@@ -124,6 +126,8 @@ export default function EditSalesModal({
   onClose,
   onSave,
   onDelete,
+  onIssue,
+  isIssuing = false,
 }: EditSalesModalProps) {
   const getInitialForm = (row: SalesRow | null) => ({
     orderNo: row?.orderNo ?? "",
@@ -212,6 +216,9 @@ export default function EditSalesModal({
     key: "orderQuantity" | "unitPrice" | "stockQuantity" | "shippedQuantity",
     value: string
   ) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
@@ -328,7 +335,7 @@ export default function EditSalesModal({
       !form.items.length ||
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
-      setActionError("必須項目が入力されていません");
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -355,6 +362,18 @@ export default function EditSalesModal({
       }
       if (Number.isNaN(shippedQuantity)) {
         itemError.shippedQuantity = "数値で入力してください";
+      }
+      if (!itemError.orderQuantity && orderQuantity < 0) {
+        itemError.orderQuantity = "0以上で入力してください";
+      }
+      if (!itemError.unitPrice && unitPrice < 0) {
+        itemError.unitPrice = "0以上で入力してください";
+      }
+      if (!itemError.stockQuantity && stockQuantity < 0) {
+        itemError.stockQuantity = "0以上で入力してください";
+      }
+      if (!itemError.shippedQuantity && shippedQuantity < 0) {
+        itemError.shippedQuantity = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;
@@ -395,6 +414,14 @@ export default function EditSalesModal({
     });
   };
 
+  const handleIssue = () => {
+    if (!sales || !onIssue) {
+      return;
+    }
+    onIssue(sales);
+    handleClose();
+  };
+
   return (
     <Modal
       open={open}
@@ -407,6 +434,9 @@ export default function EditSalesModal({
           </Button>
           {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
           <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleIssue} disabled={!sales || isIssuing}>
+              インボイス・パッキングリスト発行
+            </Button>
             <Button variant="outlined" onClick={handleClose}>
               キャンセル
             </Button>

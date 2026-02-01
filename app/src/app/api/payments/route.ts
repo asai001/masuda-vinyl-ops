@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyCognitoIdToken } from "@/lib/auth/verifyCognitoIdToken";
+import { writeAuditLog } from "@/lib/audit";
+import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 import {
   createPayment,
   deletePayment,
@@ -61,85 +62,241 @@ function isUpdatePaymentInput(value: unknown): value is UpdatePaymentManagementI
   return isNonEmptyString(record.paymentId) && isYearMonth(record.yearMonth) && isNewPaymentInput(record);
 }
 
-function getBearer(req: Request) {
-  const v = req.headers.get("authorization") ?? "";
-  const m = v.match(/^Bearer\s+(.+)$/i);
-  return m?.[1];
-}
+const resource = "payments";
 
-async function requireOrgId(req: Request): Promise<string | NextResponse> {
-  const token = getBearer(req);
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+const toPaymentTarget = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
   }
-
-  const payload = await verifyCognitoIdToken(token);
-  const orgId = String(payload["custom:orgId"] ?? "");
-  if (!orgId) {
-    return NextResponse.json({ error: "Missing orgId claim" }, { status: 403 });
-  }
-  return orgId;
-}
+  const record = value as Record<string, unknown>;
+  return {
+    paymentId: typeof record.paymentId === "string" ? record.paymentId : undefined,
+    yearMonth: typeof record.yearMonth === "string" ? record.yearMonth : undefined,
+    category: typeof record.category === "string" ? record.category : undefined,
+    content: typeof record.content === "string" ? record.content : undefined,
+  };
+};
 
 export async function GET(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "payments.list";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+
+  const { searchParams } = new URL(req.url);
+  const month = searchParams.get("month");
+  if (!isYearMonth(month)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { month },
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Missing month",
+    });
+    return NextResponse.json({ error: "Missing month" }, { status: 400 });
+  }
+
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
-
-    const { searchParams } = new URL(req.url);
-    const month = searchParams.get("month");
-    if (!isYearMonth(month)) {
-      return NextResponse.json({ error: "Missing month" }, { status: 400 });
-    }
-
     const items = await listPaymentsByMonth(orgId, month);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { month },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(items, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to list payments";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { month },
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to list payments" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "payments.create";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isNewPaymentInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isNewPaymentInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPaymentTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     const saved = await createPayment(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { paymentId: saved.paymentId, yearMonth: saved.yearMonth },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to create payment";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPaymentTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "payments.update";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isUpdatePaymentInput(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isUpdatePaymentInput(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPaymentTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     const saved = await updatePayment(orgId, bodyUnknown);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { paymentId: saved.paymentId, yearMonth: saved.yearMonth },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json(saved, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to update payment";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toPaymentTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to update payment" }, { status: 500 });
   }
@@ -154,21 +311,82 @@ function isDeletePaymentBody(value: unknown): value is { paymentId: string; year
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireAuthContext(req);
+  const action = "payments.delete";
+  if (!auth.ok) {
+    await writeAuditLog({
+      req,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
+
+  let bodyUnknown: unknown;
   try {
-    const orgIdOrRes = await requireOrgId(req);
-    if (orgIdOrRes instanceof NextResponse) {
-      return orgIdOrRes;
-    }
-    const orgId = orgIdOrRes;
+    bodyUnknown = await req.json();
+  } catch {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    const bodyUnknown: unknown = await req.json();
-    if (!isDeletePaymentBody(bodyUnknown)) {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-    }
+  if (!isDeletePaymentBody(bodyUnknown)) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid request body",
+    });
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  try {
     await deletePayment(orgId, bodyUnknown.yearMonth, bodyUnknown.paymentId);
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: { paymentId: bodyUnknown.paymentId, yearMonth: bodyUnknown.yearMonth },
+      result: "success",
+      statusCode: 200,
+    });
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to delete payment";
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: {
+        paymentId: (bodyUnknown as { paymentId?: string }).paymentId,
+        yearMonth: (bodyUnknown as { yearMonth?: string }).yearMonth,
+      },
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     console.error(e);
     return NextResponse.json({ error: "Failed to delete payment" }, { status: 500 });
   }
