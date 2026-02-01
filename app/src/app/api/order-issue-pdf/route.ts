@@ -1,6 +1,7 @@
 import { promises as fs, existsSync } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { writeAuditLog } from "@/lib/audit";
 import {
   renderOrderIssueHtml,
   type OrderIssuePdfPayload,
@@ -132,9 +133,12 @@ async function launchBrowser(): Promise<Browser> {
 
 export async function POST(request: Request) {
   let browser: Browser | null = null;
+  const action = "order-issue-pdf.generate";
+  const resource = "order-issue-pdf";
+  let payload: OrderIssuePdfPayload | null = null;
   try {
     const body = (await request.json()) as Partial<OrderIssuePdfPayload>;
-    const payload = normalizePayload(body);
+    payload = normalizePayload(body);
     const fonts = await loadFontData();
     const html = renderOrderIssueHtml(payload, fonts);
 
@@ -152,6 +156,14 @@ export async function POST(request: Request) {
     const pdfBuffer = pdfBytes.buffer;
 
     const safeOrderNumber = payload.orderNumber.replace(/[^A-Za-z0-9-_]/g, "") || "order";
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: { orderNumber: payload.orderNumber },
+      result: "success",
+      statusCode: 200,
+    });
     return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
@@ -161,6 +173,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Failed to generate order PDF", error);
+    const msg = error instanceof Error ? error.message : "Failed to generate PDF";
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: payload ? { orderNumber: payload.orderNumber } : undefined,
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });
   } finally {
     if (browser) {

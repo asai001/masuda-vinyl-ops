@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useMemo, useState } from "react";
 import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
@@ -68,10 +68,19 @@ export default function EditMaterialModal({
 
   const [form, setForm] = useState(() => getInitialForm(material));
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
+  };
+
+  const handleNumberChange = (key: "unitPrice", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
   };
 
   const handleSupplierSelect = (supplier: string) => {
@@ -89,6 +98,7 @@ export default function EditMaterialModal({
       supplier: "",
       currency: normalizedCurrency ? "" : prev.currency,
     }));
+    setActionError(null);
   };
 
   const handleSave = () => {
@@ -106,16 +116,20 @@ export default function EditMaterialModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     const parsedPrice = Number(form.unitPrice);
     if (Number.isNaN(parsedPrice)) {
       setErrors((prev) => ({ ...prev, unitPrice: "数値で入力してください" }));
+      setActionError("入力内容をご確認ください。");
       return;
     }
     if (parsedPrice < 0) {
       setErrors((prev) => ({ ...prev, unitPrice: "0以上で入力してください" }));
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -133,6 +147,7 @@ export default function EditMaterialModal({
       });
       if (hasDuplicate) {
         setErrors((prev) => ({ ...prev, code: "品番が既に登録されています" }));
+        setActionError("入力内容をご確認ください。");
         return;
       }
     }
@@ -162,7 +177,7 @@ export default function EditMaterialModal({
       title="編集"
       onClose={onClose}
       actions={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center gap-2">
           <Button
             variant="outlined"
             color="error"
@@ -171,7 +186,8 @@ export default function EditMaterialModal({
           >
             削除
           </Button>
-          <div className="flex items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
             <Button variant="outlined" onClick={onClose}>
               キャンセル
             </Button>
@@ -306,16 +322,16 @@ export default function EditMaterialModal({
           <label className="text-sm font-semibold text-gray-700">
             標準単価 <span className="text-red-500">*</span>
           </label>
-        <TextField
-          size="small"
-          type="number"
-          placeholder="例: 3.5"
-          value={form.unitPrice}
-          onChange={(event) => handleChange("unitPrice", event.target.value)}
-          error={Boolean(errors.unitPrice)}
-          helperText={errors.unitPrice}
-          slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
-        />
+          <TextField
+            size="small"
+            type="number"
+            placeholder="例: 3.5"
+            value={form.unitPrice}
+            onChange={(event) => handleNumberChange("unitPrice", event.target.value)}
+            error={Boolean(errors.unitPrice)}
+            helperText={errors.unitPrice}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -66,6 +66,8 @@ type EditOrderModalProps = {
   onClose: () => void;
   onSave: (order: OrderRow) => void;
   onDelete?: (order: OrderRow) => void;
+  onIssue?: (order: OrderRow) => void;
+  isIssuing?: boolean;
 };
 
 const emptyErrors = {
@@ -97,6 +99,8 @@ export default function EditOrderModal({
   onClose,
   onSave,
   onDelete,
+  onIssue,
+  isIssuing = false,
 }: EditOrderModalProps) {
   const getInitialForm = (row: OrderRow | null) => ({
     orderDate: row?.orderDate ?? "",
@@ -199,6 +203,9 @@ export default function EditOrderModal({
   };
 
   const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
@@ -328,7 +335,7 @@ export default function EditOrderModal({
       !form.items.length ||
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
-      setActionError("必須項目が入力されていません");
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -347,6 +354,12 @@ export default function EditOrderModal({
       }
       if (Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
+      }
+      if (!itemError.quantity && quantity < 0) {
+        itemError.quantity = "0以上で入力してください";
+      }
+      if (!itemError.unitPrice && unitPrice < 0) {
+        itemError.unitPrice = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;
@@ -383,6 +396,14 @@ export default function EditOrderModal({
     });
   };
 
+  const handleIssue = () => {
+    if (!order || !onIssue) {
+      return;
+    }
+    onIssue(order);
+    handleClose();
+  };
+
   return (
     <Modal
       open={open}
@@ -395,6 +416,9 @@ export default function EditOrderModal({
           </Button>
           {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
           <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleIssue} disabled={!order || isIssuing}>
+              注文書発行
+            </Button>
             <Button variant="outlined" onClick={handleClose}>
               キャンセル
             </Button>

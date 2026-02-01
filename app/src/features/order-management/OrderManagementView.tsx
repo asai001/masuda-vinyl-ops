@@ -364,6 +364,8 @@ export default function OrderManagementView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
+        onIssue={openIssue}
+        isIssuing={Boolean(issuingRow && editingRow && issuingRow.purchaseOrderId === editingRow.purchaseOrderId)}
         itemOptions={itemOptions}
         supplierOptions={supplierOptions}
         statusOptions={statusOptions}

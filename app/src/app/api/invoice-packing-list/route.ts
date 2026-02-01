@@ -2,6 +2,7 @@ import path from "path";
 import JSZip from "jszip";
 import XlsxPopulate from "xlsx-populate";
 import { NextResponse } from "next/server";
+import { writeAuditLog } from "@/lib/audit";
 import { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
 
 export const runtime = "nodejs";
@@ -80,14 +81,33 @@ const updateSharedStringCounts = async (buffer: Buffer) => {
 };
 
 export async function POST(request: Request) {
+  const action = "invoice-packing-list.generate";
+  const resource = "invoice-packing-list";
   let payload: InvoicePackingPayload;
   try {
     payload = (await request.json()) as InvoicePackingPayload;
   } catch {
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Invalid payload",
+    });
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
   if (!payload?.orderNo || !payload.invoiceDate) {
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: { orderNo: payload?.orderNo },
+      result: "failure",
+      statusCode: 400,
+      errorMessage: "Missing invoice data",
+    });
     return NextResponse.json({ error: "Missing invoice data" }, { status: 400 });
   }
 
@@ -146,6 +166,14 @@ export async function POST(request: Request) {
     const fileBuffer = fileBytes.buffer;
     const safeOrderNo = sanitizeFileName(payload.orderNo);
     const fileName = `インボイス-パッキングリスト-${safeOrderNo}.xlsx`;
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: { orderNo: payload.orderNo },
+      result: "success",
+      statusCode: 200,
+    });
     return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
@@ -156,6 +184,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Failed to generate invoice packing list", error);
+    const msg = error instanceof Error ? error.message : "Failed to generate invoice packing list";
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: { orderNo: payload?.orderNo },
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     return NextResponse.json({ error: "Failed to generate invoice packing list" }, { status: 500 });
   }
 }

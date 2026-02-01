@@ -77,6 +77,13 @@ export default function NewPaymentModal({
     setActionError(null);
   };
 
+  const handleNumberChange = (key: "fixedAmount" | "paymentDate", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
+  };
+
   const handleFixedCostChange = (checked: boolean) => {
     setForm((prev) => ({ ...prev, isFixedCost: checked }));
     if (!checked) {
@@ -213,7 +220,7 @@ export default function NewPaymentModal({
               slotProps={{ htmlInput: { min: 0 } }}
               placeholder="0"
               value={form.fixedAmount}
-              onChange={(event) => handleChange("fixedAmount", event.target.value)}
+              onChange={(event) => handleNumberChange("fixedAmount", event.target.value)}
               error={Boolean(errors.fixedAmount)}
               helperText={errors.fixedAmount}
             />
@@ -274,7 +281,7 @@ export default function NewPaymentModal({
             slotProps={{ htmlInput: { min: 1, max: 31 } }}
             placeholder="30"
             value={form.paymentDate}
-            onChange={(event) => handleChange("paymentDate", event.target.value)}
+            onChange={(event) => handleNumberChange("paymentDate", event.target.value)}
             error={Boolean(errors.paymentDate)}
             helperText={errors.paymentDate}
           />

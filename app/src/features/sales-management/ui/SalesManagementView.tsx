@@ -563,6 +563,8 @@ export default function SalesManagementView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
+        onIssue={handleIssue}
+        isIssuing={Boolean(editingRow && issuingRowId === editingRow.id)}
         productOptions={productOptions}
         customerOptions={customerOptions}
         currencyOptions={currencyOptions}

@@ -223,6 +223,9 @@ export default function NewOrderModal({
   };
 
   const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
@@ -352,7 +355,7 @@ export default function NewOrderModal({
       !form.items.length ||
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
-      setActionError("必須項目が入力されていません");
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -367,6 +370,12 @@ export default function NewOrderModal({
       }
       if (Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
+      }
+      if (!itemError.quantity && quantity < 0) {
+        itemError.quantity = "0以上で入力してください";
+      }
+      if (!itemError.unitPrice && unitPrice < 0) {
+        itemError.unitPrice = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;

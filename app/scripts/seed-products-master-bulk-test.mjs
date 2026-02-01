@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Seed script for Materials Master (dev only)
+ * Seed script for Products Master (bulk test 100) (dev only)
  * Fixed:
  * - region: ap-northeast-1
- * - table : masuda-vinyl-ops-materials-master-dev
- * - data  : ./seed_materials_master.json (relative to this script)
+ * - table : masuda-vinyl-ops-products-master-dev
+ * - data  : ./test_products_master_bulk.json (relative to this script)
  *
  * Options:
  *   --dry-run
@@ -16,8 +16,8 @@ import { BatchWriteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb
 import { fromIni } from "@aws-sdk/credential-provider-ini";
 
 const REGION = "ap-northeast-1";
-const TABLE_NAME = "masuda-vinyl-ops-materials-master-dev";
-const DATA_URL = new URL("./seed_materials_master.json", import.meta.url);
+const TABLE_NAME = "masuda-vinyl-ops-products-master-dev";
+const DATA_URL = new URL("./test_products_master_bulk.json", import.meta.url);
 
 function parseArgs(argv) {
   const args = { dryRun: false, profile: process.env.AWS_PROFILE };
@@ -26,7 +26,7 @@ function parseArgs(argv) {
     if (a === "--dry-run") { args.dryRun = true; continue; }
     if (a === "--profile" && argv[i + 1]) { args.profile = argv[++i]; continue; }
     if (a === "--help" || a === "-h") {
-      console.log(`\nSeed Materials Master (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`);
+      console.log(`\nSeed Materials Master TEST (dev)\n\nOptions:\n  --dry-run\n  --profile <profile>\n`);
       process.exit(0);
     }
     throw new Error(`Unknown arg: ${a}`);
@@ -87,7 +87,7 @@ async function main() {
   const items = JSON.parse(raw);
 
   if (!Array.isArray(items)) {
-    throw new Error("seed_materials_master.json must be a JSON array.");
+    throw new Error("test_products_master_bulk.json must be a JSON array.");
   }
 
   console.log("Seed target:");

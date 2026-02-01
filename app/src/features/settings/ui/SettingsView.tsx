@@ -228,7 +228,7 @@ export default function SettingsView() {
     }
   };
 
-  if (loadingRates && loadingProfile) {
+  if (loadingRates || loadingProfile) {
     return <div className="text-sm text-gray-500">読み込み中...</div>;
   }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
@@ -65,10 +65,12 @@ export default function EditClientModal({
 
   const [form, setForm] = useState(() => getInitialForm(client));
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
   };
 
   const isBlank = (v: string) => v.trim().length === 0;
@@ -87,8 +89,10 @@ export default function EditClientModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some(Boolean)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     if (!client) {
       return;
@@ -120,7 +124,7 @@ export default function EditClientModal({
       title="編集"
       onClose={onClose}
       actions={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center gap-2">
           <Button
             variant="outlined"
             color="error"
@@ -129,7 +133,8 @@ export default function EditClientModal({
           >
             削除
           </Button>
-          <div className="flex items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
             <Button variant="outlined" onClick={onClose} disabled={isSaving}>
               キャンセル
             </Button>

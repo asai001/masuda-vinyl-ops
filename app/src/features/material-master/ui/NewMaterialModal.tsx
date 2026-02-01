@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
@@ -59,6 +59,7 @@ export default function NewMaterialModal({
     note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isBlank = (v: string) => v.trim().length === 0;
   const normalizeCode = (value: string) => value.trim().toLowerCase();
@@ -76,6 +77,7 @@ export default function NewMaterialModal({
       note: "",
     });
     setErrors(emptyErrors);
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -86,6 +88,14 @@ export default function NewMaterialModal({
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
+  };
+
+  const handleNumberChange = (key: "unitPrice", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
   };
 
   const handleSupplierSelect = (supplier: string) => {
@@ -104,6 +114,7 @@ export default function NewMaterialModal({
       supplier: "",
       currency: normalizedCurrency ? "" : prev.currency,
     }));
+    setActionError(null);
   };
 
   const handleSave = () => {
@@ -122,8 +133,10 @@ export default function NewMaterialModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     const parsedPrice = Number(form.unitPrice);
     if (Number.isNaN(parsedPrice)) {
@@ -140,6 +153,7 @@ export default function NewMaterialModal({
       const hasDuplicate = existingMaterials.some((row) => normalizeCode(row.code) === normalizedCode);
       if (hasDuplicate) {
         setErrors((prev) => ({ ...prev, code: "品番が既に登録されています" }));
+        setActionError("入力内容をご確認ください。");
         return;
       }
     }
@@ -169,14 +183,17 @@ export default function NewMaterialModal({
       title="新規材料"
       onClose={handleClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
-        </>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="flex flex-col gap-2">
@@ -308,7 +325,7 @@ export default function NewMaterialModal({
           type="number"
           placeholder="例: 3.5"
           value={form.unitPrice}
-          onChange={(event) => handleChange("unitPrice", event.target.value)}
+          onChange={(event) => handleNumberChange("unitPrice", event.target.value)}
           error={Boolean(errors.unitPrice)}
           helperText={errors.unitPrice}
           slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
