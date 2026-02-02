@@ -1,47 +1,193 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, CheckCircle, Clock } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteProductDialog from "@/features/product-master/DeleteProductDialog";
 import EditProductModal from "@/features/product-master/EditProductModal";
 import NewProductModal from "@/features/product-master/NewProductModal";
 import ProductMasterTableView from "@/features/product-master/ProductMasterTableView";
-import { materialRows } from "@/mock/materialMasterData";
-import { ProductRow, productRows } from "@/mock/productMasterData";
+import {
+  createProduct,
+  deleteProduct,
+  fetchProductRows,
+  updateProduct,
+} from "@/features/product-master/api/client";
+import type { NewProductInput, ProductRow } from "@/features/product-master/types";
+import { fetchMaterialRows } from "@/features/material-master/api/client";
+import type { MaterialRow } from "@/features/material-master/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const statusLabels: Record<string, string> = {
   active: "有効",
   inactive: "無効",
 };
 
+type Option = { value: string; label: string };
+
 export default function ProductMasterView() {
   const {
     rows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
-  } = useMasterCrud<ProductRow>(productRows, (item, nextId) => ({ ...item, id: nextId }));
+  } = useMasterCrud<ProductRow>([], (item, nextId) => ({
+    ...item,
+    id: nextId,
+    productId: item.productId ?? `local_${nextId}`,
+  }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
 
-  const materialOptions = useMemo(
+  const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
+  const [optionError, setOptionError] = useState<string | null>(null);
+
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reload = async () => {
+    const fetched = await fetchProductRows();
+    replaceRows(fetched);
+  };
+
+  const reloadMaterialOptions = async () => {
+    try {
+      setOptionError(null);
+      const fetched = await fetchMaterialRows();
+      setMaterialRows(fetched);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to load materials";
+      setOptionError(msg);
+    }
+  };
+
+  const handleCreate = (input: NewProductInput) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("create");
+        setMutateError(null);
+        closeCreate();
+
+        await createProduct(input);
+        await reload();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create product";
+        setMutateError(msg);
+        closeCreate();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  const handleEdit = (next: ProductRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("edit");
+        setMutateError(null);
+        closeEdit();
+
+        await updateProduct(next);
+        await reload();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update product";
+        setMutateError(msg);
+        closeEdit();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  const handleDelete = (row: ProductRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("delete");
+        setMutateError(null);
+        closeDelete();
+
+        await deleteProduct(row.productId);
+        await reload();
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete product";
+        setMutateError(msg);
+        closeDelete();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  // DynamoDB から製品を取得
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchProductRows();
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows]);
+
+  // 初回に材料マスタを取得
+  useEffect(() => {
+    reloadMaterialOptions();
+  }, []);
+
+  // 新規/編集モーダルを開くたびに材料候補を最新化
+  useEffect(() => {
+    if (isCreateOpen || Boolean(editingRow)) {
+      reloadMaterialOptions();
+    }
+  }, [isCreateOpen, editingRow]);
+
+  const materialOptions = useMemo<Option[]>(
     () =>
       materialRows.map((row) => ({
         value: row.code,
         label: `${row.code} - ${row.name}`,
       })),
-    []
+    [materialRows],
   );
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
@@ -55,10 +201,7 @@ export default function ProductMasterView() {
       value,
       label: value,
     }));
-    const currencyOptions = uniqueValues(rows.map((row) => row.currency)).map((value) => ({
-      value,
-      label: value,
-    }));
+    const currencyOptions = CURRENCY_OPTION_ITEMS;
     const materialLabelMap = new Map(materialOptions.map((option) => [option.value, option.label]));
     const materialFilterOptions = uniqueValues(rows.flatMap((row) => row.materials)).map((value) => ({
       value,
@@ -139,7 +282,7 @@ export default function ProductMasterView() {
           default:
             return true;
         }
-      })
+      }),
     );
   }, [filters, rows]);
 
@@ -159,6 +302,8 @@ export default function ProductMasterView() {
     openDelete(product);
   };
 
+  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
@@ -169,28 +314,42 @@ export default function ProductMasterView() {
         onCreate={openCreate}
         createLabel="新規製品"
       />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          製品マスタの取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {optionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          材料マスタの取得に失敗しました。（{optionError}）
+        </div>
+      )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <ProductMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewProductModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         categoryOptions={filterDefinitions.find((definition) => definition.key === "category")?.options ?? []}
         unitOptions={filterDefinitions.find((definition) => definition.key === "unit")?.options ?? []}
-        currencyOptions={filterDefinitions.find((definition) => definition.key === "currency")?.options ?? []}
         statusOptions={filterDefinitions.find((definition) => definition.key === "status")?.options ?? []}
         materialOptions={materialOptions}
         existingProducts={rows}
       />
       <EditProductModal
-        key={editingRow?.id ?? "product-edit"}
+        key={editingRow?.productId ?? "product-edit"}
         open={Boolean(editingRow)}
         product={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={filterDefinitions.find((definition) => definition.key === "category")?.options ?? []}
         unitOptions={filterDefinitions.find((definition) => definition.key === "unit")?.options ?? []}
-        currencyOptions={filterDefinitions.find((definition) => definition.key === "currency")?.options ?? []}
         statusOptions={filterDefinitions.find((definition) => definition.key === "status")?.options ?? []}
         materialOptions={materialOptions}
         existingProducts={rows}
@@ -199,8 +358,9 @@ export default function ProductMasterView() {
         open={Boolean(deletingRow)}
         product={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

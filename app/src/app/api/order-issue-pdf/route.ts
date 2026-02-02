@@ -1,6 +1,7 @@
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { writeAuditLog } from "@/lib/audit";
 import {
   renderOrderIssueHtml,
   type OrderIssuePdfPayload,
@@ -74,6 +75,27 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
 import type { Browser } from "puppeteer-core";
 const isVercel = !!process.env.VERCEL;
 
+const findLocalChromePath = () => {
+  const envPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH;
+  if (envPath && existsSync(envPath)) {
+    return envPath;
+  }
+  const candidates = [
+    "C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
+    "C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
+    "C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
+    "C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge",
+  ];
+  return candidates.find((path) => existsSync(path)) ?? null;
+};
+
 async function launchBrowser(): Promise<Browser> {
   if (isVercel) {
     const chromiumMod = await import("@sparticuz/chromium");
@@ -92,6 +114,16 @@ async function launchBrowser(): Promise<Browser> {
     });
   }
 
+  const localExecutablePath = findLocalChromePath();
+  if (localExecutablePath) {
+    const puppeteer = (await import("puppeteer-core")).default;
+    return puppeteer.launch({
+      headless: true,
+      executablePath: localExecutablePath,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
+
   const puppeteer = (await import("puppeteer")).default;
   return puppeteer.launch({
     headless: true,
@@ -101,9 +133,12 @@ async function launchBrowser(): Promise<Browser> {
 
 export async function POST(request: Request) {
   let browser: Browser | null = null;
+  const action = "order-issue-pdf.generate";
+  const resource = "order-issue-pdf";
+  let payload: OrderIssuePdfPayload | null = null;
   try {
     const body = (await request.json()) as Partial<OrderIssuePdfPayload>;
-    const payload = normalizePayload(body);
+    payload = normalizePayload(body);
     const fonts = await loadFontData();
     const html = renderOrderIssueHtml(payload, fonts);
 
@@ -121,6 +156,14 @@ export async function POST(request: Request) {
     const pdfBuffer = pdfBytes.buffer;
 
     const safeOrderNumber = payload.orderNumber.replace(/[^A-Za-z0-9-_]/g, "") || "order";
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: { orderNumber: payload.orderNumber },
+      result: "success",
+      statusCode: 200,
+    });
     return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
@@ -130,6 +173,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Failed to generate order PDF", error);
+    const msg = error instanceof Error ? error.message : "Failed to generate PDF";
+    await writeAuditLog({
+      req: request,
+      action,
+      resource,
+      target: payload ? { orderNumber: payload.orderNumber } : undefined,
+      result: "failure",
+      statusCode: 500,
+      errorMessage: msg,
+    });
     return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });
   } finally {
     if (browser) {

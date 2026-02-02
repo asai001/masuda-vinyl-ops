@@ -1,92 +1,231 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Button, TextField } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@mui/material";
 import { CheckCircle, Clock, DollarSign, Plus } from "lucide-react";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
+import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeletePaymentManagementDialog from "@/features/payment-management/DeletePaymentManagementDialog";
 import EditPaymentManagementModal from "@/features/payment-management/EditPaymentManagementModal";
+import MonthPicker from "@/features/payment-management/MonthPicker";
 import NewPaymentManagementModal from "@/features/payment-management/NewPaymentManagementModal";
 import PaymentManagementTableView from "@/features/payment-management/PaymentManagementTableView";
 import {
-  PaymentManagementRow,
-  paymentManagementRows,
+  createPayment,
+  deletePayment,
+  fetchPaymentManagementRows,
+  generatePayments,
+  updatePayment,
+} from "@/features/payment-management/api/client";
+import { fetchPaymentRows as fetchPaymentDefinitionRows } from "@/features/payment-master/api/client";
+import {
   paymentStatusOptions,
-} from "@/mock/paymentManagementData";
-import { paymentRows as paymentMasterRows } from "@/mock/paymentMasterData";
+  type NewPaymentManagementInput,
+  type PaymentManagementRow,
+} from "@/features/payment-management/types";
+import type { PaymentRow as PaymentDefinitionRow } from "@/features/payment-master/types";
+import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
-const defaultCurrencies = ["JPY", "USD", "VND"];
+const fixedCostOptions = [
+  { value: "fixed", label: "固定費" },
+  { value: "variable", label: "変動費" },
+];
 
 export default function PaymentManagementView() {
-  const defaultTargetMonth =
-    paymentManagementRows[0]?.paymentDate?.slice(0, 7) ?? new Date().toISOString().slice(0, 7);
+  const defaultTargetMonth = new Date().toISOString().slice(0, 7);
   const {
     rows,
-    setRows,
+    replaceRows,
     isCreateOpen,
     editingRow,
     deletingRow,
     openCreate,
     closeCreate,
-    saveCreate,
     openEdit,
     closeEdit,
-    saveEdit,
     openDelete,
     closeDelete,
-    confirmDelete,
-  } = useMasterCrud<PaymentManagementRow>(paymentManagementRows, (item, nextId) => ({ ...item, id: nextId }));
+  } = useMasterCrud<PaymentManagementRow>([], (item, nextId) => ({ ...item, id: nextId }));
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [targetMonth, setTargetMonth] = useState(defaultTargetMonth);
+  const [paymentDefinitionRows, setPaymentDefinitionRows] = useState<PaymentDefinitionRow[]>([]);
+  const [mutating, setMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+  const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | "generate" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [optionError, setOptionError] = useState<string | null>(null);
+
+  const reload = async (month: string) => {
+    if (!month) {
+      replaceRows([]);
+      return;
+    }
+    const fetched = await fetchPaymentManagementRows(month);
+    replaceRows(fetched);
+  };
+
+  const reloadPaymentDefinitions = async () => {
+    try {
+      setOptionError(null);
+      const fetched = await fetchPaymentDefinitionRows();
+      setPaymentDefinitionRows(fetched);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to load payment definitions";
+      setOptionError(msg);
+    }
+  };
+
+  const handleCreate = (input: NewPaymentManagementInput) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("create");
+        setMutateError(null);
+        closeCreate();
+
+        await createPayment(input);
+        await reload(targetMonth);
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to create payment";
+        setMutateError(msg);
+        closeCreate();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  const handleEdit = (next: PaymentManagementRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("edit");
+        setMutateError(null);
+        closeEdit();
+
+        await updatePayment(next);
+        await reload(targetMonth);
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to update payment";
+        setMutateError(msg);
+        closeEdit();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  const handleDelete = (row: PaymentManagementRow) => {
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("delete");
+        setMutateError(null);
+        closeDelete();
+
+        await deletePayment(row.paymentId, row.yearMonth);
+        await reload(targetMonth);
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to delete payment";
+        setMutateError(msg);
+        closeDelete();
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
+      }
+    })();
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!targetMonth) {
+      replaceRows([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const fetched = await fetchPaymentManagementRows(targetMonth);
+        if (!cancelled) {
+          replaceRows(fetched);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Failed to load";
+          setLoadError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [replaceRows, targetMonth]);
+
+  useEffect(() => {
+    reloadPaymentDefinitions();
+  }, []);
+
+  useEffect(() => {
+    if (isCreateOpen || Boolean(editingRow)) {
+      reloadPaymentDefinitions();
+    }
+  }, [isCreateOpen, editingRow]);
 
   const categoryOptions = useMemo(() => {
     const uniqueValues = Array.from(
-      new Set([...rows.map((row) => row.category), ...paymentMasterRows.map((row) => row.category)])
+      new Set([...rows.map((row) => row.category), ...paymentDefinitionRows.map((row) => row.category)]),
     ).filter((value) => value);
     return uniqueValues.map((value) => ({ value, label: value }));
-  }, [rows]);
+  }, [paymentDefinitionRows, rows]);
 
   const paymentMethodOptions = useMemo(() => {
     const uniqueValues = Array.from(
       new Set([
         ...rows.map((row) => row.paymentMethod),
-        ...paymentMasterRows.map((row) => row.paymentMethod),
+        ...paymentDefinitionRows.map((row) => row.paymentMethod),
         ...defaultPaymentMethods,
-      ])
+      ]),
     ).filter((value) => value);
     return uniqueValues.map((value) => ({ value, label: value }));
-  }, [rows]);
+  }, [paymentDefinitionRows, rows]);
 
-  const currencyOptions = useMemo(() => {
-    const uniqueValues = Array.from(
-      new Set([
-        ...rows.map((row) => row.currency),
-        ...paymentMasterRows.map((row) => row.currency),
-        ...defaultCurrencies,
-      ])
-    ).filter((value) => value);
-    return uniqueValues.map((value) => ({ value, label: value }));
-  }, [rows]);
+  const currencyOptions = CURRENCY_OPTION_ITEMS;
 
   const statusOptions = useMemo(
     () => paymentStatusOptions.map((option) => ({ value: option.key, label: option.label })),
-    []
+    [],
   );
 
   const filterDefinitions = useMemo<FilterDefinition[]>(
     () => [
       { key: "category", label: "カテゴリ", type: "select", options: categoryOptions },
       { key: "content", label: "内容", type: "text" },
+      { key: "fixedCost", label: "固定費区分", type: "select", options: fixedCostOptions },
       { key: "amount", label: "金額", type: "range" },
       { key: "currency", label: "通貨", type: "select", options: currencyOptions },
       { key: "paymentMethod", label: "支払方法", type: "select", options: paymentMethodOptions },
       { key: "paymentDate", label: "支払日", type: "date-range" },
       { key: "status", label: "ステータス", type: "select", options: statusOptions },
     ],
-    [categoryOptions, currencyOptions, paymentMethodOptions, statusOptions]
+    [categoryOptions, currencyOptions, paymentMethodOptions, statusOptions],
   );
 
   const monthRows = useMemo(() => {
@@ -141,6 +280,8 @@ export default function PaymentManagementView() {
             return values.some((value) => value.value === row.category);
           case "content":
             return values.some((value) => row.content.toLowerCase().includes(value.value.toLowerCase()));
+          case "fixedCost":
+            return values.some((value) => (value.value === "fixed" ? row.isFixedCost : !row.isFixedCost));
           case "amount":
             return values.some((value) => matchesNumberRange(row.amount, value));
           case "currency":
@@ -154,7 +295,7 @@ export default function PaymentManagementView() {
           default:
             return true;
         }
-      })
+      }),
     );
   }, [filters, monthRows]);
 
@@ -174,49 +315,30 @@ export default function PaymentManagementView() {
     openDelete(row);
   };
 
+  const savingMessage =
+    mutatingAction === "delete" ? "削除中" : mutatingAction === "generate" ? "生成中" : "保存中";
+
   const handleGenerate = () => {
     if (!targetMonth) {
       return;
     }
+    (async () => {
+      try {
+        setMutating(true);
+        setMutatingAction("generate");
+        setMutateError(null);
 
-    setRows((prev) => {
-      const prefix = `${targetMonth}-`;
-      const existingKeys = new Set(
-        prev
-          .filter((row) => row.paymentDate.startsWith(prefix))
-          .map((row) => `${row.category}-${row.content}-${row.paymentDate}`)
-      );
-      let nextId = prev.length ? Math.max(...prev.map((row) => row.id)) : 0;
-      const generated = paymentMasterRows
-        .map((row) => {
-          const day = String(row.paymentDate).padStart(2, "0");
-          const paymentDate = `${targetMonth}-${day}`;
-          const key = `${row.category}-${row.content}-${paymentDate}`;
-          if (existingKeys.has(key)) {
-            return null;
-          }
-          nextId += 1;
-          return {
-            id: nextId,
-            category: row.category,
-            content: row.content,
-            amount: row.isFixedCost && row.fixedAmount !== null ? row.fixedAmount : 0,
-            currency: row.currency || defaultCurrencies[0],
-            paymentMethod: row.paymentMethod || defaultPaymentMethods[0],
-            paymentDate,
-            status: "unpaid",
-            note: "",
-            isFixedCost: row.isFixedCost,
-          } as PaymentManagementRow;
-        })
-        .filter((item): item is PaymentManagementRow => item !== null);
-
-      if (!generated.length) {
-        return prev;
+        await generatePayments(targetMonth);
+        await reload(targetMonth);
+      } catch (e) {
+        console.error(e);
+        const msg = e instanceof Error ? e.message : "Failed to generate payments";
+        setMutateError(msg);
+      } finally {
+        setMutating(false);
+        setMutatingAction(null);
       }
-
-      return [...prev, ...generated];
-    });
+    })();
   };
 
   return (
@@ -225,13 +347,7 @@ export default function PaymentManagementView() {
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <div className="text-sm font-semibold text-gray-700">対象年月</div>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <TextField
-            size="small"
-            type="month"
-            value={targetMonth}
-            onChange={(event) => setTargetMonth(event.target.value)}
-            sx={{ minWidth: { xs: "100%", sm: 180 } }}
-          />
+          <MonthPicker value={targetMonth} onChange={setTargetMonth} />
           <Button
             variant="contained"
             color="success"
@@ -250,13 +366,28 @@ export default function PaymentManagementView() {
         onCreate={openCreate}
         createLabel="新規支払"
       />
+      {loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          支払い管理の取得に失敗しました。（{loadError}）
+        </div>
+      )}
+      {optionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          支払いマスタの取得に失敗しました。（{optionError}）
+        </div>
+      )}
+      {mutateError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          操作に失敗しました。（{mutateError}）
+        </div>
+      )}
+      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
       <PaymentManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewPaymentManagementModal
         open={isCreateOpen}
         onClose={closeCreate}
-        onSave={saveCreate}
+        onSave={handleCreate}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
         statusOptions={statusOptions}
       />
@@ -265,10 +396,9 @@ export default function PaymentManagementView() {
         open={Boolean(editingRow)}
         payment={editingRow}
         onClose={closeEdit}
-        onSave={saveEdit}
+        onSave={handleEdit}
         onDelete={handleEditDelete}
         categoryOptions={categoryOptions}
-        currencyOptions={currencyOptions}
         paymentMethodOptions={paymentMethodOptions}
         statusOptions={statusOptions}
       />
@@ -276,8 +406,9 @@ export default function PaymentManagementView() {
         open={Boolean(deletingRow)}
         payment={deletingRow}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
       />
+      <LoadingModal open={mutating} message={savingMessage} />
     </div>
   );
 }

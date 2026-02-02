@@ -3,22 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
-import { clientRows } from "@/mock/clientMasterData";
-import { OrderRow } from "@/mock/orderManagementData";
+import type { ClientRow } from "@/features/client-master/types";
+import type { OrderRow } from "@/features/order-management/types";
+import { fetchExchangeRates } from "@/features/settings/api/client";
+import type { ExchangeRates } from "@/features/settings/types";
 import { renderOrderIssueHtml, type OrderIssuePdfPayload, type PdfFontSources } from "./orderIssueTemplate";
 
 type OrderIssueModalProps = {
   open: boolean;
   order: OrderRow | null;
   onClose: () => void;
+  clients?: ClientRow[];
 };
 
 const amountFormatter = new Intl.NumberFormat("en-US");
-const vndExchangeRates = {
-  VND: 1,
-  USD: 25000,
-  JPY: 170,
-} as const;
+const defaultExchangeRates: ExchangeRates = {
+  jpyPerUsd: 150,
+  vndPerUsd: 25000,
+};
+const isAbortError = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
 const previewFontSources: PdfFontSources = {
   jpRegular: "/fonts/NotoSerifJP-Regular.ttf",
@@ -53,9 +56,10 @@ const requestPdfBlob = async (payload: OrderIssuePdfPayload, signal?: AbortSigna
   return response.blob();
 };
 
-export default function OrderIssueModal({ open, order, onClose }: OrderIssueModalProps) {
+export default function OrderIssueModal({ open, order, onClose, clients = [] }: OrderIssueModalProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [issueNote, setIssueNote] = useState("");
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(defaultExchangeRates);
   const [previewScale, setPreviewScale] = useState(1);
   const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
     width: a4WidthPx,
@@ -67,6 +71,29 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
   });
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const data = await fetchExchangeRates(ac.signal);
+        if (!ac.signal.aborted) {
+          setExchangeRates({
+            jpyPerUsd: data.jpyPerUsd,
+            vndPerUsd: data.vndPerUsd,
+          });
+        }
+      } catch (e) {
+        if (!isAbortError(e)) {
+          console.error("Failed to load exchange rates", e);
+        }
+      }
+    })();
+    return () => ac.abort();
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -125,19 +152,39 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
     if (!order) {
       return null;
     }
-    return clientRows.find((row) => row.name === order.supplier) ?? null;
-  }, [order]);
+    return clients.find((row) => row.name === order.supplier) ?? null;
+  }, [clients, order]);
   const supplierAddress = supplierInfo?.address || "（未設定）";
   const supplierPhone = supplierInfo?.phone || "（未設定）";
   const supplierAddressLine1 = supplierAddress;
   const supplierAddressLine2 = "";
 
+  const safeRates = useMemo(() => {
+    const jpyPerUsd =
+      Number.isFinite(exchangeRates.jpyPerUsd) && exchangeRates.jpyPerUsd > 0
+        ? exchangeRates.jpyPerUsd
+        : defaultExchangeRates.jpyPerUsd;
+    const vndPerUsd =
+      Number.isFinite(exchangeRates.vndPerUsd) && exchangeRates.vndPerUsd > 0
+        ? exchangeRates.vndPerUsd
+        : defaultExchangeRates.vndPerUsd;
+    return { jpyPerUsd, vndPerUsd };
+  }, [exchangeRates]);
+
   const vndRate = useMemo(() => {
     if (!order) {
-      return vndExchangeRates.VND;
+      return 1;
     }
-    return vndExchangeRates[order.currency as keyof typeof vndExchangeRates] ?? vndExchangeRates.VND;
-  }, [order]);
+    switch (order.currency) {
+      case "USD":
+        return safeRates.vndPerUsd;
+      case "JPY":
+        return safeRates.vndPerUsd / safeRates.jpyPerUsd;
+      case "VND":
+      default:
+        return 1;
+    }
+  }, [order, safeRates]);
   const amountLabel = useMemo(() => {
     if (!order) {
       return "-";
@@ -260,6 +307,7 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
         </div>
       }
     >
+      <div className="text-sm">注文書は VND に換算して発行します。</div>
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
@@ -272,12 +320,15 @@ export default function OrderIssueModal({ open, order, onClose }: OrderIssueModa
             onChange={(event) => setIssueNote(event.target.value)}
             disabled={!order}
           />
-          <div className="text-xs text-gray-500">注文には保存されません。</div>
+          <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
         </div>
         <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
         <div className="mt-4 flex justify-center">
           <div ref={previewContainerRef} className="w-full max-w-180">
-            <div className="relative mx-auto overflow-hidden bg-white" style={{ width: previewSize.width, height: previewSize.height }}>
+            <div
+              className="relative mx-auto overflow-hidden bg-white"
+              style={{ width: previewSize.width, height: previewSize.height }}
+            >
               {open ? (
                 pdfPayload ? (
                   <iframe

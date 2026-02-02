@@ -1,0 +1,586 @@
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_001",
+    "displayNo": 1,
+    "orderDate": "2026-01-11",
+    "deliveryDate": "2026-01-18",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 18,
+        "unitPrice": 98.0
+      },
+      {
+        "id": 2,
+        "itemCode": "TST-011",
+        "itemName": "鋼材D",
+        "unit": "kg",
+        "quantity": 28,
+        "unitPrice": 210.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 7644.0,
+    "note": "至急",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-11",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-18",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-11",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-11",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-11"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_002",
+    "displayNo": 2,
+    "orderDate": "2026-01-12",
+    "deliveryDate": "2026-01-19",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 510,
+        "unitPrice": 0.85
+      }
+    ],
+    "currency": "USD",
+    "amount": 433.5,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-12",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-19",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-12",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-12",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-12"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_003",
+    "displayNo": 3,
+    "orderDate": "2026-01-13",
+    "deliveryDate": "2026-01-20",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 17,
+        "unitPrice": 98.0
+      },
+      {
+        "id": 2,
+        "itemCode": "TST-011",
+        "itemName": "鋼材D",
+        "unit": "kg",
+        "quantity": 29,
+        "unitPrice": 210.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 7756.0,
+    "note": "輸入品",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-13",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-20",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-13",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-13",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-13",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-13",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-13"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_004",
+    "displayNo": 4,
+    "orderDate": "2026-01-14",
+    "deliveryDate": "2026-01-21",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 624,
+        "unitPrice": 0.85
+      }
+    ],
+    "currency": "USD",
+    "amount": 530.4,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-14",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-21",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-14",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-14",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-14",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-14"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_005",
+    "displayNo": 5,
+    "orderDate": "2026-01-15",
+    "deliveryDate": "2026-01-22",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 18,
+        "unitPrice": 98.0
+      },
+      {
+        "id": 2,
+        "itemCode": "TST-011",
+        "itemName": "鋼材D",
+        "unit": "kg",
+        "quantity": 27,
+        "unitPrice": 210.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 7434.0,
+    "note": "安全データシート添付",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": true
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-15",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-22",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-15",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-15",
+    "paidStatusIndexPk": "masuda-vinyl-vietnam",
+    "paidStatusIndexSk": "2026-01-15",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-15",
+    "invoiceReceivedIndexPk": "masuda-vinyl-vietnam",
+    "invoiceReceivedIndexSk": "2026-01-15"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_006",
+    "displayNo": 6,
+    "orderDate": "2026-01-16",
+    "deliveryDate": "2026-01-23",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 622,
+        "unitPrice": 0.85
+      }
+    ],
+    "currency": "USD",
+    "amount": 528.6999999999999,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-16",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-23",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-16",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-16",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-16",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-16",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-16"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_007",
+    "displayNo": 7,
+    "orderDate": "2026-01-17",
+    "deliveryDate": "2026-01-24",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 17,
+        "unitPrice": 98.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 1666.0,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-17",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-24",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-17",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-17",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-17"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_008",
+    "displayNo": 8,
+    "orderDate": "2026-01-18",
+    "deliveryDate": "2026-01-25",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 649,
+        "unitPrice": 0.85
+      },
+      {
+        "id": 2,
+        "itemCode": "TST-008",
+        "itemName": "保護フィルム透明",
+        "unit": "m",
+        "quantity": 1055,
+        "unitPrice": 1.05
+      }
+    ],
+    "currency": "USD",
+    "amount": 1659.4,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-18",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-25",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-18",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-18",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-18",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-18"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_009",
+    "displayNo": 9,
+    "orderDate": "2026-01-19",
+    "deliveryDate": "2026-01-26",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 19,
+        "unitPrice": 98.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 1862.0,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-19",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-26",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-19",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-19",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-19",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-19",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-19"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_010",
+    "displayNo": 10,
+    "orderDate": "2026-01-20",
+    "deliveryDate": "2026-01-27",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 535,
+        "unitPrice": 0.85
+      }
+    ],
+    "currency": "USD",
+    "amount": 454.75,
+    "note": "サンプル同梱希望",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": true
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-20",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-27",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-20",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-20",
+    "paidStatusIndexPk": "masuda-vinyl-vietnam",
+    "paidStatusIndexSk": "2026-01-20",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-20",
+    "invoiceReceivedIndexPk": "masuda-vinyl-vietnam",
+    "invoiceReceivedIndexSk": "2026-01-20"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_011",
+    "displayNo": 11,
+    "orderDate": "2026-01-21",
+    "deliveryDate": "2026-01-28",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-001",
+        "itemName": "鋼材B",
+        "unit": "kg",
+        "quantity": 17,
+        "unitPrice": 98.0
+      },
+      {
+        "id": 2,
+        "itemCode": "TST-011",
+        "itemName": "鋼材D",
+        "unit": "kg",
+        "quantity": 26,
+        "unitPrice": 210.0
+      }
+    ],
+    "currency": "VND",
+    "amount": 7126.0,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-21",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-28",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-21",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-21",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-21"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_test_012",
+    "displayNo": 12,
+    "orderDate": "2026-01-22",
+    "deliveryDate": "2026-01-29",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "TST-003",
+        "itemName": "フィルムC",
+        "unit": "m",
+        "quantity": 693,
+        "unitPrice": 0.85
+      }
+    ],
+    "currency": "USD",
+    "amount": 589.05,
+    "note": "",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-22",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-29",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-22",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-22",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-22",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-22",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-22"
+  }
+]

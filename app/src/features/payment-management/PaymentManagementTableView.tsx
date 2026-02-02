@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
-import { PaymentManagementRow } from "@/mock/paymentManagementData";
+import type { PaymentManagementRow } from "@/features/payment-management/types";
 
 const categoryStyles: Record<string, { backgroundColor: string; color: string }> = {
   家賃: { backgroundColor: "#e8f1ff", color: "#2563eb" },
@@ -19,14 +19,12 @@ const statusStyles = {
 };
 
 const formatAmount = (amount: number, currency: string) => {
-  if (!currency) {
-    return amount.toLocaleString("ja-JP");
+  const normalizedCurrency = currency?.toUpperCase();
+  const formattedAmount = amount.toLocaleString("ja-JP");
+  if (!normalizedCurrency) {
+    return formattedAmount;
   }
-  try {
-    return new Intl.NumberFormat("ja-JP", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `${currency} ${amount.toLocaleString("ja-JP")}`;
-  }
+  return `${normalizedCurrency} ${formattedAmount}`;
 };
 
 type PaymentManagementTableViewProps = {
@@ -126,7 +124,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
         ),
       },
     ],
-    [onDelete]
+    [onDelete],
   );
 
   const handleSort = (key: string) => {
@@ -158,7 +156,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
     <DataTable
       columns={columns}
       rows={sortedRows}
-      getRowId={(row) => row.id}
+      getRowId={(row) => row.paymentId}
       sortKey={sortKey}
       sortDirection={sortDirection}
       onSort={handleSort}

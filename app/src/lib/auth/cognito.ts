@@ -3,6 +3,7 @@ import {
   CognitoUser,
   CognitoUserPool,
   CognitoUserSession,
+  CognitoUserAttribute,
 } from "amazon-cognito-identity-js";
 
 type CognitoConfig = {
@@ -135,10 +136,7 @@ const clearCognitoStorage = (storage: Storage, clientId: string) => {
   keysToRemove.forEach((key) => storage.removeItem(key));
 };
 
-const getSessionFromStorage = async (
-  storage: Storage,
-  config: CognitoConfig,
-): Promise<CognitoUserSession | null> => {
+const getSessionFromStorage = async (storage: Storage, config: CognitoConfig): Promise<CognitoUserSession | null> => {
   const pool = createUserPool(config, storage);
   const user = pool.getCurrentUser();
   if (!user) {
@@ -253,5 +251,185 @@ export const signOut = (): void => {
       user.signOut();
     }
     clearCognitoStorage(storage, config.clientId);
+  });
+};
+
+export const getIdTokenJwt = async (): Promise<string | null> => {
+  const session = await getCurrentSession();
+  if (!session) {
+    return null;
+  }
+  return session.getIdToken().getJwtToken();
+};
+
+export type MyProfile = {
+  userName: string;
+  departmentName: string;
+};
+
+export const getMyProfile = async (): Promise<MyProfile | null> => {
+  const session = await getCurrentSession();
+  if (!session) {
+    return null;
+  }
+
+  const payload = session.getIdToken().decodePayload() as Record<string, unknown>;
+
+  // userName は好きな属性に寄せてOK（例: custom:displayName）
+  const userName = (payload["custom:displayName"] as string | undefined) ?? "";
+
+  const departmentName = (payload["custom:departmentName"] as string | undefined) ?? "";
+
+  return { userName, departmentName };
+};
+
+// 認証済み user + session を「同じストレージ」から確実に取得する
+const getAuthenticatedUserAndSession = async (): Promise<{ user: CognitoUser; session: CognitoUserSession } | null> => {
+  const config = getConfig();
+  if (!config || typeof window === "undefined") {
+    return null;
+  }
+
+  const storages = [window.localStorage, window.sessionStorage] as const;
+
+  for (const storage of storages) {
+    const pool = createUserPool(config, storage);
+    const user = pool.getCurrentUser();
+    if (!user) {
+      continue;
+    }
+
+    const session = await new Promise<CognitoUserSession | null>((resolve) => {
+      user.getSession((err: Error | null, s: CognitoUserSession | null) => {
+        if (err || !s) {
+          return resolve(null);
+        }
+        resolve(s);
+      });
+    });
+
+    if (session) {
+      return { user, session };
+    }
+  }
+
+  return null;
+};
+
+export const updateMyProfileAttributes = async (input: {
+  userName?: string; // custom:displayName
+  departmentName?: string; // custom:departmentName
+}): Promise<CognitoUserSession> => {
+  const found = await getAuthenticatedUserAndSession();
+  if (!found) {
+    throw withCode("NOT_AUTHENTICATED");
+  }
+
+  const { user, session } = found;
+
+  const attrs: CognitoUserAttribute[] = [];
+  if (typeof input.userName === "string") {
+    attrs.push(new CognitoUserAttribute({ Name: "custom:displayName", Value: input.userName }));
+  }
+  if (typeof input.departmentName === "string") {
+    attrs.push(new CognitoUserAttribute({ Name: "custom:departmentName", Value: input.departmentName }));
+  }
+  if (attrs.length === 0) {
+    throw withCode("NO_FIELDS_TO_UPDATE");
+  }
+
+  // 1) 属性更新（この時点で session がある user なので "not authenticated" が起きにくい）
+  await new Promise<void>((resolve, reject) => {
+    user.updateAttributes(attrs, (err) => (err ? reject(err) : resolve()));
+  });
+
+  // 2) トークン再発行（ヘッダー即反映のため）
+  const refreshToken = session.getRefreshToken();
+  const refreshed = await new Promise<CognitoUserSession>((resolve, reject) => {
+    user.refreshSession(refreshToken, (err: Error | null, newSession: CognitoUserSession | null) => {
+      if (err || !newSession) {
+        return reject(err ?? withCode("REFRESH_FAILED"));
+      }
+      resolve(newSession);
+    });
+  });
+
+  return refreshed;
+};
+
+const createUnauthenticatedUser = (identifier: string, storage: Storage): CognitoUser => {
+  const config = requireConfig();
+  const pool = createUserPool(config, storage);
+  const username = identifier.trim();
+
+  return new CognitoUser({
+    Username: username,
+    Pool: pool,
+    Storage: storage,
+  });
+};
+
+export const confirmPasswordReset = async (input: {
+  identifier: string;
+  verificationCode: string;
+  newPassword: string;
+}): Promise<void> => {
+  const identifier = input.identifier.trim();
+  const code = input.verificationCode.trim();
+  if (!identifier || !code || !input.newPassword) {
+    throw withCode("InvalidParameterException");
+  }
+
+  const storage = getBrowserStorage(false);
+  const user = createUnauthenticatedUser(identifier, storage);
+
+  await new Promise<void>((resolve, reject) => {
+    user.confirmPassword(code, input.newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (error) => reject(error),
+    });
+  });
+};
+
+export type ForgotPasswordDelivery = {
+  destination?: string;
+  deliveryMedium?: string;
+  attributeName?: string;
+};
+
+export const requestPasswordReset = async (identifier: string): Promise<ForgotPasswordDelivery> => {
+  if (!identifier.trim()) {
+    throw withCode("InvalidParameterException");
+  }
+
+  // パスワード再設定はログイン不要なので sessionStorage を使う
+  const storage = getBrowserStorage(false);
+  const user = createUnauthenticatedUser(identifier, storage);
+
+  return new Promise<ForgotPasswordDelivery>((resolve, reject) => {
+    let resolved = false;
+    user.forgotPassword({
+      onFailure: (error) => reject(error),
+      inputVerificationCode: (data) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        const payload = (data ?? {}) as Record<string, unknown>;
+        resolve({
+          destination: typeof payload.Destination === "string" ? payload.Destination : undefined,
+          deliveryMedium: typeof payload.DeliveryMedium === "string" ? payload.DeliveryMedium : undefined,
+          attributeName: typeof payload.AttributeName === "string" ? payload.AttributeName : undefined,
+        });
+      },
+      onSuccess: () => {
+        // confirmPassword を使わずに完結させる場合に備えて一応 resolve
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        resolve({});
+      },
+    });
   });
 };

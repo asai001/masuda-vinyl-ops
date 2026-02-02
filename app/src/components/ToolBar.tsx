@@ -143,21 +143,21 @@ export default function ToolBar({
                     <TextField
                       size="small"
                       type="number"
-                      inputProps={{ min: 0, step: "0.1" }}
                       placeholder="最小"
                       value={filter.value}
                       onChange={(event) => handleFilterRangeChange(filter.id, "value", event.target.value)}
                       sx={{ width: 120 }}
+                      slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
                     />
                     <span className="text-gray-400">〜</span>
                     <TextField
                       size="small"
                       type="number"
-                      inputProps={{ min: 0, step: "0.1" }}
                       placeholder="最大"
                       value={filter.valueTo ?? ""}
                       onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
                       sx={{ width: 120 }}
+                      slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
                     />
                   </div>
                 ) : definition?.type === "date-range" ? (

@@ -1,7 +1,7 @@
 export type ClientRow = {
   id: number;
   name: string;
-  description: string;
+  note: string;
   address: string;
   phone: string;
   taxId?: string;
@@ -15,7 +15,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 1,
     name: "Nguyen Trading Co., Ltd.",
-    description: "PVC材料の主要サプライヤー",
+    note: "PVC材料の主要サプライヤー",
     address: "No.102, Huu Nghi Road, VSIP Bac Ninh Integrated Township",
     phone: "0241-3906-120",
     category: "材料",
@@ -26,7 +26,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 2,
     name: "Vietnam Plastics Ltd.",
-    description: "ポリエチレン供給",
+    note: "ポリエチレン供給",
     address: "Lot B2, Thang Long Industrial Park, Hanoi",
     phone: "024-3555-7788",
     category: "材料",
@@ -37,7 +37,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 3,
     name: "Saigon Processing Co.",
-    description: "外注加工先",
+    note: "外注加工先",
     address: "Saigon Hi-Tech Park, Thu Duc, Ho Chi Minh City",
     phone: "028-3896-5521",
     category: "加工",
@@ -48,7 +48,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 4,
     name: "Hanoi Logistics Service",
-    description: "国内物流",
+    note: "国内物流",
     address: "Dong Anh District, Hanoi",
     phone: "024-3888-9012",
     category: "物流",
@@ -59,7 +59,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 5,
     name: "Bangkok Materials Supply",
-    description: "取引停止中",
+    note: "取引停止中",
     address: "Bang Na, Bangkok",
     phone: "+66-2-555-9012",
     category: "材料",
@@ -70,7 +70,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 6,
     name: "パナソニック株式会社",
-    description: "主要取引先",
+    note: "主要取引先",
     address: "大阪府門真市大字門真1006番地",
     phone: "06-6908-1121",
     category: "顧客",
@@ -81,7 +81,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 7,
     name: "株式会社リケン",
-    description: "自動車部品向け",
+    note: "自動車部品向け",
     address: "新潟県柏崎市北半田1-1",
     phone: "0257-23-6121",
     category: "顧客",
@@ -92,7 +92,7 @@ export const clientRows: ClientRow[] = [
   {
     id: 8,
     name: "日本電産株式会社",
-    description: "モーター部品向け",
+    note: "モーター部品向け",
     address: "京都府京都市南区久世殿城町338",
     phone: "075-935-6600",
     category: "顧客",

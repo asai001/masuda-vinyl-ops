@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Autocomplete, Button, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { PaymentManagementRow, PaymentStatusKey } from "@/mock/paymentManagementData";
+import type { NewPaymentManagementInput, PaymentStatusKey } from "@/features/payment-management/types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -14,11 +15,10 @@ type Option = {
 type NewPaymentManagementModalProps = {
   open: boolean;
   categoryOptions: Option[];
-  currencyOptions: Option[];
   paymentMethodOptions: Option[];
   statusOptions: Option[];
   onClose: () => void;
-  onSave: (payment: Omit<PaymentManagementRow, "id">) => void;
+  onSave: (payment: NewPaymentManagementInput) => void;
 };
 
 const emptyErrors = {
@@ -34,7 +34,6 @@ const emptyErrors = {
 export default function NewPaymentManagementModal({
   open,
   categoryOptions,
-  currencyOptions,
   paymentMethodOptions,
   statusOptions,
   onClose,
@@ -51,6 +50,7 @@ export default function NewPaymentManagementModal({
     note: "",
   });
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm({
@@ -64,6 +64,7 @@ export default function NewPaymentManagementModal({
       note: "",
     });
     setErrors(emptyErrors);
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -76,7 +77,15 @@ export default function NewPaymentManagementModal({
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleNumberChange = (key: "amount", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
+  };
+
   const handleSave = () => {
+    setActionError(null);
     const nextErrors = {
       category: form.category ? "" : "必須項目です",
       content: form.content ? "" : "必須項目です",
@@ -90,11 +99,14 @@ export default function NewPaymentManagementModal({
     const parsedAmount = Number(form.amount);
     if (!nextErrors.amount && Number.isNaN(parsedAmount)) {
       nextErrors.amount = "数値で入力してください";
+    } else if (!nextErrors.amount && parsedAmount < 0) {
+      nextErrors.amount = "0以上で入力してください";
     }
 
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -123,14 +135,17 @@ export default function NewPaymentManagementModal({
       title="新規支払"
       onClose={handleClose}
       actions={
-        <>
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
-        </>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -179,35 +194,33 @@ export default function NewPaymentManagementModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0 }}
             placeholder="0"
             value={form.amount}
-            onChange={(event) => handleChange("amount", event.target.value)}
+            onChange={(event) => handleNumberChange("amount", event.target.value)}
             error={Boolean(errors.amount)}
             helperText={errors.amount}
+            slotProps={{ htmlInput: { min: 0 } }}
           />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyOptions.map((option) => option.label)}
-            value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+          <FormControl size="small" error={Boolean(errors.currency)}>
+            <Select
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+            >
+              {CURRENCY_OPTIONS.map((currency) => (
+                <MenuItem key={currency} value={currency}>
+                  {currency}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.currency}</FormHelperText>
+          </FormControl>
         </div>
       </div>
 
@@ -253,20 +266,21 @@ export default function NewPaymentManagementModal({
         <label className="text-sm font-semibold text-gray-700">
           ステータス <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.status}
-          onChange={(event) => handleChange("status", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.status)}
-          renderValue={() => statusLabel}
-        >
-          {statusOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.status)}>
+          <Select
+            value={form.status}
+            onChange={(event) => handleChange("status", event.target.value)}
+            displayEmpty
+            renderValue={() => statusLabel}
+          >
+            {statusOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.status}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">

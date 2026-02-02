@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Autocomplete, Button, Checkbox, ListItemText, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, Checkbox, FormControl, FormHelperText, ListItemText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { ProductRow } from "@/mock/productMasterData";
+import type { ProductRow } from "./types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -16,7 +17,6 @@ type EditProductModalProps = {
   product: ProductRow | null;
   categoryOptions: Option[];
   unitOptions: Option[];
-  currencyOptions: Option[];
   statusOptions: Option[];
   materialOptions: Option[];
   existingProducts: ProductRow[];
@@ -44,7 +44,6 @@ export default function EditProductModal({
   product,
   categoryOptions,
   unitOptions,
-  currencyOptions,
   statusOptions,
   materialOptions,
   existingProducts,
@@ -69,15 +68,30 @@ export default function EditProductModal({
 
   const [form, setForm] = useState(() => getInitialForm(product));
   const [errors, setErrors] = useState(emptyErrors);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleClose = () => {
+    setActionError(null);
+    onClose();
+  };
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+    setActionError(null);
+  };
+
+  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    handleChange(key, value);
   };
 
   const handleMaterialsChange = (value: string[]) => {
     setForm((prev) => ({ ...prev, materials: value }));
     setErrors((prev) => ({ ...prev, materials: "" }));
+    setActionError(null);
   };
 
   const handleSave = () => {
@@ -99,6 +113,8 @@ export default function EditProductModal({
     const parsedPrice = Number(form.unitPrice);
     if (!nextErrors.unitPrice && Number.isNaN(parsedPrice)) {
       nextErrors.unitPrice = "数値で入力してください";
+    } else if (!nextErrors.unitPrice && parsedPrice < 0) {
+      nextErrors.unitPrice = "0以上で入力してください";
     }
 
     const parseRequiredNumber = (value: string, key: "weight" | "length" | "speed") => {
@@ -111,6 +127,10 @@ export default function EditProductModal({
         nextErrors[key] = "数値で入力してください";
         return null;
       }
+      if (parsed < 0) {
+        nextErrors[key] = "0以上で入力してください";
+        return null;
+      }
       return parsed;
     };
 
@@ -121,7 +141,7 @@ export default function EditProductModal({
     if (!nextErrors.code) {
       const normalizedCode = codeValue.toLowerCase();
       const isDuplicate = existingProducts.some(
-        (row) => row.id !== product?.id && row.code.trim().toLowerCase() === normalizedCode
+        (row) => row.productId !== product?.productId && row.code.trim().toLowerCase() === normalizedCode
       );
       if (isDuplicate) {
         nextErrors.code = "既存の品番と重複しています";
@@ -131,8 +151,10 @@ export default function EditProductModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
+    setActionError(null);
 
     if (!product) {
       return;
@@ -170,9 +192,9 @@ export default function EditProductModal({
     <Modal
       open={open}
       title="製品編集"
-      onClose={onClose}
+      onClose={handleClose}
       actions={
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center gap-2">
           <Button
             variant="outlined"
             color="error"
@@ -181,8 +203,9 @@ export default function EditProductModal({
           >
             削除
           </Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outlined" onClick={onClose}>
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
               キャンセル
             </Button>
             <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
@@ -276,35 +299,33 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.unitPrice}
-            onChange={(event) => handleChange("unitPrice", event.target.value)}
+            onChange={(event) => handleNumberChange("unitPrice", event.target.value)}
             error={Boolean(errors.unitPrice)}
             helperText={errors.unitPrice}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
             通貨 <span className="text-red-500">*</span>
           </label>
-          <Autocomplete
-            freeSolo
-            options={currencyOptions.map((option) => option.label)}
-            value={form.currency}
-            inputValue={form.currency}
-            onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-            onInputChange={(_, newValue) => handleChange("currency", newValue)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="選択または入力してください"
-                error={Boolean(errors.currency)}
-                helperText={errors.currency}
-              />
-            )}
-          />
+          <FormControl size="small" error={Boolean(errors.currency)}>
+            <Select
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+            >
+              {CURRENCY_OPTIONS.map((currency) => (
+                <MenuItem key={currency} value={currency}>
+                  {currency}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.currency}</FormHelperText>
+          </FormControl>
         </div>
       </div>
 
@@ -312,20 +333,21 @@ export default function EditProductModal({
         <label className="text-sm font-semibold text-gray-700">
           ステータス <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.status}
-          onChange={(event) => handleChange("status", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.status)}
-          renderValue={() => statusLabel}
-        >
-          {statusOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.status)}>
+          <Select
+            value={form.status}
+            onChange={(event) => handleChange("status", event.target.value)}
+            displayEmpty
+            renderValue={() => statusLabel}
+          >
+            {statusOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.status}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -352,12 +374,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.weight}
-            onChange={(event) => handleChange("weight", event.target.value)}
+            onChange={(event) => handleNumberChange("weight", event.target.value)}
             error={Boolean(errors.weight)}
             helperText={errors.weight}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -367,12 +389,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.length}
-            onChange={(event) => handleChange("length", event.target.value)}
+            onChange={(event) => handleNumberChange("length", event.target.value)}
             error={Boolean(errors.length)}
             helperText={errors.length}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -382,12 +404,12 @@ export default function EditProductModal({
           <TextField
             size="small"
             type="number"
-            inputProps={{ min: 0, step: "0.1" }}
             placeholder="0"
             value={form.speed}
-            onChange={(event) => handleChange("speed", event.target.value)}
+            onChange={(event) => handleNumberChange("speed", event.target.value)}
             error={Boolean(errors.speed)}
             helperText={errors.speed}
+            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
           />
         </div>
       </div>

@@ -4,12 +4,14 @@ import React, { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { usePathname, useRouter } from "next/navigation";
-import { getCurrentSession } from "@/lib/auth/cognito";
+import { getCurrentSession, getMyProfile } from "@/lib/auth/cognito";
+import { FONT_SCALE_STORAGE_KEY, normalizeFontScale } from "@/features/settings/fontScale";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [profile, setProfile] = useState<{ userName: string; departmentName: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,7 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         router.replace("/");
         return;
       }
+      const p = await getMyProfile();
       if (isMounted) {
+        setProfile(p);
         setIsCheckingAuth(false);
       }
     };
@@ -31,6 +35,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       isMounted = false;
     };
   }, [pathname, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const onUpdated = async () => {
+      const p = await getMyProfile();
+      if (!cancelled) {
+        setProfile(p);
+      }
+    };
+
+    window.addEventListener("mvops:profile-updated", onUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("mvops:profile-updated", onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isCheckingAuth) {
+      return;
+    }
+    const stored = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    const scale = normalizeFontScale(stored);
+    document.documentElement.style.setProperty("--app-font-scale", String(scale));
+  }, [isCheckingAuth]);
 
   const pageTitles: Record<string, string> = {
     "/": "ダッシュボード",
@@ -51,19 +81,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push(path);
   };
 
-  const userName = "Huong Nguyen";
-  const userRole = "経理担当";
+  const userName = profile?.userName ?? "";
+  const departmentName = profile?.departmentName ?? "";
 
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-50" />;
   }
 
   return (
-    <div className="flex min-h-screen text-gray-900">
+    <div className="flex h-screen overflow-hidden text-gray-900">
       <Sidebar onNavigate={handleNavigate} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header pageTitle={pageTitle} userName={userName} userRole={userRole} />
-        <main className="flex-1 bg-gray-50 p-6 min-w-0 overflow-x-hidden">{children}</main>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Header pageTitle={pageTitle} userName={userName} userRole={departmentName} />
+        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 p-6">{children}</main>
       </div>
     </div>
   );

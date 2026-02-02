@@ -1,0 +1,151 @@
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_seed_001",
+    "displayNo": 1,
+    "orderDate": "2026-01-05",
+    "deliveryDate": "2026-01-20",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "MAT-0001",
+        "itemName": "鋼材A",
+        "unit": "kg",
+        "quantity": 100,
+        "unitPrice": 120.5
+      }
+    ],
+    "currency": "VND",
+    "amount": 12050.0,
+    "note": "シードデータ",
+    "status": {
+      "ordered": true,
+      "delivered": false,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": false,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-05",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-20",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-05",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-05",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-05"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_seed_002",
+    "displayNo": 2,
+    "orderDate": "2026-01-10",
+    "deliveryDate": "2026-01-22",
+    "supplier": "Global Customer Inc.",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "MAT-0002",
+        "itemName": "フィルムB",
+        "unit": "m",
+        "quantity": 500,
+        "unitPrice": 1.2
+      }
+    ],
+    "currency": "USD",
+    "amount": 600.0,
+    "note": "シードデータ",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": false
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": false
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-10",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-22",
+    "supplierIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "supplierIndexSk": "2026-01-10",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-10",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-10",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-10",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-10"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "purchaseOrderId": "po_seed_003",
+    "displayNo": 3,
+    "orderDate": "2026-01-15",
+    "deliveryDate": "2026-01-25",
+    "supplier": "An Phat Materials",
+    "items": [
+      {
+        "id": 1,
+        "itemCode": "MAT-0001",
+        "itemName": "鋼材A",
+        "unit": "kg",
+        "quantity": 50,
+        "unitPrice": 121.0
+      },
+      {
+        "id": 2,
+        "itemCode": "MAT-0003",
+        "itemName": "インク（青）",
+        "unit": "kg",
+        "quantity": 15,
+        "unitPrice": 85000
+      }
+    ],
+    "currency": "VND",
+    "amount": 1281050.0,
+    "note": "シードデータ（複数明細）",
+    "status": {
+      "ordered": true,
+      "delivered": true,
+      "paid": true
+    },
+    "documentStatus": {
+      "orderSent": true,
+      "deliveryReceived": true,
+      "invoiceReceived": true
+    },
+    "createdAt": "2026-01-25T12:00:00Z",
+    "updatedAt": "2026-01-25T12:00:00Z",
+    "orderDateIndexPk": "masuda-vinyl-vietnam",
+    "orderDateIndexSk": "2026-01-15",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2026-01-25",
+    "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "supplierIndexSk": "2026-01-15",
+    "orderedStatusIndexPk": "masuda-vinyl-vietnam",
+    "orderedStatusIndexSk": "2026-01-15",
+    "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
+    "deliveredStatusIndexSk": "2026-01-15",
+    "paidStatusIndexPk": "masuda-vinyl-vietnam",
+    "paidStatusIndexSk": "2026-01-15",
+    "orderSentIndexPk": "masuda-vinyl-vietnam",
+    "orderSentIndexSk": "2026-01-15",
+    "deliveryReceivedIndexPk": "masuda-vinyl-vietnam",
+    "deliveryReceivedIndexSk": "2026-01-15",
+    "invoiceReceivedIndexPk": "masuda-vinyl-vietnam",
+    "invoiceReceivedIndexSk": "2026-01-15"
+  }
+]

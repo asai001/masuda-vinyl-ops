@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Autocomplete,
   Button,
   Checkbox,
   Divider,
@@ -16,7 +15,13 @@ import {
 } from "@mui/material";
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import { DocumentStatusKey, OrderLineItem, OrderRow, OrderStatusKey } from "@/mock/orderManagementData";
+import type {
+  DocumentStatusKey,
+  NewPurchaseOrderInput,
+  OrderLineItem,
+  OrderStatusKey,
+} from "@/features/order-management/types";
+import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
   value: string;
@@ -60,11 +65,10 @@ type NewOrderModalProps = {
   open: boolean;
   itemOptions: ItemOption[];
   supplierOptions: Option[];
-  currencyOptions: Option[];
   statusOptions: StatusOption[];
   documentOptions: DocumentOption[];
   onClose: () => void;
-  onSave: (order: Omit<OrderRow, "id">) => void;
+  onSave: (order: NewPurchaseOrderInput) => void;
 };
 
 const emptyErrors = {
@@ -98,7 +102,6 @@ export default function NewOrderModal({
   open,
   itemOptions,
   supplierOptions,
-  currencyOptions,
   statusOptions,
   documentOptions,
   onClose,
@@ -125,6 +128,7 @@ export default function NewOrderModal({
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
   const [itemsError, setItemsError] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const resetForm = () => {
     setForm({
@@ -148,6 +152,7 @@ export default function NewOrderModal({
     setErrors(emptyErrors);
     setLineErrors({});
     setItemsError("");
+    setActionError(null);
   };
 
   const handleClose = () => {
@@ -155,8 +160,48 @@ export default function NewOrderModal({
     onClose();
   };
 
+  const sanitizeItemsForSupplier = (items: LineItemForm[], supplier: string) => {
+    if (!supplier) {
+      return { items, clearedIds: [] as number[] };
+    }
+    const allowedCodes = new Set(
+      itemOptions.filter((option) => option.supplier === supplier).map((option) => option.value),
+    );
+    const clearedIds: number[] = [];
+    const nextItems = items.map((item) => {
+      if (item.itemCode && !allowedCodes.has(item.itemCode)) {
+        clearedIds.push(item.id);
+        return { ...item, itemCode: "", itemName: "", unit: "", unitPrice: "" };
+      }
+      return item;
+    });
+    return { items: nextItems, clearedIds };
+  };
+
+  const clearLineErrors = (clearedIds: number[]) => {
+    if (!clearedIds.length) {
+      return;
+    }
+    setLineErrors((prev) => {
+      const next = { ...prev };
+      clearedIds.forEach((id) => {
+        if (!next[id]) {
+          return;
+        }
+        next[id] = { ...next[id], itemCode: "", unitPrice: "" };
+      });
+      return next;
+    });
+  };
+
   const handleChange = (key: keyof typeof form, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "supplier") {
+      const { items: nextItems, clearedIds } = sanitizeItemsForSupplier(form.items, value);
+      setForm((prev) => ({ ...prev, supplier: value, items: nextItems }));
+      clearLineErrors(clearedIds);
+    } else {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    }
     if (key in emptyErrors) {
       setErrors((prev) => ({ ...prev, [key as ErrorKey]: "" }));
     }
@@ -178,6 +223,9 @@ export default function NewOrderModal({
   };
 
   const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) => (item.id === id ? { ...item, [key]: value } : item)),
@@ -190,22 +238,27 @@ export default function NewOrderModal({
 
   const handleItemSelect = (id: number, value: string) => {
     const selected = itemOptions.find((option) => option.value === value);
+    const nextSupplier = selected?.supplier ?? form.supplier;
+    const nextCurrency = selected?.currency ?? form.currency;
+    const nextItems = form.items.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            itemCode: value,
+            itemName: selected?.name ?? "",
+            unit: selected?.unit ?? "",
+            unitPrice: selected ? String(selected.unitPrice) : item.unitPrice,
+          }
+        : item,
+    );
+    const { items: sanitizedItems, clearedIds } = sanitizeItemsForSupplier(nextItems, nextSupplier);
     setForm((prev) => ({
       ...prev,
-      supplier: selected?.supplier ?? prev.supplier,
-      currency: selected?.currency ?? prev.currency,
-      items: prev.items.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              itemCode: value,
-              itemName: selected?.name ?? "",
-              unit: selected?.unit ?? "",
-              unitPrice: selected ? String(selected.unitPrice) : item.unitPrice,
-            }
-          : item
-      ),
+      supplier: nextSupplier,
+      currency: nextCurrency,
+      items: sanitizedItems,
     }));
+    clearLineErrors(clearedIds);
     setErrors((prev) => ({
       ...prev,
       supplier: "",
@@ -220,6 +273,12 @@ export default function NewOrderModal({
       },
     }));
   };
+
+  const filteredItemOptions = useMemo(
+    () => (form.supplier ? itemOptions.filter((option) => option.supplier === form.supplier) : itemOptions),
+    [form.supplier, itemOptions],
+  );
+
 
   const toggleStatus = (key: OrderStatusKey) => {
     setForm((prev) => ({
@@ -260,6 +319,7 @@ export default function NewOrderModal({
   }, [amountValue, form.currency]);
 
   const handleSave = () => {
+    setActionError(null);
     const nextErrors = {
       orderDate: form.orderDate ? "" : "必須項目です",
       deliveryDate: form.deliveryDate ? "" : "必須項目です",
@@ -290,7 +350,12 @@ export default function NewOrderModal({
     });
     setLineErrors(nextLineErrors);
 
-    if (Object.values(nextErrors).some((message) => message) || !form.items.length || Object.keys(nextLineErrors).length) {
+    const hasRequiredErrors =
+      Object.values(nextErrors).some((message) => message) ||
+      !form.items.length ||
+      Object.keys(nextLineErrors).length;
+    if (hasRequiredErrors) {
+      setActionError("入力内容をご確認ください。");
       return;
     }
 
@@ -305,6 +370,12 @@ export default function NewOrderModal({
       }
       if (Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
+      }
+      if (!itemError.quantity && quantity < 0) {
+        itemError.quantity = "0以上で入力してください";
+      }
+      if (!itemError.unitPrice && unitPrice < 0) {
+        itemError.unitPrice = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;
@@ -347,13 +418,16 @@ export default function NewOrderModal({
       title="新規発注"
       onClose={handleClose}
       actions={
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button variant="outlined" onClick={handleClose}>
-            キャンセル
-          </Button>
-          <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-            保存
-          </Button>
+        <div className="flex w-full items-center gap-2">
+          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outlined" onClick={handleClose}>
+              キャンセル
+            </Button>
+            <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
+              保存
+            </Button>
+          </div>
         </div>
       }
     >
@@ -390,49 +464,48 @@ export default function NewOrderModal({
         <label className="text-sm font-semibold text-gray-700">
           仕入先 <span className="text-red-500">*</span>
         </label>
-        <Select
-          size="small"
-          value={form.supplier}
-          onChange={(event) => handleChange("supplier", event.target.value)}
-          displayEmpty
-          error={Boolean(errors.supplier)}
-          renderValue={(selected) => {
-            if (!selected) {
-              return <span className="text-gray-400">選択してください</span>;
-            }
-            const option = supplierOptions.find((item) => item.value === selected);
-            return option?.label ?? selected;
-          }}
-        >
-          {supplierOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
+        <FormControl size="small" error={Boolean(errors.supplier)}>
+          <Select
+            value={form.supplier}
+            onChange={(event) => handleChange("supplier", event.target.value)}
+            displayEmpty
+            renderValue={(selected) => {
+              if (!selected) {
+                return <span className="text-gray-400">選択してください</span>;
+              }
+              const option = supplierOptions.find((item) => item.value === selected);
+              return option?.label ?? selected;
+            }}
+          >
+            {supplierOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.supplier}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
           通貨 <span className="text-red-500">*</span>
         </label>
-        <Autocomplete
-          freeSolo
-          options={currencyOptions.map((option) => option.label)}
-          value={form.currency}
-          inputValue={form.currency}
-          onChange={(_, newValue) => handleChange("currency", newValue ?? "")}
-          onInputChange={(_, newValue) => handleChange("currency", newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              placeholder="選択または入力"
-              error={Boolean(errors.currency)}
-              helperText={errors.currency}
-            />
-          )}
-        />
+        <FormControl size="small" error={Boolean(errors.currency)}>
+          <Select
+            value={form.currency}
+            onChange={(event) => handleChange("currency", event.target.value)}
+            displayEmpty
+            renderValue={(selected) => (selected ? selected : <span className="text-gray-400">選択してください</span>)}
+          >
+            {CURRENCY_OPTIONS.map((currency) => (
+              <MenuItem key={currency} value={currency}>
+                {currency}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{errors.currency}</FormHelperText>
+        </FormControl>
       </div>
 
       <div className="flex items-center justify-between">
@@ -453,6 +526,21 @@ export default function NewOrderModal({
         <div className="flex flex-col gap-4">
           {form.items.map((item, index) => {
             const itemError = lineErrors[item.id];
+            const selectedOption = itemOptions.find((option) => option.value === item.itemCode);
+            const showCurrencyMismatch =
+              Boolean(item.itemCode) &&
+              Boolean(form.currency) &&
+              Boolean(selectedOption?.currency) &&
+              selectedOption?.currency !== form.currency;
+            const selectedCodes = new Set(
+              form.items
+                .filter((line) => line.id !== item.id)
+                .map((line) => line.itemCode)
+                .filter(Boolean),
+            );
+            const rowItemOptions = filteredItemOptions.filter(
+              (option) => option.value === item.itemCode || !selectedCodes.has(option.value),
+            );
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
@@ -464,8 +552,13 @@ export default function NewOrderModal({
 
                 <div className="mt-3 flex flex-col gap-3">
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-gray-700">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       品目/品番 <span className="text-red-500">*</span>
+                      {showCurrencyMismatch && (
+                        <span className="text-xs font-normal text-amber-600">
+                          マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
+                        </span>
+                      )}
                     </label>
                     <FormControl size="small" error={Boolean(itemError?.itemCode)}>
                       <Select
@@ -480,7 +573,7 @@ export default function NewOrderModal({
                           return option?.label ?? selected;
                         }}
                       >
-                        {itemOptions.map((option) => (
+                        {rowItemOptions.map((option) => (
                           <MenuItem key={option.value} value={option.value}>
                             {option.label}
                           </MenuItem>
@@ -498,11 +591,11 @@ export default function NewOrderModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0 }}
                         value={item.quantity}
                         onChange={(event) => handleLineChange(item.id, "quantity", event.target.value)}
                         error={Boolean(itemError?.quantity)}
                         helperText={itemError?.quantity}
+                        slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -516,11 +609,11 @@ export default function NewOrderModal({
                       <TextField
                         size="small"
                         type="number"
-                        inputProps={{ min: 0, step: "0.1" }}
                         value={item.unitPrice}
                         onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
                         error={Boolean(itemError?.unitPrice)}
                         helperText={itemError?.unitPrice}
+                        slotProps={{ htmlInput: { min: 0, step: 0.1 } }}
                       />
                     </div>
                   </div>
