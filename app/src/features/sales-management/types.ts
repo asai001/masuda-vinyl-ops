@@ -25,6 +25,8 @@ export type SalesLineItem = {
   orderQuantity: number;
   shippedQuantity: number;
   unitPrice: number;
+  palletCount: number;
+  totalWeight: number;
   weight: number | null;
   length: number | null;
   speed: number | null;

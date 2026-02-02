@@ -59,6 +59,8 @@ type LineItemForm = {
   materials: string[];
   orderQuantity: string;
   unitPrice: string;
+  palletCount: string;
+  totalWeight: string;
   stockQuantity: string;
   shippedQuantity: string;
   weight: number | null;
@@ -70,6 +72,8 @@ type LineItemError = {
   productCode?: string;
   orderQuantity?: string;
   unitPrice?: string;
+  palletCount?: string;
+  totalWeight?: string;
   stockQuantity?: string;
   shippedQuantity?: string;
 };
@@ -83,7 +87,7 @@ type EditSalesModalProps = {
   statusOptions: StatusOption[];
   documentOptions: DocumentOption[];
   onClose: () => void;
-  onSave: (order: SalesRow) => void;
+  onSave: (order: SalesRow) => Promise<boolean> | boolean | void;
   onDelete?: (order: SalesRow) => void;
   onIssue?: (order: SalesRow) => void;
   isIssuing?: boolean;
@@ -108,6 +112,8 @@ const createEmptyItem = (id: number): LineItemForm => ({
   materials: [],
   orderQuantity: "0",
   unitPrice: "0",
+  palletCount: "0",
+  totalWeight: "0",
   stockQuantity: "0",
   shippedQuantity: "0",
   weight: null,
@@ -155,6 +161,8 @@ export default function EditSalesModal({
         materials: item.materials,
         orderQuantity: String(item.orderQuantity),
         unitPrice: String(item.unitPrice),
+        palletCount: String(item.palletCount ?? 0),
+        totalWeight: String(item.totalWeight ?? 0),
         stockQuantity: item.stockQuantity === null ? "0" : String(item.stockQuantity),
         shippedQuantity: String(item.shippedQuantity),
         weight: item.weight,
@@ -213,7 +221,7 @@ export default function EditSalesModal({
 
   const handleLineChange = (
     id: number,
-    key: "orderQuantity" | "unitPrice" | "stockQuantity" | "shippedQuantity",
+    key: "orderQuantity" | "unitPrice" | "palletCount" | "totalWeight" | "stockQuantity" | "shippedQuantity",
     value: string
   ) => {
     if (value.trim().startsWith("-")) {
@@ -297,7 +305,7 @@ export default function EditSalesModal({
     return `${form.currency} ${amountFormatter.format(amountValue)}`;
   }, [amountValue, form.currency]);
 
-  const handleSave = () => {
+  const buildNextSales = (): SalesRow | null => {
     setActionError(null);
     const nextErrors = {
       orderNo: form.orderNo ? "" : "必須項目です",
@@ -336,11 +344,11 @@ export default function EditSalesModal({
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
       setActionError("入力内容をご確認ください。");
-      return;
+      return null;
     }
 
     if (!sales) {
-      return;
+      return null;
     }
 
     const numericErrors: Record<number, LineItemError> = {};
@@ -348,6 +356,8 @@ export default function EditSalesModal({
     form.items.forEach((item) => {
       const orderQuantity = Number(item.orderQuantity);
       const unitPrice = Number(item.unitPrice);
+      const palletCount = Number(item.palletCount);
+      const totalWeight = Number(item.totalWeight);
       const stockQuantity = Number(item.stockQuantity);
       const shippedQuantity = Number(item.shippedQuantity);
       const itemError: LineItemError = {};
@@ -356,6 +366,12 @@ export default function EditSalesModal({
       }
       if (Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
+      }
+      if (Number.isNaN(palletCount)) {
+        itemError.palletCount = "数値で入力してください";
+      }
+      if (Number.isNaN(totalWeight)) {
+        itemError.totalWeight = "数値で入力してください";
       }
       if (Number.isNaN(stockQuantity)) {
         itemError.stockQuantity = "数値で入力してください";
@@ -368,6 +384,12 @@ export default function EditSalesModal({
       }
       if (!itemError.unitPrice && unitPrice < 0) {
         itemError.unitPrice = "0以上で入力してください";
+      }
+      if (!itemError.palletCount && palletCount < 0) {
+        itemError.palletCount = "0以上で入力してください";
+      }
+      if (!itemError.totalWeight && totalWeight < 0) {
+        itemError.totalWeight = "0以上で入力してください";
       }
       if (!itemError.stockQuantity && stockQuantity < 0) {
         itemError.stockQuantity = "0以上で入力してください";
@@ -388,6 +410,8 @@ export default function EditSalesModal({
         orderQuantity,
         shippedQuantity,
         unitPrice,
+        palletCount,
+        totalWeight,
         weight: item.weight,
         length: item.length,
         speed: item.speed,
@@ -396,10 +420,10 @@ export default function EditSalesModal({
 
     if (Object.keys(numericErrors).length) {
       setLineErrors((prev) => ({ ...prev, ...numericErrors }));
-      return;
+      return null;
     }
 
-    onSave({
+    return {
       ...sales,
       orderNo: form.orderNo,
       orderDate: form.orderDate,
@@ -411,14 +435,30 @@ export default function EditSalesModal({
       items: parsedItems,
       status: form.status,
       documentStatus: form.documentStatus,
-    });
+    };
   };
 
-  const handleIssue = () => {
+  const handleSave = () => {
+    const next = buildNextSales();
+    if (!next) {
+      return;
+    }
+    void onSave(next);
+  };
+
+  const handleIssue = async () => {
     if (!sales || !onIssue) {
       return;
     }
-    onIssue(sales);
+    const next = buildNextSales();
+    if (!next) {
+      return;
+    }
+    const saved = await Promise.resolve(onSave(next));
+    if (saved === false) {
+      return;
+    }
+    onIssue(next);
     handleClose();
   };
 
@@ -638,6 +678,30 @@ export default function EditSalesModal({
                         onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
                         error={Boolean(itemError?.unitPrice)}
                         helperText={itemError?.unitPrice}
+                        slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">パレット数</label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={item.palletCount}
+                        onChange={(event) => handleLineChange(item.id, "palletCount", event.target.value)}
+                        error={Boolean(itemError?.palletCount)}
+                        helperText={itemError?.palletCount}
+                        slotProps={{ htmlInput: { min: 0 } }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">総重量</label>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={item.totalWeight}
+                        onChange={(event) => handleLineChange(item.id, "totalWeight", event.target.value)}
+                        error={Boolean(itemError?.totalWeight)}
+                        helperText={itemError?.totalWeight}
                         slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
                       />
                     </div>

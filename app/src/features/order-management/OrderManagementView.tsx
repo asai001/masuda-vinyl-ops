@@ -102,26 +102,26 @@ export default function OrderManagementView() {
     })();
   };
 
-  const handleEdit = (next: OrderRow) => {
-    (async () => {
-      try {
-        setMutating(true);
-        setMutatingAction("edit");
-        setMutateError(null);
-        closeEdit();
+  const handleEdit = async (next: OrderRow) => {
+    try {
+      setMutating(true);
+      setMutatingAction("edit");
+      setMutateError(null);
+      closeEdit();
 
-        await updatePurchaseOrder(next);
-        await reload();
-      } catch (e) {
-        console.error(e);
-        const msg = e instanceof Error ? e.message : "Failed to update order";
-        setMutateError(msg);
-        closeEdit();
-      } finally {
-        setMutating(false);
-        setMutatingAction(null);
-      }
-    })();
+      await updatePurchaseOrder(next);
+      await reload();
+      return true;
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to update order";
+      setMutateError(msg);
+      closeEdit();
+      return false;
+    } finally {
+      setMutating(false);
+      setMutatingAction(null);
+    }
   };
 
   const handleDelete = (row: OrderRow) => {
