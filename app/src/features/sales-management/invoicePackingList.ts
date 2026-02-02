@@ -5,12 +5,17 @@ export type InvoicePackingLineItem = {
   unit: string;
   quantity: number;
   unitPrice: number;
+  palletCount: number;
+  totalWeight: number;
 };
+
+export type InvoicePackingTemplate = "client" | "hq";
 
 export type InvoicePackingPayload = {
   orderNo: string;
   invoiceDate: string;
   invoiceNo?: string;
+  templateType?: InvoicePackingTemplate;
   destinationCountry: string;
   consigneeName: string;
   consigneeAddress: string;

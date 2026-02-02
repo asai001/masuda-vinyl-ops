@@ -9,10 +9,14 @@ import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteSalesDialog from "@/features/sales-management/ui/DeleteSalesDialog";
 import EditSalesModal from "@/features/sales-management/ui/EditSalesModal";
-import { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
+import {
+  InvoicePackingPayload,
+  type InvoicePackingTemplate,
+} from "@/features/sales-management/invoicePackingList";
 import NewSalesModal from "@/features/sales-management/ui/NewSalesModal";
 import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
 import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
+import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import {
   createSalesOrder,
@@ -66,6 +70,9 @@ export default function SalesManagementView() {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
   const [issuingRowId, setIssuingRowId] = useState<number | null>(null);
+  const [issueTarget, setIssueTarget] = useState<SalesRow | null>(null);
+  const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
+  const [issueDialogKey, setIssueDialogKey] = useState(0);
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
@@ -125,26 +132,26 @@ export default function SalesManagementView() {
     })();
   };
 
-  const handleEdit = (next: SalesRow) => {
-    (async () => {
-      try {
-        setMutating(true);
-        setMutatingAction("edit");
-        setMutateError(null);
-        closeEdit();
+  const handleEdit = async (next: SalesRow) => {
+    try {
+      setMutating(true);
+      setMutatingAction("edit");
+      setMutateError(null);
+      closeEdit();
 
-        await updateSalesOrder(next);
-        await reload();
-      } catch (e) {
-        console.error(e);
-        const msg = e instanceof Error ? e.message : "Failed to update sales order";
-        setMutateError(msg);
-        closeEdit();
-      } finally {
-        setMutating(false);
-        setMutatingAction(null);
-      }
-    })();
+      await updateSalesOrder(next);
+      await reload();
+      return true;
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Failed to update sales order";
+      setMutateError(msg);
+      closeEdit();
+      return false;
+    } finally {
+      setMutating(false);
+      setMutatingAction(null);
+    }
   };
 
   const handleDelete = (row: SalesRow) => {
@@ -416,9 +423,28 @@ export default function SalesManagementView() {
     return `${day}/${month}/${year}`;
   };
 
-  const sanitizeFileName = (value: string) => value.replace(/[^A-Za-z0-9-_]/g, "") || "invoice";
+  const sanitizeFileName = (value: string) => {
+    const trimmed = value.trim();
+    const sanitized = trimmed.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "");
+    return sanitized || "invoice";
+  };
 
-  const handleIssue = async (row: SalesRow) => {
+  const openIssueDialog = (row: SalesRow) => {
+    if (issuingRowId !== null) {
+      return;
+    }
+    setIssueError(null);
+    setIssueTarget(row);
+    setIsIssueDialogOpen(true);
+    setIssueDialogKey((prev) => prev + 1);
+  };
+
+  const closeIssueDialog = () => {
+    setIsIssueDialogOpen(false);
+    setIssueTarget(null);
+  };
+
+  const handleIssue = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
     if (issuingRowId !== null) {
       return;
     }
@@ -449,12 +475,15 @@ export default function SalesManagementView() {
         unit: product?.unit ?? "",
         quantity: item.orderQuantity,
         unitPrice: item.unitPrice * safeUsdRate,
+        palletCount: item.palletCount,
+        totalWeight: item.totalWeight,
       };
     });
     const payload: InvoicePackingPayload = {
       orderNo: row.orderNo,
       invoiceDate: formatInvoiceDate(),
       invoiceNo: row.orderNo,
+      templateType,
       destinationCountry,
       consigneeName: row.customerName,
       consigneeAddress: customerInfo?.address ?? "",
@@ -485,6 +514,18 @@ export default function SalesManagementView() {
       setIssueError(msg);
     } finally {
       setIssuingRowId(null);
+    }
+  };
+
+  const handleIssueRequest = (row: SalesRow) => {
+    openIssueDialog(row);
+  };
+
+  const handleIssueTemplateSelect = (templateType: InvoicePackingTemplate) => {
+    const target = issueTarget;
+    closeIssueDialog();
+    if (target) {
+      handleIssue(target, templateType);
     }
   };
 
@@ -543,7 +584,7 @@ export default function SalesManagementView() {
         rows={filteredRows}
         onRowClick={openEdit}
         onDelete={openDelete}
-        onIssue={handleIssue}
+        onIssue={handleIssueRequest}
         issuingRowId={issuingRowId}
       />
       <NewSalesModal
@@ -563,13 +604,20 @@ export default function SalesManagementView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
-        onIssue={handleIssue}
+        onIssue={handleIssueRequest}
         isIssuing={Boolean(editingRow && issuingRowId === editingRow.id)}
         productOptions={productOptions}
         customerOptions={customerOptions}
         currencyOptions={currencyOptions}
         statusOptions={statusOptions}
         documentOptions={documentOptions}
+      />
+      <InvoicePackingTemplateDialog
+        key={`issue-dialog-${issueDialogKey}`}
+        open={isIssueDialogOpen}
+        sales={issueTarget}
+        onClose={closeIssueDialog}
+        onSelect={handleIssueTemplateSelect}
       />
       <DeleteSalesDialog
         open={Boolean(deletingRow)}

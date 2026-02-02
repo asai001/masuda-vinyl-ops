@@ -64,7 +64,7 @@ type EditOrderModalProps = {
   statusOptions: StatusOption[];
   documentOptions: DocumentOption[];
   onClose: () => void;
-  onSave: (order: OrderRow) => void;
+  onSave: (order: OrderRow) => Promise<boolean> | boolean | void;
   onDelete?: (order: OrderRow) => void;
   onIssue?: (order: OrderRow) => void;
   isIssuing?: boolean;
@@ -298,7 +298,7 @@ export default function EditOrderModal({
     return `${form.currency} ${amountFormatter.format(amountValue)}`;
   }, [amountValue, form.currency]);
 
-  const handleSave = () => {
+  const buildNextOrder = (): OrderRow | null => {
     setActionError(null);
     const nextErrors = {
       orderDate: form.orderDate ? "" : "必須項目です",
@@ -336,11 +336,11 @@ export default function EditOrderModal({
       Object.keys(nextLineErrors).length;
     if (hasRequiredErrors) {
       setActionError("入力内容をご確認ください。");
-      return;
+      return null;
     }
 
     if (!order) {
-      return;
+      return null;
     }
 
     const numericErrors: Record<number, LineItemError> = {};
@@ -377,12 +377,12 @@ export default function EditOrderModal({
 
     if (Object.keys(numericErrors).length) {
       setLineErrors((prev) => ({ ...prev, ...numericErrors }));
-      return;
+      return null;
     }
 
     const totalAmount = parsedItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
-    onSave({
+    return {
       ...order,
       orderDate: form.orderDate,
       deliveryDate: form.deliveryDate,
@@ -393,14 +393,30 @@ export default function EditOrderModal({
       note: form.note,
       status: form.status,
       documentStatus: form.documentStatus,
-    });
+    };
   };
 
-  const handleIssue = () => {
+  const handleSave = () => {
+    const next = buildNextOrder();
+    if (!next) {
+      return;
+    }
+    void onSave(next);
+  };
+
+  const handleIssue = async () => {
     if (!order || !onIssue) {
       return;
     }
-    onIssue(order);
+    const next = buildNextOrder();
+    if (!next) {
+      return;
+    }
+    const saved = await Promise.resolve(onSave(next));
+    if (saved === false) {
+      return;
+    }
+    onIssue(next);
     handleClose();
   };
 

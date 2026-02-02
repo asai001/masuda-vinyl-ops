@@ -52,6 +52,8 @@ const isSalesLineItem = (value: unknown): value is SalesLineItem => {
     isFiniteNumber(record.orderQuantity) &&
     isFiniteNumber(record.shippedQuantity) &&
     isFiniteNumber(record.unitPrice) &&
+    isFiniteNumber(record.palletCount) &&
+    isFiniteNumber(record.totalWeight) &&
     isNumberOrNull(record.weight) &&
     isNumberOrNull(record.length) &&
     isNumberOrNull(record.speed)
