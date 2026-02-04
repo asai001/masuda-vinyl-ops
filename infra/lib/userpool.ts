@@ -74,7 +74,7 @@ export class UserPoolResources extends Construct {
       writeAttributes: writeAttrs,
     });
 
-    const teamSlug = "asai001s-projects-3e71fbe6";
+    const teamSlug = props.deployEnv === "prod" ? "masuda-vinyl" : "asai001s-projects-3e71fbe6";
     const projectName = "masuda-vinyl-ops-app";
     const env = props.vercelEnvironment;
     const aud = `https://vercel.com/${teamSlug}`;
