@@ -74,6 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/sales-management/summary": "受注集計",
     "/payment-master": "支払いマスタ",
     "/payment-management": "支払い管理",
+    "/payment-management/summary": "支払い集計",
     "/settings": "各種設定",
   };
 

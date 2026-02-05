@@ -1,7 +1,7 @@
 "use client";
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, ListItemText, MenuItem, Paper, Select, TextField } from "@mui/material";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import BarLineChart from "@/components/charts/BarLineChart";
@@ -34,6 +34,10 @@ type AggregationDashboardProps = {
   dateLabel: string;
   confirmedLabel: string;
   exchangeRates: ExchangeRates;
+  initialStartDate?: string;
+  initialEndDate?: string;
+  onDateRangeChange?: (startDate: string, endDate: string) => void;
+  scopeNotes?: string[];
 };
 
 type PeriodSummaryRow = {
@@ -93,10 +97,14 @@ export default function AggregationDashboard({
   dateLabel,
   confirmedLabel,
   exchangeRates,
+  initialStartDate,
+  initialEndDate,
+  onDateRangeChange,
+  scopeNotes,
 }: AggregationDashboardProps) {
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
-  const [startDate, setStartDate] = useState(defaultRange.startDate);
-  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [startDate, setStartDate] = useState(initialStartDate ?? defaultRange.startDate);
+  const [endDate, setEndDate] = useState(initialEndDate ?? defaultRange.endDate);
   const [selectedPartners, setSelectedPartners] = useState<string[]>([]);
   const [groupUnit, setGroupUnit] = useState<GroupUnit>("month");
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>("USD");
@@ -123,6 +131,12 @@ export default function AggregationDashboard({
       }),
     [endDate, rows, selectedPartners, startDate],
   );
+
+  useEffect(() => {
+    if (onDateRangeChange) {
+      onDateRangeChange(startDate, endDate);
+    }
+  }, [endDate, onDateRangeChange, startDate]);
 
   const totalUsd = useMemo(
     () => filteredRows.reduce((sum, row) => sum + convertToUsd(row.amount, row.currency, exchangeRates), 0),
@@ -311,6 +325,15 @@ export default function AggregationDashboard({
     exchangeRates.vndPerUsd,
   )} VND`;
 
+  const scopeNoteItems = useMemo(() => {
+    const base = scopeNotes ?? [
+      `集計対象: 確定のみ（${confirmedLabel}）`,
+      `期間基準: ${dateLabel}`,
+      "換算レート: 集計時点",
+    ];
+    return [...base, rateNote];
+  }, [confirmedLabel, dateLabel, rateNote, scopeNotes]);
+
   const summaryItems = [
     { label: `合計金額 (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, displayTotal) },
     { label: "件数", value: formatNumberValue(filteredRows.length) },
@@ -408,10 +431,11 @@ export default function AggregationDashboard({
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-            <span className="rounded-full bg-gray-100 px-2 py-1">集計対象: 確定のみ（{confirmedLabel}）</span>
-            <span className="rounded-full bg-gray-100 px-2 py-1">期間基準: {dateLabel}</span>
-            <span className="rounded-full bg-gray-100 px-2 py-1">換算レート: 集計時点</span>
-            <span className="rounded-full bg-gray-100 px-2 py-1">{rateNote}</span>
+            {scopeNoteItems.map((note) => (
+              <span key={note} className="rounded-full bg-gray-100 px-2 py-1">
+                {note}
+              </span>
+            ))}
           </div>
         </div>
       </Paper>
