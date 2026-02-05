@@ -66,7 +66,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (path === "/dashboard") {
       return pathname === "/" || pathname === "/dashboard";
     }
-    return pathname === path;
+    return pathname === path || pathname?.startsWith(`${path}/`);
   };
 
   return (

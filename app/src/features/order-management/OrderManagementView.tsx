@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Button } from "@mui/material";
 import { CheckCircle, Clock, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import LoadingModal from "@/components/LoadingModal";
@@ -27,10 +29,22 @@ import {
 } from "@/features/order-management/types";
 import { fetchClientRows } from "@/features/client-master/api/client";
 import { fetchMaterialRows } from "@/features/material-master/api/client";
+import { fetchExchangeRates } from "@/features/settings/api/client";
 import type { ClientRow } from "@/features/client-master/types";
 import type { MaterialRow } from "@/features/material-master/types";
+import type { ExchangeRates } from "@/features/settings/types";
+import {
+  convertToUsd,
+  DEFAULT_EXCHANGE_RATES,
+  formatCurrencyValue,
+  formatNumberValue,
+  getCurrentMonthRange,
+  isWithinRange,
+  normalizeExchangeRates,
+} from "@/features/aggregation/aggregationUtils";
 
 export default function OrderManagementView() {
+  const router = useRouter();
   const {
     rows,
     replaceRows,
@@ -61,6 +75,7 @@ export default function OrderManagementView() {
   const [optionError, setOptionError] = useState<string | null>(null);
   const [clientRows, setClientRows] = useState<ClientRow[]>([]);
   const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_EXCHANGE_RATES);
 
   const reload = async () => {
     const fetched = await fetchPurchaseOrderRows();
@@ -174,6 +189,26 @@ export default function OrderManagementView() {
     };
   }, [replaceRows]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await fetchExchangeRates();
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates(fetched));
+        }
+      } catch (error) {
+        console.error("Failed to load exchange rates", error);
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates());
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // 取引先/材料の候補を初回取得
   useEffect(() => {
     reloadMasterOptions();
@@ -269,6 +304,23 @@ export default function OrderManagementView() {
     );
   }, [filters, rows]);
 
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const monthSummary = useMemo(() => {
+    let totalUsd = 0;
+    let count = 0;
+    rows.forEach((row) => {
+      if (!row.documentStatus.orderSent) {
+        return;
+      }
+      if (!isWithinRange(row.orderDate, monthRange.startDate, monthRange.endDate)) {
+        return;
+      }
+      count += 1;
+      totalUsd += convertToUsd(row.amount, row.currency, exchangeRates);
+    });
+    return { totalUsd, count };
+  }, [exchangeRates, monthRange.endDate, monthRange.startDate, rows]);
+
   const summaryCards = useMemo<SummaryCard[]>(() => {
     const totalCount = rows.length;
     const orderedCount = rows.filter((row) => row.status.ordered).length;
@@ -319,11 +371,35 @@ export default function OrderManagementView() {
     openDelete(row);
   };
 
+  const monthlyAmountLabel = loading ? "読み込み中..." : formatCurrencyValue("USD", monthSummary.totalUsd);
+  const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
+
   const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
 
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-gray-700">集計サマリー（今月）</div>
+            <div className="text-xs text-gray-500">確定のみ・発注日基準・集計時点レート</div>
+          </div>
+          <Button variant="contained" size="small" onClick={() => router.push("/order-management/summary")}>
+            集計ページへ
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-6">
+          <div>
+            <div className="text-xs text-gray-500">USD換算合計</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">件数</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
+          </div>
+        </div>
+      </div>
       <ToolBar
         filterDefinitions={filterDefinitions}
         filters={filters}

@@ -300,44 +300,9 @@ export default function EditOrderModal({
 
   const buildNextOrder = (): OrderRow | null => {
     setActionError(null);
-    const nextErrors = {
-      orderDate: form.orderDate ? "" : "必須項目です",
-      deliveryDate: form.deliveryDate ? "" : "必須項目です",
-      supplier: form.supplier ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-    };
-    setErrors(nextErrors);
-
-    if (!form.items.length) {
-      setItemsError("部品明細を追加してください");
-    }
-
-    const nextLineErrors: Record<number, LineItemError> = {};
-    form.items.forEach((item) => {
-      const itemError: LineItemError = {};
-      if (!item.itemCode) {
-        itemError.itemCode = "必須項目です";
-      }
-      if (!item.quantity) {
-        itemError.quantity = "必須項目です";
-      }
-      if (!item.unitPrice) {
-        itemError.unitPrice = "必須項目です";
-      }
-      if (Object.keys(itemError).length) {
-        nextLineErrors[item.id] = itemError;
-      }
-    });
-    setLineErrors(nextLineErrors);
-
-    const hasRequiredErrors =
-      Object.values(nextErrors).some((message) => message) ||
-      !form.items.length ||
-      Object.keys(nextLineErrors).length;
-    if (hasRequiredErrors) {
-      setActionError("入力内容をご確認ください。");
-      return null;
-    }
+    setErrors(emptyErrors);
+    setItemsError("");
+    setLineErrors({});
 
     if (!order) {
       return null;
@@ -346,19 +311,28 @@ export default function EditOrderModal({
     const numericErrors: Record<number, LineItemError> = {};
     const parsedItems: OrderLineItem[] = [];
     form.items.forEach((item) => {
-      const quantity = Number(item.quantity);
-      const unitPrice = Number(item.unitPrice);
+      const hasInput = Boolean(
+        item.itemCode || item.itemName || item.unit || item.quantity.trim() || item.unitPrice.trim()
+      );
+      if (!hasInput) {
+        return;
+      }
+
+      const quantityValue = item.quantity.trim();
+      const unitPriceValue = item.unitPrice.trim();
+      const quantity = quantityValue ? Number(item.quantity) : 0;
+      const unitPrice = unitPriceValue ? Number(item.unitPrice) : 0;
       const itemError: LineItemError = {};
-      if (Number.isNaN(quantity)) {
+      if (quantityValue && Number.isNaN(quantity)) {
         itemError.quantity = "数値で入力してください";
       }
-      if (Number.isNaN(unitPrice)) {
+      if (unitPriceValue && Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
       }
-      if (!itemError.quantity && quantity < 0) {
+      if (!itemError.quantity && quantityValue && quantity < 0) {
         itemError.quantity = "0以上で入力してください";
       }
-      if (!itemError.unitPrice && unitPrice < 0) {
+      if (!itemError.unitPrice && unitPriceValue && unitPrice < 0) {
         itemError.unitPrice = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
@@ -376,7 +350,8 @@ export default function EditOrderModal({
     });
 
     if (Object.keys(numericErrors).length) {
-      setLineErrors((prev) => ({ ...prev, ...numericErrors }));
+      setLineErrors(numericErrors);
+      setActionError("入力内容をご確認ください。");
       return null;
     }
 
@@ -448,7 +423,7 @@ export default function EditOrderModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            発注日 <span className="text-red-500">*</span>
+            発注日
           </label>
           <TextField
             size="small"
@@ -461,7 +436,7 @@ export default function EditOrderModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            納品予定日 <span className="text-red-500">*</span>
+            納品予定日
           </label>
           <TextField
             size="small"
@@ -476,7 +451,7 @@ export default function EditOrderModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          仕入先 <span className="text-red-500">*</span>
+          仕入先
         </label>
         <FormControl size="small" error={Boolean(errors.supplier)}>
           <Select
@@ -503,7 +478,7 @@ export default function EditOrderModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          通貨 <span className="text-red-500">*</span>
+          通貨
         </label>
         <FormControl size="small" error={Boolean(errors.currency)}>
           <Select
@@ -524,7 +499,7 @@ export default function EditOrderModal({
 
       <div className="flex items-center justify-between">
         <label className="text-sm font-semibold text-gray-700">
-          部品明細 <span className="text-red-500">*</span>
+          部品明細
         </label>
         <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
           部品を追加
@@ -567,7 +542,7 @@ export default function EditOrderModal({
                 <div className="mt-3 flex flex-col gap-3">
                   <div className="flex flex-col gap-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      品目/品番 <span className="text-red-500">*</span>
+                      品目/品番
                       {showCurrencyMismatch && (
                         <span className="text-xs font-normal text-amber-600">
                           マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
@@ -600,7 +575,7 @@ export default function EditOrderModal({
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div className="flex flex-col gap-2">
                       <label className="text-sm font-semibold text-gray-700">
-                        数量 <span className="text-red-500">*</span>
+                        数量
                       </label>
                       <TextField
                         size="small"
@@ -618,7 +593,7 @@ export default function EditOrderModal({
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-sm font-semibold text-gray-700">
-                        単価 <span className="text-red-500">*</span>
+                        単価
                       </label>
                       <TextField
                         size="small"

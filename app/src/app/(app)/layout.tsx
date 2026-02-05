@@ -69,9 +69,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/material-master": "材料マスタ",
     "/product-master": "製品マスタ",
     "/order-management": "発注管理",
+    "/order-management/summary": "発注集計",
     "/sales-management": "受注管理",
+    "/sales-management/summary": "受注集計",
     "/payment-master": "支払いマスタ",
     "/payment-management": "支払い管理",
+    "/payment-management/summary": "支払い集計",
     "/settings": "各種設定",
   };
 

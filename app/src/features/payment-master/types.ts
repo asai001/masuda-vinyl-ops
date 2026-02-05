@@ -2,6 +2,7 @@ export type PaymentRow = {
   id: number;
   paymentDefId: string;
 
+  transferDestinationName?: string;
   category: string;
   content: string;
   isFixedCost: boolean;
@@ -20,6 +21,7 @@ export type PaymentDefinitionItem = {
   paymentDefId: string;
   displayNo?: number;
 
+  transferDestinationName?: string;
   category?: string;
   content?: string;
   isFixedCost?: boolean;

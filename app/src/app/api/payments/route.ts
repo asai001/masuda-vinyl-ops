@@ -42,6 +42,7 @@ function isNewPaymentInput(value: unknown): value is NewPaymentManagementInput {
   }
   const record = value as Record<string, unknown>;
   return (
+    isOptionalString(record.transferDestinationName) &&
     isNonEmptyString(record.category) &&
     isNonEmptyString(record.content) &&
     isFiniteNumber(record.amount) &&

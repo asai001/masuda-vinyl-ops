@@ -9,6 +9,7 @@ export type PaymentManagementRow = {
   id: number;
   paymentId: string;
   yearMonth: string;
+  transferDestinationName?: string;
   category: string;
   content: string;
   amount: number;
@@ -35,6 +36,7 @@ export type PaymentManagementItem = {
 
   yearMonth?: string;
   paymentDate?: string;
+  transferDestinationName?: string;
   category?: string;
   content?: string;
   contentLower?: string;

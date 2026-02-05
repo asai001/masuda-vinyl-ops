@@ -22,6 +22,7 @@ type NewPaymentManagementModalProps = {
 };
 
 const emptyErrors = {
+  transferDestinationName: "",
   category: "",
   content: "",
   amount: "",
@@ -40,6 +41,7 @@ export default function NewPaymentManagementModal({
   onSave,
 }: NewPaymentManagementModalProps) {
   const [form, setForm] = useState({
+    transferDestinationName: "",
     category: "",
     content: "",
     amount: "",
@@ -54,6 +56,7 @@ export default function NewPaymentManagementModal({
 
   const resetForm = () => {
     setForm({
+      transferDestinationName: "",
       category: "",
       content: "",
       amount: "",
@@ -86,20 +89,12 @@ export default function NewPaymentManagementModal({
 
   const handleSave = () => {
     setActionError(null);
-    const nextErrors = {
-      category: form.category ? "" : "必須項目です",
-      content: form.content ? "" : "必須項目です",
-      amount: form.amount ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-      paymentMethod: form.paymentMethod ? "" : "必須項目です",
-      paymentDate: form.paymentDate ? "" : "必須項目です",
-      status: form.status ? "" : "必須項目です",
-    };
-
-    const parsedAmount = Number(form.amount);
-    if (!nextErrors.amount && Number.isNaN(parsedAmount)) {
+    const amountValue = form.amount.trim();
+    const parsedAmount = amountValue ? Number(form.amount) : 0;
+    const nextErrors = { ...emptyErrors };
+    if (amountValue && Number.isNaN(parsedAmount)) {
       nextErrors.amount = "数値で入力してください";
-    } else if (!nextErrors.amount && parsedAmount < 0) {
+    } else if (amountValue && parsedAmount < 0) {
       nextErrors.amount = "0以上で入力してください";
     }
 
@@ -111,6 +106,7 @@ export default function NewPaymentManagementModal({
     }
 
     onSave({
+      transferDestinationName: form.transferDestinationName.trim(),
       category: form.category,
       content: form.content,
       amount: parsedAmount,
@@ -148,10 +144,24 @@ export default function NewPaymentManagementModal({
         </div>
       }
     >
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">
+          振込先名
+        </label>
+        <TextField
+          size="small"
+          placeholder="例: 山田商事株式会社"
+          value={form.transferDestinationName}
+          onChange={(event) => handleChange("transferDestinationName", event.target.value)}
+          error={Boolean(errors.transferDestinationName)}
+          helperText={errors.transferDestinationName}
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            カテゴリ <span className="text-red-500">*</span>
+            カテゴリ
           </label>
           <Autocomplete
             freeSolo
@@ -173,7 +183,7 @@ export default function NewPaymentManagementModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            内容 <span className="text-red-500">*</span>
+            内容
           </label>
           <TextField
             size="small"
@@ -189,7 +199,7 @@ export default function NewPaymentManagementModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            金額 <span className="text-red-500">*</span>
+            金額
           </label>
           <TextField
             size="small"
@@ -204,7 +214,7 @@ export default function NewPaymentManagementModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
+            通貨
           </label>
           <FormControl size="small" error={Boolean(errors.currency)}>
             <Select
@@ -227,7 +237,7 @@ export default function NewPaymentManagementModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            支払方法 <span className="text-red-500">*</span>
+            支払方法
           </label>
           <Autocomplete
             freeSolo
@@ -249,7 +259,7 @@ export default function NewPaymentManagementModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            支払日 <span className="text-red-500">*</span>
+            支払日
           </label>
           <TextField
             size="small"
@@ -264,7 +274,7 @@ export default function NewPaymentManagementModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          ステータス <span className="text-red-500">*</span>
+          ステータス
         </label>
         <FormControl size="small" error={Boolean(errors.status)}>
           <Select

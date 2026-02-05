@@ -307,45 +307,9 @@ export default function EditSalesModal({
 
   const buildNextSales = (): SalesRow | null => {
     setActionError(null);
-    const nextErrors = {
-      orderNo: form.orderNo ? "" : "必須項目です",
-      orderDate: form.orderDate ? "" : "必須項目です",
-      deliveryDate: form.deliveryDate ? "" : "必須項目です",
-      customerName: form.customerName ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-    };
-    setErrors(nextErrors);
-
-    if (!form.items.length) {
-      setItemsError("製品明細を追加してください");
-    }
-
-    const nextLineErrors: Record<number, LineItemError> = {};
-    form.items.forEach((item) => {
-      const itemError: LineItemError = {};
-      if (!item.productCode) {
-        itemError.productCode = "必須項目です";
-      }
-      if (!item.orderQuantity) {
-        itemError.orderQuantity = "必須項目です";
-      }
-      if (!item.unitPrice) {
-        itemError.unitPrice = "必須項目です";
-      }
-      if (Object.keys(itemError).length) {
-        nextLineErrors[item.id] = itemError;
-      }
-    });
-    setLineErrors(nextLineErrors);
-
-    const hasRequiredErrors =
-      Object.values(nextErrors).some((message) => message) ||
-      !form.items.length ||
-      Object.keys(nextLineErrors).length;
-    if (hasRequiredErrors) {
-      setActionError("入力内容をご確認ください。");
-      return null;
-    }
+    setErrors(emptyErrors);
+    setItemsError("");
+    setLineErrors({});
 
     if (!sales) {
       return null;
@@ -354,47 +318,68 @@ export default function EditSalesModal({
     const numericErrors: Record<number, LineItemError> = {};
     const parsedItems: SalesLineItem[] = [];
     form.items.forEach((item) => {
-      const orderQuantity = Number(item.orderQuantity);
-      const unitPrice = Number(item.unitPrice);
-      const palletCount = Number(item.palletCount);
-      const totalWeight = Number(item.totalWeight);
-      const stockQuantity = Number(item.stockQuantity);
-      const shippedQuantity = Number(item.shippedQuantity);
+      const hasInput = Boolean(
+        item.productCode ||
+          item.productName ||
+          item.orderQuantity.trim() ||
+          item.unitPrice.trim() ||
+          item.palletCount.trim() ||
+          item.totalWeight.trim() ||
+          item.stockQuantity.trim() ||
+          item.shippedQuantity.trim()
+      );
+      if (!hasInput) {
+        return;
+      }
+
+      const orderQuantityValue = item.orderQuantity.trim();
+      const unitPriceValue = item.unitPrice.trim();
+      const palletCountValue = item.palletCount.trim();
+      const totalWeightValue = item.totalWeight.trim();
+      const stockQuantityValue = item.stockQuantity.trim();
+      const shippedQuantityValue = item.shippedQuantity.trim();
+
+      const orderQuantity = orderQuantityValue ? Number(item.orderQuantity) : 0;
+      const unitPrice = unitPriceValue ? Number(item.unitPrice) : 0;
+      const palletCount = palletCountValue ? Number(item.palletCount) : 0;
+      const totalWeight = totalWeightValue ? Number(item.totalWeight) : 0;
+      const stockQuantity = stockQuantityValue ? Number(item.stockQuantity) : 0;
+      const shippedQuantity = shippedQuantityValue ? Number(item.shippedQuantity) : 0;
       const itemError: LineItemError = {};
-      if (Number.isNaN(orderQuantity)) {
+      if (orderQuantityValue && Number.isNaN(orderQuantity)) {
         itemError.orderQuantity = "数値で入力してください";
       }
-      if (Number.isNaN(unitPrice)) {
+      if (unitPriceValue && Number.isNaN(unitPrice)) {
         itemError.unitPrice = "数値で入力してください";
       }
-      if (Number.isNaN(palletCount)) {
+      if (palletCountValue && Number.isNaN(palletCount)) {
         itemError.palletCount = "数値で入力してください";
       }
-      if (Number.isNaN(totalWeight)) {
+      if (totalWeightValue && Number.isNaN(totalWeight)) {
         itemError.totalWeight = "数値で入力してください";
       }
-      if (Number.isNaN(stockQuantity)) {
+      if (stockQuantityValue && Number.isNaN(stockQuantity)) {
         itemError.stockQuantity = "数値で入力してください";
       }
-      if (Number.isNaN(shippedQuantity)) {
+      if (shippedQuantityValue && Number.isNaN(shippedQuantity)) {
         itemError.shippedQuantity = "数値で入力してください";
       }
-      if (!itemError.orderQuantity && orderQuantity < 0) {
+      if (!itemError.orderQuantity && orderQuantityValue && orderQuantity < 0) {
         itemError.orderQuantity = "0以上で入力してください";
       }
-      if (!itemError.unitPrice && unitPrice < 0) {
+      if (!itemError.unitPrice && unitPriceValue && unitPrice < 0) {
         itemError.unitPrice = "0以上で入力してください";
       }
-      if (!itemError.palletCount && palletCount < 0) {
+      if (!itemError.palletCount && palletCountValue && palletCount < 0) {
         itemError.palletCount = "0以上で入力してください";
       }
-      if (!itemError.totalWeight && totalWeight < 0) {
+      if (!itemError.totalWeight && totalWeightValue && totalWeight < 0) {
         itemError.totalWeight = "0以上で入力してください";
       }
-      if (!itemError.stockQuantity && stockQuantity < 0) {
+      if (!itemError.stockQuantity && stockQuantityValue && stockQuantity < 0) {
         itemError.stockQuantity = "0以上で入力してください";
       }
-      if (!itemError.shippedQuantity && shippedQuantity < 0) {
+      if (!itemError.shippedQuantity && shippedQuantityValue && shippedQuantity < 0) {
         itemError.shippedQuantity = "0以上で入力してください";
       }
       if (Object.keys(itemError).length) {
@@ -419,7 +404,8 @@ export default function EditSalesModal({
     });
 
     if (Object.keys(numericErrors).length) {
-      setLineErrors((prev) => ({ ...prev, ...numericErrors }));
+      setLineErrors(numericErrors);
+      setActionError("入力内容をご確認ください。");
       return null;
     }
 
@@ -489,7 +475,7 @@ export default function EditSalesModal({
     >
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          PO No. <span className="text-red-500">*</span>
+          PO No.
         </label>
         <TextField
           size="small"
@@ -504,7 +490,7 @@ export default function EditSalesModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            受注日 <span className="text-red-500">*</span>
+            受注日
           </label>
           <TextField
             size="small"
@@ -517,7 +503,7 @@ export default function EditSalesModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            納品予定日 <span className="text-red-500">*</span>
+            納品予定日
           </label>
           <TextField
             size="small"
@@ -532,7 +518,7 @@ export default function EditSalesModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          顧客名 <span className="text-red-500">*</span>
+          顧客名
         </label>
         <FormControl size="small" error={Boolean(errors.customerName)}>
           <Select
@@ -559,7 +545,7 @@ export default function EditSalesModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          通貨 <span className="text-red-500">*</span>
+          通貨
         </label>
         <FormControl size="small" error={Boolean(errors.currency)}>
           <Select
@@ -588,7 +574,7 @@ export default function EditSalesModal({
 
       <div className="flex items-center justify-between">
         <label className="text-sm font-semibold text-gray-700">
-          製品明細 <span className="text-red-500">*</span>
+          製品明細
         </label>
         <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
           製品を追加
@@ -622,7 +608,7 @@ export default function EditSalesModal({
                 <div className="mt-3 flex flex-col gap-3">
                   <div className="flex flex-col gap-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      品目/品番 <span className="text-red-500">*</span>
+                      品目/品番
                       {showCurrencyMismatch && (
                         <span className="text-xs font-normal text-amber-600">
                           マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
@@ -655,7 +641,7 @@ export default function EditSalesModal({
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
                       <label className="text-sm font-semibold text-gray-700">
-                        注数 <span className="text-red-500">*</span>
+                        注数
                       </label>
                       <TextField
                         size="small"
@@ -669,7 +655,7 @@ export default function EditSalesModal({
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-sm font-semibold text-gray-700">
-                        単価 <span className="text-red-500">*</span>
+                        単価
                       </label>
                       <TextField
                         size="small"

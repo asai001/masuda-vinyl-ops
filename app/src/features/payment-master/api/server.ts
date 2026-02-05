@@ -46,6 +46,7 @@ function buildPaymentDefinitionItem(
   orgId: string,
   base: Partial<PaymentDefinitionItem> & { paymentDefId: string; displayNo: number },
 ): PaymentDefinitionItem {
+  const transferDestinationName = base.transferDestinationName?.trim() || undefined;
   const category = base.category?.trim() || "";
   const content = (base.content ?? "").trim();
   const currency = base.currency?.trim() || undefined;
@@ -65,6 +66,7 @@ function buildPaymentDefinitionItem(
     orgId,
     paymentDefId: base.paymentDefId,
     displayNo: base.displayNo,
+    transferDestinationName,
     category,
     content,
     isFixedCost,
