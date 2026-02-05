@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { CheckCircle, Clock, Package, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import LoadingModal from "@/components/LoadingModal";
@@ -41,14 +42,18 @@ import type { MaterialRow } from "@/features/material-master/types";
 import type { ProductRow } from "@/features/product-master/types";
 import type { ExchangeRates } from "@/features/settings/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
-
-const defaultExchangeRates: ExchangeRates = {
-  jpyPerUsd: 150,
-  vndPerUsd: 25000,
-};
-const normalizeRate = (value: number, fallback: number) => (Number.isFinite(value) && value > 0 ? value : fallback);
+import {
+  convertToUsd,
+  DEFAULT_EXCHANGE_RATES,
+  formatCurrencyValue,
+  formatNumberValue,
+  getCurrentMonthRange,
+  isWithinRange,
+  normalizeExchangeRates,
+} from "@/features/aggregation/aggregationUtils";
 
 export default function SalesManagementView() {
+  const router = useRouter();
   const {
     rows,
     replaceRows,
@@ -86,6 +91,7 @@ export default function SalesManagementView() {
   const [clientRows, setClientRows] = useState<ClientRow[]>([]);
   const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_EXCHANGE_RATES);
 
   const reload = async () => {
     const fetched = await fetchSalesOrderRows();
@@ -203,6 +209,26 @@ export default function SalesManagementView() {
       cancelled = true;
     };
   }, [replaceRows]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await fetchExchangeRates();
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates(fetched));
+        }
+      } catch (error) {
+        console.error("Failed to load exchange rates", error);
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates());
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 取引先/材料/製品の候補を初回取得
   useEffect(() => {
@@ -352,6 +378,24 @@ export default function SalesManagementView() {
     });
   }, [filters, rows]);
 
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const monthSummary = useMemo(() => {
+    let totalUsd = 0;
+    let count = 0;
+    rows.forEach((row) => {
+      if (!row.documentStatus.orderReceived) {
+        return;
+      }
+      if (!isWithinRange(row.orderDate, monthRange.startDate, monthRange.endDate)) {
+        return;
+      }
+      const metrics = calculateSalesMetrics(row.items);
+      count += 1;
+      totalUsd += convertToUsd(metrics.amount, row.currency, exchangeRates);
+    });
+    return { totalUsd, count };
+  }, [exchangeRates, monthRange.endDate, monthRange.startDate, rows]);
+
   const summaryCards = useMemo<SummaryCard[]>(() => {
     const totalCount = rows.length;
     const shippedCount = rows.filter((row) => row.status.shipped).length;
@@ -453,16 +497,13 @@ export default function SalesManagementView() {
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
     const destinationCountry = countryLabelMap[region] ?? region;
-    let exchangeRates = defaultExchangeRates;
+    let rateSnapshot = DEFAULT_EXCHANGE_RATES;
     try {
-      exchangeRates = await fetchExchangeRates();
+      rateSnapshot = await fetchExchangeRates();
     } catch (error) {
       console.error("Failed to load exchange rates", error);
     }
-    const safeRates = {
-      jpyPerUsd: normalizeRate(exchangeRates.jpyPerUsd, defaultExchangeRates.jpyPerUsd),
-      vndPerUsd: normalizeRate(exchangeRates.vndPerUsd, defaultExchangeRates.vndPerUsd),
-    };
+    const safeRates = normalizeExchangeRates(rateSnapshot);
     const currency = row.currency?.toUpperCase();
     const usdRate = currency === "JPY" ? 1 / safeRates.jpyPerUsd : currency === "VND" ? 1 / safeRates.vndPerUsd : 1;
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
@@ -539,11 +580,35 @@ export default function SalesManagementView() {
     setIsSummaryOpen(false);
   };
 
+  const monthlyAmountLabel = loading ? "読み込み中..." : formatCurrencyValue("USD", monthSummary.totalUsd);
+  const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
+
   const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
 
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-gray-700">集計サマリー（今月）</div>
+            <div className="text-xs text-gray-500">確定のみ・受注日基準・集計時点レート</div>
+          </div>
+          <Button variant="contained" size="small" onClick={() => router.push("/sales-management/summary")}>
+            集計ページへ
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-6">
+          <div>
+            <div className="text-xs text-gray-500">USD換算合計</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">件数</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
+          </div>
+        </div>
+      </div>
       <ToolBar
         filterDefinitions={filterDefinitions}
         filters={filters}
