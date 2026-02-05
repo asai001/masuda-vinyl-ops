@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton } from "@mui/material";
+import { Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, type SxProps, type Theme } from "@mui/material";
 import { X } from "lucide-react";
 
 type ModalProps = {
@@ -13,6 +13,7 @@ type ModalProps = {
   maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
   fullWidth?: boolean;
   showCloseButton?: boolean;
+  contentSx?: SxProps<Theme>;
 };
 
 export default function Modal({
@@ -24,6 +25,7 @@ export default function Modal({
   maxWidth = false,
   fullWidth = true,
   showCloseButton = true,
+  contentSx,
 }: ModalProps) {
   return (
     <Dialog
@@ -42,7 +44,7 @@ export default function Modal({
         ) : null}
       </DialogTitle>
       <Divider />
-      <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2 }}>
+      <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2, ...contentSx }}>
         {children}
       </DialogContent>
       {actions ? (

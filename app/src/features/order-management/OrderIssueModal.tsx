@@ -70,6 +70,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     width: a4WidthPx,
     height: a4HeightPx,
   });
+  const [previewViewportHeight, setPreviewViewportHeight] = useState<number>(a4HeightPx);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -129,9 +130,10 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     if (!maxWidth || !maxHeight) {
       return;
     }
-    const scale = Math.min(1, maxWidth / contentSize.width, maxHeight / contentSize.height);
+    const scale = Math.min(1, maxWidth / contentSize.width);
     setPreviewScale(scale);
     setPreviewSize({ width: contentSize.width * scale, height: contentSize.height * scale });
+    setPreviewViewportHeight(maxHeight);
   };
 
   useEffect(() => {
@@ -299,6 +301,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       open={open}
       title="注文書の発行"
       onClose={onClose}
+      contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center justify-end gap-2">
           <Button variant="outlined" onClick={onClose}>
@@ -316,52 +319,54 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       }
     >
       <div className="text-sm">注文書は VND に換算して発行します。</div>
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">注番</label>
-          <TextField
-            size="small"
-            placeholder={defaultOrderNumber}
-            value={orderNumberInput}
-            onChange={(event) => setOrderNumberInput(event.target.value)}
-            disabled={!order}
-          />
-          <div className="text-xs text-gray-500">空欄の場合は自動採番（{defaultOrderNumber}）を使用します。</div>
-        </div>
-        <div className="mt-6 flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
-          <TextField
-            size="small"
-            multiline
-            minRows={3}
-            placeholder="摘要を入力（任意）"
-            value={issueNote}
-            onChange={(event) => setIssueNote(event.target.value)}
-            disabled={!order}
-          />
-          <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
-        </div>
-        <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
-        <div className="mt-4 flex justify-center">
-          <div ref={previewContainerRef} className="w-full max-w-180">
-            <div
-              className="relative mx-auto overflow-hidden bg-white"
-              style={{ width: previewSize.width, height: previewSize.height }}
-            >
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">注番</label>
+            <TextField
+              size="small"
+              placeholder={defaultOrderNumber}
+              value={orderNumberInput}
+              onChange={(event) => setOrderNumberInput(event.target.value)}
+              disabled={!order}
+            />
+            <div className="text-xs text-gray-500">空欄の場合は自動採番（{defaultOrderNumber}）を使用します。</div>
+          </div>
+          <div className="mt-6 flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
+            <TextField
+              size="small"
+              multiline
+              minRows={3}
+              placeholder="摘要を入力（任意）"
+              value={issueNote}
+              onChange={(event) => setIssueNote(event.target.value)}
+              disabled={!order}
+            />
+            <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
+          </div>
+          <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
+          <div className="mt-4 flex min-h-0 flex-1 justify-center">
+            <div ref={previewContainerRef} className="w-full max-w-180 min-h-0">
+              <div
+                className="relative mx-auto overflow-y-auto overflow-x-hidden bg-white"
+                style={{ width: previewSize.width, height: previewViewportHeight }}
+              >
+                <div style={{ width: previewSize.width, height: previewSize.height }}>
               {open ? (
                 pdfPayload ? (
                   <iframe
                     title="注文書プレビュー"
                     className="block border-0 bg-white"
                     ref={previewFrameRef}
-                    scrolling="no"
-                    style={{
-                      width: previewContentSize.width,
-                      height: previewContentSize.height,
-                      overflow: "hidden",
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: "top left",
-                    }}
+                      scrolling="no"
+                      style={{
+                        width: previewContentSize.width,
+                        height: previewContentSize.height,
+                        overflow: "hidden",
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: "top left",
+                      }}
                     srcDoc={previewHtml}
                     onLoad={handlePreviewLoad}
                   />
@@ -369,6 +374,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
                   <div className={previewMessageClass}>プレビューを生成できません。</div>
                 )
               ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </div>
