@@ -457,16 +457,16 @@ export default function AggregationDashboard({
           <div className="text-sm font-semibold text-gray-700">{partnerLabel}割合</div>
           <div className="text-xs text-gray-500">合計金額ベース（{displayCurrency}）</div>
           <div className="mt-4 flex flex-wrap items-center gap-6">
-            <div className="h-[220px] w-[220px]">
+            <div className="h-55 w-55">
               <PieChart data={pieSlices} />
             </div>
-            <div className="flex min-w-[200px] flex-col gap-2 text-sm text-gray-700">
+            <div className="flex min-w-50 flex-col gap-2 text-sm text-gray-700">
               {pieSlices.length ? (
                 pieSlices.map((slice) => (
                   <div key={slice.label} className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: slice.color }} />
-                      <span className="max-w-[160px] truncate">{slice.label}</span>
+                      <span className="max-w-40 truncate">{slice.label}</span>
                     </div>
                     <span className="text-xs text-gray-500">{slice.percent.toFixed(1)}%</span>
                   </div>
@@ -486,7 +486,7 @@ export default function AggregationDashboard({
             </div>
             <div className="text-xs text-gray-500">{displayCurrency}</div>
           </div>
-          <div className="mt-2 h-[240px]">
+          <div className="mt-2 h-60">
             <BarLineChart data={trendData} unitLabel={displayCurrency} />
           </div>
         </div>
