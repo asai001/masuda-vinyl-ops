@@ -16,6 +16,7 @@ export type OrderIssuePdfPayload = {
   supplierPhone: string;
   lineItems: PdfLineItem[];
   amountLabel: string;
+  currency: string;
   note: string;
 };
 
@@ -37,6 +38,7 @@ const escapeHtml = (value: string) =>
 
 export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFontSources) => {
   const safe = (value: string) => escapeHtml(value);
+  const currencyLabel = payload.currency ? `(${safe(payload.currency)})` : "";
   const rows = Array.from({ length: 9 }, (_, index) => payload.lineItems[index] ?? null);
   const rowsHtml = rows
     .map((row, index) => {
@@ -176,7 +178,7 @@ export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFo
             </th>
             <th>
               <div>金額</div>
-              <div class="header-sub vn">Số tiền (VND)</div>
+              <div class="header-sub vn">Số tiền ${currencyLabel}</div>
             </th>
           </tr>
         </thead>

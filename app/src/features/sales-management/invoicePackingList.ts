@@ -7,6 +7,7 @@ export type InvoicePackingLineItem = {
   unitPrice: number;
   palletCount: number;
   totalWeight: number;
+  packaging?: number | null;
 };
 
 export type InvoicePackingTemplate = "client" | "hq";

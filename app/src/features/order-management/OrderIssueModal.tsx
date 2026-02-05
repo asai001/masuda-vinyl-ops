@@ -5,8 +5,6 @@ import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { ClientRow } from "@/features/client-master/types";
 import type { OrderRow } from "@/features/order-management/types";
-import { fetchExchangeRates } from "@/features/settings/api/client";
-import type { ExchangeRates } from "@/features/settings/types";
 import { renderOrderIssueHtml, type OrderIssuePdfPayload, type PdfFontSources } from "./orderIssueTemplate";
 
 type OrderIssueModalProps = {
@@ -17,12 +15,6 @@ type OrderIssueModalProps = {
 };
 
 const amountFormatter = new Intl.NumberFormat("en-US");
-const defaultExchangeRates: ExchangeRates = {
-  jpyPerUsd: 150,
-  vndPerUsd: 25000,
-};
-const isAbortError = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
-
 const previewFontSources: PdfFontSources = {
   jpRegular: "/fonts/NotoSerifJP-Regular.ttf",
   jpBold: "/fonts/NotoSerifJP-Bold.ttf",
@@ -59,7 +51,7 @@ const requestPdfBlob = async (payload: OrderIssuePdfPayload, signal?: AbortSigna
 export default function OrderIssueModal({ open, order, onClose, clients = [] }: OrderIssueModalProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [issueNote, setIssueNote] = useState("");
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(defaultExchangeRates);
+  const [orderNumberInput, setOrderNumberInput] = useState("");
   const [previewScale, setPreviewScale] = useState(1);
   const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
     width: a4WidthPx,
@@ -69,38 +61,22 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     width: a4WidthPx,
     height: a4HeightPx,
   });
+  const [previewViewportHeight, setPreviewViewportHeight] = useState<number>(a4HeightPx);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (!open) {
-      return;
-    }
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const data = await fetchExchangeRates(ac.signal);
-        if (!ac.signal.aborted) {
-          setExchangeRates({
-            jpyPerUsd: data.jpyPerUsd,
-            vndPerUsd: data.vndPerUsd,
-          });
-        }
-      } catch (e) {
-        if (!isAbortError(e)) {
-          console.error("Failed to load exchange rates", e);
-        }
-      }
-    })();
-    return () => ac.abort();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
       setIssueNote("");
+      setOrderNumberInput("");
       return;
     }
     setIssueNote(order?.note?.trim() ?? "");
+    if (order) {
+      setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
+    } else {
+      setOrderNumberInput("");
+    }
   }, [open, order]);
 
   const applyScale = (contentSize: PreviewSize) => {
@@ -122,9 +98,10 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     if (!maxWidth || !maxHeight) {
       return;
     }
-    const scale = Math.min(1, maxWidth / contentSize.width, maxHeight / contentSize.height);
+    const scale = Math.min(1, maxWidth / contentSize.width);
     setPreviewScale(scale);
     setPreviewSize({ width: contentSize.width * scale, height: contentSize.height * scale });
+    setPreviewViewportHeight(maxHeight);
   };
 
   useEffect(() => {
@@ -146,7 +123,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     };
   }, [open, previewContentSize]);
   const issueDate = formatIssueDate(order?.orderDate);
-  const orderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const resolvedOrderNumber = orderNumberInput.trim() || defaultOrderNumber;
   const supplierName = order?.supplier ?? "取引先名";
   const supplierInfo = useMemo(() => {
     if (!order) {
@@ -159,39 +137,14 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const supplierAddressLine1 = supplierAddress;
   const supplierAddressLine2 = "";
 
-  const safeRates = useMemo(() => {
-    const jpyPerUsd =
-      Number.isFinite(exchangeRates.jpyPerUsd) && exchangeRates.jpyPerUsd > 0
-        ? exchangeRates.jpyPerUsd
-        : defaultExchangeRates.jpyPerUsd;
-    const vndPerUsd =
-      Number.isFinite(exchangeRates.vndPerUsd) && exchangeRates.vndPerUsd > 0
-        ? exchangeRates.vndPerUsd
-        : defaultExchangeRates.vndPerUsd;
-    return { jpyPerUsd, vndPerUsd };
-  }, [exchangeRates]);
-
-  const vndRate = useMemo(() => {
-    if (!order) {
-      return 1;
-    }
-    switch (order.currency) {
-      case "USD":
-        return safeRates.vndPerUsd;
-      case "JPY":
-        return safeRates.vndPerUsd / safeRates.jpyPerUsd;
-      case "VND":
-      default:
-        return 1;
-    }
-  }, [order, safeRates]);
   const amountLabel = useMemo(() => {
     if (!order) {
       return "-";
     }
-    const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) * vndRate;
-    return amountFormatter.format(totalAmount);
-  }, [order, vndRate]);
+    const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const formatted = amountFormatter.format(totalAmount);
+    return order.currency ? `${order.currency} ${formatted}` : formatted;
+  }, [order]);
   const lineItems = useMemo(() => {
     if (!order) {
       return [];
@@ -200,19 +153,32 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       name: item.itemName,
       unit: item.unit || "-",
       quantity: amountFormatter.format(item.quantity),
-      unitPrice: amountFormatter.format(item.unitPrice * vndRate),
+      unitPrice: amountFormatter.format(item.unitPrice),
       deliveryDate: order.deliveryDate,
-      amount: amountFormatter.format(item.quantity * item.unitPrice * vndRate),
+      amount: amountFormatter.format(item.quantity * item.unitPrice),
     }));
-  }, [order, vndRate]);
+  }, [order]);
   const noteLabel = issueNote.trim();
 
   const pdfPayload = useMemo<OrderIssuePdfPayload | null>(() => {
     if (!order) {
       return null;
     }
-    return {
-      orderNumber,
+      return {
+        orderNumber: resolvedOrderNumber,
+        issueDate,
+        supplierName,
+        supplierAddressLine1,
+        supplierAddressLine2,
+        supplierPhone,
+        lineItems,
+        amountLabel,
+        currency: order.currency ?? "",
+        note: noteLabel,
+      };
+    }, [
+      order,
+      resolvedOrderNumber,
       issueDate,
       supplierName,
       supplierAddressLine1,
@@ -220,20 +186,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       supplierPhone,
       lineItems,
       amountLabel,
-      note: noteLabel,
-    };
-  }, [
-    order,
-    orderNumber,
-    issueDate,
-    supplierName,
-    supplierAddressLine1,
-    supplierAddressLine2,
-    supplierPhone,
-    lineItems,
-    amountLabel,
-    noteLabel,
-  ]);
+      noteLabel,
+    ]);
 
   const previewHtml = useMemo(() => {
     if (!pdfPayload) {
@@ -251,7 +205,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `order-${orderNumber}.pdf`;
+      link.download = `order-${resolvedOrderNumber}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -291,6 +245,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       open={open}
       title="注文書の発行"
       onClose={onClose}
+      contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center justify-end gap-2">
           <Button variant="outlined" onClick={onClose}>
@@ -307,42 +262,55 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
         </div>
       }
     >
-      <div className="text-sm">注文書は VND に換算して発行します。</div>
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
-          <TextField
-            size="small"
-            multiline
-            minRows={3}
-            placeholder="摘要を入力（任意）"
-            value={issueNote}
-            onChange={(event) => setIssueNote(event.target.value)}
-            disabled={!order}
-          />
-          <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
-        </div>
-        <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
-        <div className="mt-4 flex justify-center">
-          <div ref={previewContainerRef} className="w-full max-w-180">
-            <div
-              className="relative mx-auto overflow-hidden bg-white"
-              style={{ width: previewSize.width, height: previewSize.height }}
-            >
+      <div className="text-sm">注文書は発注通貨で発行します。</div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">注番</label>
+            <TextField
+              size="small"
+              placeholder={defaultOrderNumber}
+              value={orderNumberInput}
+              onChange={(event) => setOrderNumberInput(event.target.value)}
+              disabled={!order}
+            />
+            <div className="text-xs text-gray-500">空欄の場合は自動採番（{defaultOrderNumber}）を使用します。</div>
+          </div>
+          <div className="mt-6 flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
+            <TextField
+              size="small"
+              multiline
+              minRows={3}
+              placeholder="摘要を入力（任意）"
+              value={issueNote}
+              onChange={(event) => setIssueNote(event.target.value)}
+              disabled={!order}
+            />
+            <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
+          </div>
+          <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
+          <div className="mt-4 flex min-h-0 flex-1 justify-center">
+            <div ref={previewContainerRef} className="w-full max-w-180 min-h-0">
+              <div
+                className="relative mx-auto overflow-y-auto overflow-x-hidden bg-white"
+                style={{ width: previewSize.width, height: previewViewportHeight }}
+              >
+                <div style={{ width: previewSize.width, height: previewSize.height }}>
               {open ? (
                 pdfPayload ? (
                   <iframe
                     title="注文書プレビュー"
                     className="block border-0 bg-white"
                     ref={previewFrameRef}
-                    scrolling="no"
-                    style={{
-                      width: previewContentSize.width,
-                      height: previewContentSize.height,
-                      overflow: "hidden",
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: "top left",
-                    }}
+                      scrolling="no"
+                      style={{
+                        width: previewContentSize.width,
+                        height: previewContentSize.height,
+                        overflow: "hidden",
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: "top left",
+                      }}
                     srcDoc={previewHtml}
                     onLoad={handlePreviewLoad}
                   />
@@ -350,6 +318,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
                   <div className={previewMessageClass}>プレビューを生成できません。</div>
                 )
               ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </div>

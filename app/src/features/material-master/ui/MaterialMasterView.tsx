@@ -325,7 +325,6 @@ export default function MaterialMasterView() {
         open={isCreateOpen}
         onClose={closeCreate}
         onSave={handleCreate}
-        existingMaterials={rows}
         categoryOptions={getOptions("category")}
         supplierOptions={supplierOptionsFromClients}
         unitOptions={getOptions("unit")}
@@ -340,7 +339,6 @@ export default function MaterialMasterView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
-        existingMaterials={rows}
         categoryOptions={getOptions("category")}
         supplierOptions={supplierOptionsFromClients}
         unitOptions={getOptions("unit")}

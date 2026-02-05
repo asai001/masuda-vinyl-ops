@@ -2,6 +2,7 @@ export type ProductRow = {
   id: number;
   code: string;
   name: string;
+  packaging: number | null;
   category: string;
   unit: string;
   currency: string;
@@ -19,6 +20,7 @@ export const productRows: ProductRow[] = [
     id: 1,
     code: "LDBA043800-2",
     name: "RAIL TOP",
+    packaging: null,
     category: "部品",
     unit: "pcs",
     currency: "USD",
@@ -34,6 +36,7 @@ export const productRows: ProductRow[] = [
     id: 2,
     code: "LDBA043900-2",
     name: "RAIL BOTTOM",
+    packaging: null,
     category: "原材料",
     unit: "pcs",
     currency: "USD",
@@ -49,6 +52,7 @@ export const productRows: ProductRow[] = [
     id: 3,
     code: "LDBA044901-2",
     name: "DOOR OUTER SASH R -S500",
+    packaging: null,
     category: "原材料",
     unit: "pcs",
     currency: "USD",
@@ -64,6 +68,7 @@ export const productRows: ProductRow[] = [
     id: 4,
     code: "LDBA045001-2",
     name: "DOOR OUTER SASH L-S500",
+    packaging: null,
     category: "完成品",
     unit: "pcs",
     currency: "JPY",
@@ -79,6 +84,7 @@ export const productRows: ProductRow[] = [
     id: 5,
     code: "LDBA045101-3",
     name: "DOOR CENTER SASH-S500H",
+    packaging: null,
     category: "半製品",
     unit: "pcs",
     currency: "USD",
