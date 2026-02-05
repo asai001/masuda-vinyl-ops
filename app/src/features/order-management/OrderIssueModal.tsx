@@ -5,8 +5,6 @@ import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { ClientRow } from "@/features/client-master/types";
 import type { OrderRow } from "@/features/order-management/types";
-import { fetchExchangeRates } from "@/features/settings/api/client";
-import type { ExchangeRates } from "@/features/settings/types";
 import { renderOrderIssueHtml, type OrderIssuePdfPayload, type PdfFontSources } from "./orderIssueTemplate";
 
 type OrderIssueModalProps = {
@@ -17,12 +15,6 @@ type OrderIssueModalProps = {
 };
 
 const amountFormatter = new Intl.NumberFormat("en-US");
-const defaultExchangeRates: ExchangeRates = {
-  jpyPerUsd: 150,
-  vndPerUsd: 25000,
-};
-const isAbortError = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
-
 const previewFontSources: PdfFontSources = {
   jpRegular: "/fonts/NotoSerifJP-Regular.ttf",
   jpBold: "/fonts/NotoSerifJP-Bold.ttf",
@@ -60,7 +52,6 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const [isDownloading, setIsDownloading] = useState(false);
   const [issueNote, setIssueNote] = useState("");
   const [orderNumberInput, setOrderNumberInput] = useState("");
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(defaultExchangeRates);
   const [previewScale, setPreviewScale] = useState(1);
   const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
     width: a4WidthPx,
@@ -73,29 +64,6 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const [previewViewportHeight, setPreviewViewportHeight] = useState<number>(a4HeightPx);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const data = await fetchExchangeRates(ac.signal);
-        if (!ac.signal.aborted) {
-          setExchangeRates({
-            jpyPerUsd: data.jpyPerUsd,
-            vndPerUsd: data.vndPerUsd,
-          });
-        }
-      } catch (e) {
-        if (!isAbortError(e)) {
-          console.error("Failed to load exchange rates", e);
-        }
-      }
-    })();
-    return () => ac.abort();
-  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -169,39 +137,14 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const supplierAddressLine1 = supplierAddress;
   const supplierAddressLine2 = "";
 
-  const safeRates = useMemo(() => {
-    const jpyPerUsd =
-      Number.isFinite(exchangeRates.jpyPerUsd) && exchangeRates.jpyPerUsd > 0
-        ? exchangeRates.jpyPerUsd
-        : defaultExchangeRates.jpyPerUsd;
-    const vndPerUsd =
-      Number.isFinite(exchangeRates.vndPerUsd) && exchangeRates.vndPerUsd > 0
-        ? exchangeRates.vndPerUsd
-        : defaultExchangeRates.vndPerUsd;
-    return { jpyPerUsd, vndPerUsd };
-  }, [exchangeRates]);
-
-  const vndRate = useMemo(() => {
-    if (!order) {
-      return 1;
-    }
-    switch (order.currency) {
-      case "USD":
-        return safeRates.vndPerUsd;
-      case "JPY":
-        return safeRates.vndPerUsd / safeRates.jpyPerUsd;
-      case "VND":
-      default:
-        return 1;
-    }
-  }, [order, safeRates]);
   const amountLabel = useMemo(() => {
     if (!order) {
       return "-";
     }
-    const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) * vndRate;
-    return amountFormatter.format(totalAmount);
-  }, [order, vndRate]);
+    const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const formatted = amountFormatter.format(totalAmount);
+    return order.currency ? `${order.currency} ${formatted}` : formatted;
+  }, [order]);
   const lineItems = useMemo(() => {
     if (!order) {
       return [];
@@ -210,19 +153,32 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       name: item.itemName,
       unit: item.unit || "-",
       quantity: amountFormatter.format(item.quantity),
-      unitPrice: amountFormatter.format(item.unitPrice * vndRate),
+      unitPrice: amountFormatter.format(item.unitPrice),
       deliveryDate: order.deliveryDate,
-      amount: amountFormatter.format(item.quantity * item.unitPrice * vndRate),
+      amount: amountFormatter.format(item.quantity * item.unitPrice),
     }));
-  }, [order, vndRate]);
+  }, [order]);
   const noteLabel = issueNote.trim();
 
   const pdfPayload = useMemo<OrderIssuePdfPayload | null>(() => {
     if (!order) {
       return null;
     }
-    return {
-      orderNumber: resolvedOrderNumber,
+      return {
+        orderNumber: resolvedOrderNumber,
+        issueDate,
+        supplierName,
+        supplierAddressLine1,
+        supplierAddressLine2,
+        supplierPhone,
+        lineItems,
+        amountLabel,
+        currency: order.currency ?? "",
+        note: noteLabel,
+      };
+    }, [
+      order,
+      resolvedOrderNumber,
       issueDate,
       supplierName,
       supplierAddressLine1,
@@ -230,20 +186,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       supplierPhone,
       lineItems,
       amountLabel,
-      note: noteLabel,
-    };
-  }, [
-    order,
-    resolvedOrderNumber,
-    issueDate,
-    supplierName,
-    supplierAddressLine1,
-    supplierAddressLine2,
-    supplierPhone,
-    lineItems,
-    amountLabel,
-    noteLabel,
-  ]);
+      noteLabel,
+    ]);
 
   const previewHtml = useMemo(() => {
     if (!pdfPayload) {
@@ -318,7 +262,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
         </div>
       }
     >
-      <div className="text-sm">注文書は VND に換算して発行します。</div>
+      <div className="text-sm">注文書は発注通貨で発行します。</div>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex min-h-0 flex-1 flex-col">
           <div className="flex flex-col gap-2">
