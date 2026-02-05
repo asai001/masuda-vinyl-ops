@@ -59,8 +59,6 @@ export default function NewMaterialModal({
   const [errors, setErrors] = useState(emptyErrors);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const isBlank = (v: string) => v.trim().length === 0;
-
   const resetForm = () => {
     setForm({
       code: "",
@@ -115,17 +113,15 @@ export default function NewMaterialModal({
   };
 
   const handleSave = () => {
+    const unitPriceValue = form.unitPrice.trim();
+    const parsedPrice = unitPriceValue ? Number(form.unitPrice) : 0;
     const nextErrors = {
-      code: "",
-      name: isBlank(form.name) ? "空文字だけでは登録できません" : "",
-      supplier: isBlank(form.supplier) ? "空文字だけでは登録できません" : "",
-      category: isBlank(form.category) ? "空文字だけでは登録できません" : "",
-      unit: isBlank(form.unit) ? "空文字だけでは登録できません" : "",
-      currency: isBlank(form.currency) ? "空文字だけでは登録できません" : "",
-      unitPrice: isBlank(form.unitPrice) ? "空文字だけでは登録できません" : "",
-      status: isBlank(form.status) ? "空文字だけでは登録できません" : "",
-      note: "",
+      ...emptyErrors,
+      unitPrice: unitPriceValue && Number.isNaN(parsedPrice) ? "数値で入力してください" : "",
     };
+    if (!nextErrors.unitPrice && unitPriceValue && parsedPrice < 0) {
+      nextErrors.unitPrice = "0以上で入力してください";
+    }
 
     setErrors(nextErrors);
 
@@ -134,16 +130,6 @@ export default function NewMaterialModal({
       return;
     }
     setActionError(null);
-
-    const parsedPrice = Number(form.unitPrice);
-    if (Number.isNaN(parsedPrice)) {
-      setErrors((prev) => ({ ...prev, unitPrice: "数値で入力してください" }));
-      return;
-    }
-    if (parsedPrice < 0) {
-      setErrors((prev) => ({ ...prev, unitPrice: "0以上で入力してください" }));
-      return;
-    }
 
     // 品番の重複チェックは行わない
 
@@ -199,7 +185,7 @@ export default function NewMaterialModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          品目名 <span className="text-red-500">*</span>
+          品目名
         </label>
         <TextField
           size="small"
@@ -214,7 +200,7 @@ export default function NewMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            仕入先 <span className="text-red-500">*</span>
+            仕入先
           </label>
           <Autocomplete
             options={supplierOptions}
@@ -235,7 +221,7 @@ export default function NewMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            カテゴリ <span className="text-red-500">*</span>
+            カテゴリ
           </label>
           <Autocomplete
             freeSolo
@@ -260,7 +246,7 @@ export default function NewMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            単位 <span className="text-red-500">*</span>
+            単位
           </label>
           <Autocomplete
             freeSolo
@@ -282,7 +268,7 @@ export default function NewMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
+            通貨
           </label>
           <FormControl size="small" error={Boolean(errors.currency)}>
             <Select
@@ -305,7 +291,7 @@ export default function NewMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            標準単価 <span className="text-red-500">*</span>
+            標準単価
           </label>
         <TextField
           size="small"
@@ -320,7 +306,7 @@ export default function NewMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            ステータス <span className="text-red-500">*</span>
+            ステータス
           </label>
           <FormControl size="small" error={Boolean(errors.status)}>
             <Select

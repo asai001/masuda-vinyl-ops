@@ -40,6 +40,14 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
   const columns = useMemo<TableColumn<PaymentManagementRow>[]>(
     () => [
       {
+        key: "transferDestinationName",
+        header: "支払先名",
+        sortKey: "transferDestinationName",
+        render: (row) => (
+          <span className="text-sm">{row.transferDestinationName ? row.transferDestinationName : "-"}</span>
+        ),
+      },
+      {
         key: "category",
         header: "カテゴリ",
         sortKey: "category",

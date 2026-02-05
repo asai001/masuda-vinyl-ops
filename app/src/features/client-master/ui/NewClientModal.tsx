@@ -88,26 +88,8 @@ export default function NewClientModal({
     setActionError(null);
   };
 
-  const isBlank = (v: string) => v.trim().length === 0;
-
   const handleSave = () => {
-    const nextErrors = {
-      name: isBlank(form.name) ? "空白だけでは登録できません" : "",
-      address: "",
-      phone: "",
-      taxId: "",
-      category: isBlank(form.category) ? "空白だけでは登録できません" : "",
-      region: "",
-      currency: isBlank(form.currency) ? "空白だけでは登録できません" : "",
-      status: isBlank(form.status) ? "空白だけでは登録できません" : "",
-      note: "",
-    };
-    setErrors(nextErrors);
-
-    if (Object.values(nextErrors).some(Boolean)) {
-      setActionError("入力内容をご確認ください。");
-      return;
-    }
+    setErrors(emptyErrors);
     setActionError(null);
 
     const normalizedStatus: NewClientInput["status"] = form.status === "inactive" ? "inactive" : "active";
@@ -150,9 +132,7 @@ export default function NewClientModal({
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          取引先 <span className="text-red-500">*</span>
-        </label>
+        <label className="text-sm font-semibold text-gray-700">取引先</label>
         <TextField
           size="small"
           placeholder="例: Nguyen Trading Co., Ltd."
@@ -206,9 +186,7 @@ export default function NewClientModal({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            区分 <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-semibold text-gray-700">区分</label>
           <Autocomplete
             freeSolo
             options={categoryOptions.map((option) => option.label)}
@@ -255,9 +233,7 @@ export default function NewClientModal({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-semibold text-gray-700">通貨</label>
           <FormControl size="small" error={Boolean(errors.currency)} disabled={isSaving}>
             <Select
               size="small"
@@ -276,9 +252,7 @@ export default function NewClientModal({
           </FormControl>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            ステータス <span className="text-red-500">*</span>
-          </label>
+          <label className="text-sm font-semibold text-gray-700">ステータス</label>
           <Select
             size="small"
             value={form.status}
