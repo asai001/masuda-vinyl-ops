@@ -477,6 +477,7 @@ export default function SalesManagementView() {
         unitPrice: item.unitPrice * safeUsdRate,
         palletCount: item.palletCount,
         totalWeight: item.totalWeight,
+        packaging: product?.packaging ?? null,
       };
     });
     const payload: InvoicePackingPayload = {

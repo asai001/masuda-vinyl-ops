@@ -55,6 +55,7 @@ function buildProductItem(
 ): ProductItem {
   const code = (base.code ?? "").trim();
   const name = (base.name ?? "").trim();
+  const packaging = typeof base.packaging === "number" ? base.packaging : base.packaging === null ? null : undefined;
   const category = base.category?.trim() || undefined;
   const unit = base.unit?.trim() || undefined;
   const currency = base.currency?.trim() || undefined;
@@ -77,6 +78,7 @@ function buildProductItem(
     displayNo: base.displayNo,
     code,
     name,
+    packaging,
     category,
     unit,
     currency,

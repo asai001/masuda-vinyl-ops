@@ -8,23 +8,6 @@ const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v
 
 const isOptionalString = (v: unknown): v is string | undefined => v === undefined || typeof v === "string";
 
-const normalizeCode = (value: string) => value.trim().toLowerCase();
-
-async function hasDuplicateCode(orgId: string, code: string, materialId?: string) {
-  const normalized = normalizeCode(code);
-  const items = await listMaterials(orgId);
-  return items.some((item) => {
-    const itemCode = normalizeCode(item.code ?? "");
-    if (!itemCode) {
-      return false;
-    }
-    if (itemCode !== normalized) {
-      return false;
-    }
-    return materialId ? item.materialId !== materialId : true;
-  });
-}
-
 const resource = "materials";
 
 const toMaterialTarget = (value: unknown) => {
@@ -83,7 +66,7 @@ function isNewMaterialInput(v: unknown): v is NewMaterialInput {
   const r = v as Record<string, unknown>;
 
   return (
-    isNonEmptyString(r.code) &&
+    typeof r.code === "string" &&
     isNonEmptyString(r.name) &&
     isNonEmptyString(r.supplier) &&
     isNonEmptyString(r.category) &&
@@ -103,7 +86,7 @@ function isUpdateMaterialInput(v: unknown): v is UpdateMaterialInput {
 
   return (
     isNonEmptyString(r.materialId) &&
-    isNonEmptyString(r.code) &&
+    typeof r.code === "string" &&
     isNonEmptyString(r.name) &&
     isNonEmptyString(r.supplier) &&
     isNonEmptyString(r.category) &&
@@ -161,21 +144,6 @@ export async function POST(req: Request) {
       errorMessage: "Invalid request body",
     });
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  if (await hasDuplicateCode(orgId, bodyUnknown.code)) {
-    await writeAuditLog({
-      req,
-      orgId,
-      actor,
-      action,
-      resource,
-      target: toMaterialTarget(bodyUnknown),
-      result: "failure",
-      statusCode: 409,
-      errorMessage: "Duplicate material code",
-    });
-    return NextResponse.json({ error: "品番が既に登録されています" }, { status: 409 });
   }
 
   try {
@@ -255,21 +223,6 @@ export async function PUT(req: Request) {
       errorMessage: "Invalid request body",
     });
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  if (await hasDuplicateCode(orgId, bodyUnknown.code, bodyUnknown.materialId)) {
-    await writeAuditLog({
-      req,
-      orgId,
-      actor,
-      action,
-      resource,
-      target: toMaterialTarget(bodyUnknown),
-      result: "failure",
-      statusCode: 409,
-      errorMessage: "Duplicate material code",
-    });
-    return NextResponse.json({ error: "品番が既に登録されています" }, { status: 409 });
   }
 
   try {

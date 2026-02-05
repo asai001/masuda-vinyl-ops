@@ -26,6 +26,7 @@ type NewProductModalProps = {
 const emptyErrors = {
   code: "",
   name: "",
+  packaging: "",
   category: "",
   unit: "",
   currency: "",
@@ -56,6 +57,7 @@ export default function NewProductModal({
     unitPrice: "",
     status: "active",
     note: "",
+    packaging: "",
     weight: "0",
     length: "0",
     speed: "0",
@@ -74,6 +76,7 @@ export default function NewProductModal({
       unitPrice: "",
       status: "active",
       note: "",
+      packaging: "",
       weight: "0",
       length: "0",
       speed: "0",
@@ -94,7 +97,7 @@ export default function NewProductModal({
     setActionError(null);
   };
 
-  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed", value: string) => {
+  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed" | "packaging", value: string) => {
     if (value.trim().startsWith("-")) {
       return;
     }
@@ -112,6 +115,7 @@ export default function NewProductModal({
     const nextErrors = {
       code: codeValue ? "" : "必須項目です",
       name: form.name ? "" : "必須項目です",
+      packaging: "",
       category: form.category ? "" : "必須項目です",
       unit: form.unit ? "" : "必須項目です",
       currency: form.currency ? "" : "必須項目です",
@@ -151,6 +155,13 @@ export default function NewProductModal({
     const parsedLength = parseRequiredNumber(form.length, "length");
     const parsedSpeed = parseRequiredNumber(form.speed, "speed");
 
+    const parsedPackaging = form.packaging.trim() ? Number(form.packaging) : null;
+    if (parsedPackaging !== null && Number.isNaN(parsedPackaging)) {
+      nextErrors.packaging = "数値で入力してください";
+    } else if (parsedPackaging !== null && parsedPackaging < 0) {
+      nextErrors.packaging = "0以上で入力してください";
+    }
+
     if (!nextErrors.code) {
       const normalizedCode = codeValue.toLowerCase();
       const isDuplicate = existingProducts.some((row) => row.code.trim().toLowerCase() === normalizedCode);
@@ -170,6 +181,7 @@ export default function NewProductModal({
     onSave({
       code: codeValue,
       name: form.name,
+      packaging: parsedPackaging,
       category: form.category,
       unit: form.unit,
       currency: form.currency,
@@ -241,6 +253,20 @@ export default function NewProductModal({
             helperText={errors.name}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">梱包数（/box）</label>
+        <TextField
+          size="small"
+          type="number"
+          placeholder="例: 20"
+          value={form.packaging}
+          onChange={(event) => handleNumberChange("packaging", event.target.value)}
+          error={Boolean(errors.packaging)}
+          helperText={errors.packaging}
+          slotProps={{ htmlInput: { min: 0, step: "1" } }}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

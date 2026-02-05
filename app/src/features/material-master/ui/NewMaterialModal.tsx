@@ -14,7 +14,6 @@ type Option = {
 
 type NewMaterialModalProps = {
   open: boolean;
-  existingMaterials: MaterialRow[];
   categoryOptions: Option[];
   supplierOptions: Option[];
   unitOptions: Option[];
@@ -38,7 +37,6 @@ const emptyErrors = {
 
 export default function NewMaterialModal({
   open,
-  existingMaterials,
   categoryOptions,
   supplierOptions,
   unitOptions,
@@ -62,7 +60,6 @@ export default function NewMaterialModal({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const isBlank = (v: string) => v.trim().length === 0;
-  const normalizeCode = (value: string) => value.trim().toLowerCase();
 
   const resetForm = () => {
     setForm({
@@ -119,7 +116,7 @@ export default function NewMaterialModal({
 
   const handleSave = () => {
     const nextErrors = {
-      code: isBlank(form.code) ? "空文字だけでは登録できません" : "",
+      code: "",
       name: isBlank(form.name) ? "空文字だけでは登録できません" : "",
       supplier: isBlank(form.supplier) ? "空文字だけでは登録できません" : "",
       category: isBlank(form.category) ? "空文字だけでは登録できません" : "",
@@ -148,15 +145,7 @@ export default function NewMaterialModal({
       return;
     }
 
-    const normalizedCode = normalizeCode(form.code);
-    if (normalizedCode) {
-      const hasDuplicate = existingMaterials.some((row) => normalizeCode(row.code) === normalizedCode);
-      if (hasDuplicate) {
-        setErrors((prev) => ({ ...prev, code: "品番が既に登録されています" }));
-        setActionError("入力内容をご確認ください。");
-        return;
-      }
-    }
+    // 品番の重複チェックは行わない
 
     onSave({
       code: form.code.trim(),
@@ -197,9 +186,7 @@ export default function NewMaterialModal({
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          品番 <span className="text-red-500">*</span>
-        </label>
+        <label className="text-sm font-semibold text-gray-700">品番</label>
         <TextField
           size="small"
           placeholder="例: PI-001"

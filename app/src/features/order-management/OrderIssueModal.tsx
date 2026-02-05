@@ -59,6 +59,7 @@ const requestPdfBlob = async (payload: OrderIssuePdfPayload, signal?: AbortSigna
 export default function OrderIssueModal({ open, order, onClose, clients = [] }: OrderIssueModalProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [issueNote, setIssueNote] = useState("");
+  const [orderNumberInput, setOrderNumberInput] = useState("");
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(defaultExchangeRates);
   const [previewScale, setPreviewScale] = useState(1);
   const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
@@ -98,9 +99,15 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   useEffect(() => {
     if (!open) {
       setIssueNote("");
+      setOrderNumberInput("");
       return;
     }
     setIssueNote(order?.note?.trim() ?? "");
+    if (order) {
+      setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
+    } else {
+      setOrderNumberInput("");
+    }
   }, [open, order]);
 
   const applyScale = (contentSize: PreviewSize) => {
@@ -146,7 +153,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     };
   }, [open, previewContentSize]);
   const issueDate = formatIssueDate(order?.orderDate);
-  const orderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const resolvedOrderNumber = orderNumberInput.trim() || defaultOrderNumber;
   const supplierName = order?.supplier ?? "取引先名";
   const supplierInfo = useMemo(() => {
     if (!order) {
@@ -212,7 +220,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       return null;
     }
     return {
-      orderNumber,
+      orderNumber: resolvedOrderNumber,
       issueDate,
       supplierName,
       supplierAddressLine1,
@@ -224,7 +232,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     };
   }, [
     order,
-    orderNumber,
+    resolvedOrderNumber,
     issueDate,
     supplierName,
     supplierAddressLine1,
@@ -251,7 +259,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `order-${orderNumber}.pdf`;
+      link.download = `order-${resolvedOrderNumber}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -310,6 +318,17 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       <div className="text-sm">注文書は VND に換算して発行します。</div>
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
         <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">注番</label>
+          <TextField
+            size="small"
+            placeholder={defaultOrderNumber}
+            value={orderNumberInput}
+            onChange={(event) => setOrderNumberInput(event.target.value)}
+            disabled={!order}
+          />
+          <div className="text-xs text-gray-500">空欄の場合は自動採番（{defaultOrderNumber}）を使用します。</div>
+        </div>
+        <div className="mt-6 flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
           <TextField
             size="small"
