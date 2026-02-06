@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
@@ -18,6 +18,7 @@ import NewSalesModal from "@/features/sales-management/ui/NewSalesModal";
 import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
 import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
 import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
+import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import {
   createSalesOrder,
@@ -78,6 +79,11 @@ export default function SalesManagementView() {
   const [issueTarget, setIssueTarget] = useState<SalesRow | null>(null);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [issueDialogKey, setIssueDialogKey] = useState(0);
+  const [isIssuePreviewOpen, setIsIssuePreviewOpen] = useState(false);
+  const [issuePreviewPayload, setIssuePreviewPayload] = useState<InvoicePackingPayload | null>(null);
+  const [issuePreviewTemplate, setIssuePreviewTemplate] = useState<InvoicePackingTemplate>("client");
+  const [issuePreviewRow, setIssuePreviewRow] = useState<SalesRow | null>(null);
+  const [isIssuePreviewLoading, setIsIssuePreviewLoading] = useState(false);
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
@@ -488,12 +494,10 @@ export default function SalesManagementView() {
     setIssueTarget(null);
   };
 
-  const handleIssue = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
-    if (issuingRowId !== null) {
-      return;
-    }
-    setIssuingRowId(row.id);
-    setIssueError(null);
+  const buildInvoicePackingPayload = async (
+    row: SalesRow,
+    templateType: InvoicePackingTemplate,
+  ): Promise<InvoicePackingPayload> => {
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
     const destinationCountry = countryLabelMap[region] ?? region;
@@ -521,7 +525,7 @@ export default function SalesManagementView() {
         packaging: product?.packaging ?? null,
       };
     });
-    const payload: InvoicePackingPayload = {
+    return {
       orderNo: row.orderNo,
       invoiceDate: formatInvoiceDate(),
       invoiceNo: row.orderNo,
@@ -533,23 +537,63 @@ export default function SalesManagementView() {
       consigneeTaxId: customerInfo?.taxId ?? "",
       items,
     };
+  };
 
+  const downloadInvoicePackingList = async (payload: InvoicePackingPayload) => {
+    const response = await fetch("/api/invoice-packing-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const openIssuePreview = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
+    setIssueError(null);
+    setIssuePreviewTemplate(templateType);
+    setIssuePreviewRow(row);
+    setIssuePreviewPayload(null);
+    setIsIssuePreviewOpen(true);
+    setIsIssuePreviewLoading(true);
     try {
-      const response = await fetch("/api/invoice-packing-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `インボイス-パッキングリスト-${sanitizeFileName(row.orderNo)}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const payload = await buildInvoicePackingPayload(row, templateType);
+      setIssuePreviewPayload(payload);
+    } catch (error) {
+      console.error("Failed to build invoice preview", error);
+      setIssueError("プレビューの生成に失敗しました。");
+      setIsIssuePreviewOpen(false);
+      setIssuePreviewRow(null);
+      setIssuePreviewPayload(null);
+    } finally {
+      setIsIssuePreviewLoading(false);
+    }
+  };
+
+  const closeIssuePreview = () => {
+    setIsIssuePreviewOpen(false);
+    setIssuePreviewPayload(null);
+    setIssuePreviewRow(null);
+    setIsIssuePreviewLoading(false);
+  };
+
+  const handleIssuePreview = async () => {
+    if (!issuePreviewRow || !issuePreviewPayload || issuingRowId !== null) {
+      return;
+    }
+    setIssuingRowId(issuePreviewRow.id);
+    setIssueError(null);
+    try {
+      await downloadInvoicePackingList(issuePreviewPayload);
+      closeIssuePreview();
     } catch (error) {
       console.error("Failed to download invoice packing list", error);
       const msg = "Excelファイルの発行に失敗しました";
@@ -567,7 +611,7 @@ export default function SalesManagementView() {
     const target = issueTarget;
     closeIssueDialog();
     if (target) {
-      handleIssue(target, templateType);
+      void openIssuePreview(target, templateType);
     }
   };
 
@@ -684,6 +728,15 @@ export default function SalesManagementView() {
         sales={issueTarget}
         onClose={closeIssueDialog}
         onSelect={handleIssueTemplateSelect}
+      />
+      <InvoicePackingPreviewModal
+        open={isIssuePreviewOpen}
+        payload={issuePreviewPayload}
+        templateType={issuePreviewTemplate}
+        loading={isIssuePreviewLoading}
+        issuing={Boolean(issuePreviewRow && issuingRowId === issuePreviewRow.id)}
+        onClose={closeIssuePreview}
+        onIssue={handleIssuePreview}
       />
       <DeleteSalesDialog
         open={Boolean(deletingRow)}
