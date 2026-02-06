@@ -81,7 +81,6 @@ export default function SalesManagementView() {
   const [issueDialogKey, setIssueDialogKey] = useState(0);
   const [isIssuePreviewOpen, setIsIssuePreviewOpen] = useState(false);
   const [issuePreviewPayload, setIssuePreviewPayload] = useState<InvoicePackingPayload | null>(null);
-  const [issuePreviewTemplate, setIssuePreviewTemplate] = useState<InvoicePackingTemplate>("client");
   const [issuePreviewRow, setIssuePreviewRow] = useState<SalesRow | null>(null);
   const [isIssuePreviewLoading, setIsIssuePreviewLoading] = useState(false);
 
@@ -559,7 +558,6 @@ export default function SalesManagementView() {
 
   const openIssuePreview = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
     setIssueError(null);
-    setIssuePreviewTemplate(templateType);
     setIssuePreviewRow(row);
     setIssuePreviewPayload(null);
     setIsIssuePreviewOpen(true);
@@ -732,7 +730,6 @@ export default function SalesManagementView() {
       <InvoicePackingPreviewModal
         open={isIssuePreviewOpen}
         payload={issuePreviewPayload}
-        templateType={issuePreviewTemplate}
         loading={isIssuePreviewLoading}
         issuing={Boolean(issuePreviewRow && issuingRowId === issuePreviewRow.id)}
         onClose={closeIssuePreview}

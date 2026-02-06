@@ -14,6 +14,7 @@ type ModalProps = {
   fullWidth?: boolean;
   showCloseButton?: boolean;
   contentSx?: SxProps<Theme>;
+  paperSx?: SxProps<Theme>;
 };
 
 export default function Modal({
@@ -26,6 +27,7 @@ export default function Modal({
   fullWidth = true,
   showCloseButton = true,
   contentSx,
+  paperSx,
 }: ModalProps) {
   return (
     <Dialog
@@ -33,7 +35,7 @@ export default function Modal({
       onClose={onClose}
       maxWidth={maxWidth}
       fullWidth={fullWidth}
-      PaperProps={{ sx: { maxWidth: 800, width: "100%" } }}
+      PaperProps={{ sx: { maxWidth: 800, width: "100%", ...paperSx } }}
     >
       <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
         {title}

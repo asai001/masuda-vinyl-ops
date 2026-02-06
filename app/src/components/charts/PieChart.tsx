@@ -56,30 +56,39 @@ export default function PieChart({
     );
   }
 
-  let currentAngle = -Math.PI / 2;
+  const slices = data.reduce<
+    Array<{
+      label: string;
+      value: number;
+      color: string;
+      startAngle: number;
+      endAngle: number;
+    }>
+  >((acc, slice, index) => {
+    const value = Math.max(slice.value, 0);
+    if (value <= 0) {
+      return acc;
+    }
+    const angle = (value / total) * Math.PI * 2;
+    const startAngle = acc.length ? acc[acc.length - 1].endAngle : -Math.PI / 2;
+    const endAngle = startAngle + angle;
+    const color = slice.color ?? defaultColors[index % defaultColors.length];
+    return [...acc, { label: slice.label, value, color, startAngle, endAngle }];
+  }, []);
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img">
-      {data.map((slice, index) => {
-        const value = Math.max(slice.value, 0);
-        if (value <= 0) {
-          return null;
-        }
-        const angle = (value / total) * Math.PI * 2;
-        const startAngle = currentAngle;
-        const endAngle = currentAngle + angle;
-        currentAngle = endAngle;
-        const color = slice.color ?? defaultColors[index % defaultColors.length];
+      {slices.map((slice, index) => {
         return (
           <path
             key={`${slice.label}-${index}`}
-            d={describeArc(center, center, radius, startAngle, endAngle)}
-            fill={color}
+            d={describeArc(center, center, radius, slice.startAngle, slice.endAngle)}
+            fill={slice.color}
             stroke={strokeWidth ? "#ffffff" : "none"}
             strokeWidth={strokeWidth}
           >
             <title>
-              {slice.label}: {value}
+              {slice.label}: {slice.value}
             </title>
           </path>
         );

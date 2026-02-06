@@ -1,4 +1,4 @@
-import type { InvoicePackingPayload, InvoicePackingTemplate } from "./invoicePackingList";
+import type { InvoicePackingPayload } from "./invoicePackingList";
 
 const shipperInfo = {
   name: "MASUDA VINYL VIETNAM CO.,LTD",
@@ -130,7 +130,7 @@ const renderInvoiceRows = (items: InvoicePackingPayload["items"]) => {
     .join("");
 };
 
-export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload, templateType: InvoicePackingTemplate) => {
+export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const destination = safeText(payload.destinationCountry);
@@ -337,10 +337,7 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
     .join("");
 };
 
-export const renderPackingListPreviewHtml = (
-  payload: InvoicePackingPayload,
-  templateType: InvoicePackingTemplate,
-) => {
+export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
   const invoiceNo = safeText(payload.invoiceNo ?? "");
   const invoiceDate = safeText(payload.invoiceDate);
@@ -407,7 +404,7 @@ export const renderPackingListPreviewHtml = (
                 <tr>
                   <td>
                     <div class="right-cell-title">Template</div>
-                    <div class="right-cell-value">${templateType === "hq" ? "HQ" : "CLIENT"}</div>
+                    <div class="right-cell-value">${payload.templateType === "hq" ? "HQ" : "CLIENT"}</div>
                   </td>
                 </tr>
               </table>

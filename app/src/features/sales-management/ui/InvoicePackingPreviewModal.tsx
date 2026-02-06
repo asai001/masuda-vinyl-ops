@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, CircularProgress, Tab, Tabs } from "@mui/material";
 import Modal from "@/components/Modal";
-import type { InvoicePackingPayload, InvoicePackingTemplate } from "@/features/sales-management/invoicePackingList";
+import type { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
 import {
   renderInvoicePreviewHtml,
   renderPackingListPreviewHtml,
@@ -14,7 +14,6 @@ type PreviewTab = "invoice" | "packing";
 type InvoicePackingPreviewModalProps = {
   open: boolean;
   payload: InvoicePackingPayload | null;
-  templateType: InvoicePackingTemplate;
   loading?: boolean;
   issuing?: boolean;
   onClose: () => void;
@@ -24,7 +23,6 @@ type InvoicePackingPreviewModalProps = {
 export default function InvoicePackingPreviewModal({
   open,
   payload,
-  templateType,
   loading = false,
   issuing = false,
   onClose,
@@ -32,20 +30,13 @@ export default function InvoicePackingPreviewModal({
 }: InvoicePackingPreviewModalProps) {
   const [tab, setTab] = useState<PreviewTab>("invoice");
 
-  useEffect(() => {
-    if (open) {
-      setTab("invoice");
-    }
-  }, [open]);
+  const handleClose = () => {
+    setTab("invoice");
+    onClose();
+  };
 
-  const invoiceHtml = useMemo(
-    () => (payload ? renderInvoicePreviewHtml(payload, templateType) : ""),
-    [payload, templateType],
-  );
-  const packingHtml = useMemo(
-    () => (payload ? renderPackingListPreviewHtml(payload, templateType) : ""),
-    [payload, templateType],
-  );
+  const invoiceHtml = useMemo(() => (payload ? renderInvoicePreviewHtml(payload) : ""), [payload]);
+  const packingHtml = useMemo(() => (payload ? renderPackingListPreviewHtml(payload) : ""), [payload]);
 
   const previewHtml = tab === "invoice" ? invoiceHtml : packingHtml;
   const canIssue = Boolean(payload) && !loading && !issuing;
@@ -54,12 +45,13 @@ export default function InvoicePackingPreviewModal({
     <Modal
       open={open}
       title="インボイス・パッキングリスト プレビュー"
-      onClose={onClose}
+      onClose={handleClose}
+      paperSx={{ width: "70vw", height: "70vh", maxWidth: "70vw" }}
       contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center gap-2">
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="outlined" onClick={onClose}>
+            <Button variant="outlined" onClick={handleClose}>
               キャンセル
             </Button>
             <Button
