@@ -8,6 +8,7 @@ const shipperInfo = {
   ],
   tel: "0204 3662 777",
   fax: "0204 3662 825",
+  fromLocation: "BACNINH VIETNAM",
   countryOfOrigin: "VIETNAM",
   terms: "FOB HAI PHONG VIETNAM Incoterms® 2020",
 };
@@ -84,10 +85,58 @@ const commonStyles = `
   .fromto-label { width: 28%; font-weight: 700; border-bottom: 1px dotted #111111; }
   .fromto-line { border-bottom: 1px dotted #111111; height: 1px; width: 100%; }
   .fromto-value { text-align: center; border-bottom: 1px dotted #111111; font-weight: 700; padding: 6px 0; }
-  .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  .invoice-top-table { width: 100%; border-collapse: collapse; border: 2px solid #111111; table-layout: fixed; }
+  .invoice-top-table > tbody > tr > td,
+  .invoice-top-table > tr > td { border: 1px solid #111111; vertical-align: top; padding: 0; }
+  .invoice-top-left { width: 67%; }
+  .invoice-top-right { width: 33%; }
+  .invoice-block { padding: 4px 6px; }
+  .invoice-block-title { font-size: 12px; font-weight: 700; line-height: 1.2; }
+  .invoice-block-body { font-size: 12px; line-height: 1.3; min-height: 72px; }
+  .invoice-party-name { font-size: 13px; font-weight: 700; line-height: 1.25; margin: 4px 0 1px; letter-spacing: 0.1px; }
+  .invoice-contact-gap { height: 14px; }
+  .invoice-consignee-body { min-height: 112px; }
+  .invoice-right-head-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .invoice-right-head-table td { padding: 0; }
+  .invoice-right-head-row-invoice td { border-bottom: 1px solid #111111; }
+  .invoice-right-head-row-terms td { border-top: 1px solid #111111; }
+  .invoice-right-invoice { text-align: center; padding: 3px 4px 4px; }
+  .invoice-right-invoice-label { font-size: 12px; font-weight: 700; line-height: 1.15; }
+  .invoice-right-invoice-no { font-size: 13px; font-weight: 700; line-height: 1.15; margin-top: 2px; }
+  .invoice-country-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .invoice-country-table td { text-align: center; padding: 1px 2px; font-size: 10px; line-height: 1.15; }
+  .invoice-country-table td + td { border-left: 1px solid #111111; }
+  .invoice-country-table tr + tr td { border-top: 1px solid #111111; }
+  .invoice-country-head { font-weight: 700; }
+  .invoice-country-value { font-size: 12px; font-weight: 700; }
+  .invoice-terms-title { text-align: center; font-size: 12px; font-weight: 700; padding: 3px 4px; line-height: 1.2; }
+  .invoice-right-terms-gap { min-height: 70px; border-bottom: 1px solid #111111; }
+  .invoice-right-remark { font-size: 12px; font-weight: 400; line-height: 1.15; padding: 2px 4px; }
+  .invoice-option-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .invoice-option-table td { padding: 1px 2px; font-size: 9px; line-height: 1.1; vertical-align: middle; }
+  .invoice-option-row td { height: 20px; }
+  .invoice-option-row:first-child .invoice-option-check { border-top: 1px solid #111111; }
+  .invoice-option-row + .invoice-option-row .invoice-option-check { border-top: 1px solid #111111; }
+  .invoice-option-row:last-child .invoice-option-check { border-bottom: 1px solid #111111; }
+  .invoice-option-check { width: 64px; text-align: center; border-right: 1px solid #111111; font-size: 10px; font-weight: 400; padding: 0; }
+  .invoice-option-label { padding-left: 2px; white-space: nowrap; }
+  .invoice-option-label .invoice-option-label-sample-en { font-size: 8px; white-space: nowrap; }
+  .invoice-option-row-gap td { height: 20px; padding: 0; }
+  .invoice-option-row-gap .invoice-option-check { border-right: none; }
+  .invoice-option-gap { height: 10px; }
+  .invoice-fromto-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+  .invoice-fromto-table td { padding: 3px 6px; }
+  .invoice-fromto-row-from td { border-bottom: 1px dotted #111111; }
+  .invoice-fromto-label { width: 28%; font-weight: 700; }
+  .invoice-fromto-dotted { border-bottom: 1px dotted #111111; }
+  .invoice-fromto-value { text-align: center; font-size: 13px; font-weight: 700; padding: 0 0 4px; line-height: 1.2; }
+  .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; border: 2px solid #111111; }
   .items-table th, .items-table td { border: 1px solid #111111; padding: 3px 4px; font-size: 11px; }
   .items-table th { text-align: center; font-weight: 700; }
   .items-table td { height: 20px; }
+  .invoice-items-table th, .invoice-items-table td { text-align: center; }
+  .invoice-items-table .text-right { text-align: center; }
+  .invoice-items-table .items-header-sub { font-size: 10px; }
   .text-right { text-align: right; }
   .text-center { text-align: center; }
   .footers { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; }
@@ -148,114 +197,125 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
         <div class="title">INVOICE</div>
         <div class="meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
 
-        <table class="info-table">
+        <table class="invoice-top-table">
           <tr>
-            <td class="info-left-cell">
-              <div class="block-title">依頼主 (Shipper Address)</div>
-              <div class="block-body">
-                <div class="shipper-name">${safeText(shipperInfo.name)}</div>
-                ${shipperInfo.lines.map((line) => `<div>${safeText(line)}</div>`).join("")}
-                <div>TEL: ${safeText(shipperInfo.tel)}</div>
-                <div>FAX: ${safeText(shipperInfo.fax)}</div>
+            <td class="invoice-top-left">
+              <div class="invoice-block">
+                <div class="invoice-block-title">依頼主 (Shipper Address)</div>
+                <div class="invoice-block-body">
+                  <div class="invoice-party-name">${safeText(shipperInfo.name)}</div>
+                  ${shipperInfo.lines.map((line) => `<div>${safeText(line)}</div>`).join("")}
+                  <div>TEL: ${safeText(shipperInfo.tel)}</div>
+                  <div>FAX : ${safeText(shipperInfo.fax)}</div>
+                </div>
               </div>
             </td>
-            <td class="info-right-cell">
-              <table class="right-top-table">
-                <tr>
+            <td class="invoice-top-right">
+              <table class="invoice-right-head-table">
+                <tr class="invoice-right-head-row-invoice">
                   <td>
-                    <div class="right-cell-title">Invoice No</div>
-                    <div class="right-cell-value">${invoiceNo}</div>
+                    <div class="invoice-right-invoice">
+                      <div class="invoice-right-invoice-label">Invoice No</div>
+                      <div class="invoice-right-invoice-no">${invoiceNo}</div>
+                    </div>
                   </td>
                 </tr>
-                <tr>
+                <tr class="invoice-right-head-row-country">
                   <td class="tight">
-                    <table class="origin-table">
+                    <table class="invoice-country-table">
+                      <colgroup>
+                        <col style="width: 34%;" />
+                        <col style="width: 66%;" />
+                      </colgroup>
                       <tr>
-                        <td class="origin-head">(原産国)<br/>Country of Origin</td>
-                        <td class="origin-head">(仕向国名)<br/>Country of Destination</td>
+                        <td class="invoice-country-head">(原産国)<br/>Country of Origin</td>
+                        <td class="invoice-country-head">(仕向先国名)<br/>Country of Destination</td>
                       </tr>
                       <tr>
-                        <td>${safeText(shipperInfo.countryOfOrigin)}</td>
-                        <td>${destination}</td>
+                        <td class="invoice-country-value">${safeText(shipperInfo.countryOfOrigin)}</td>
+                        <td class="invoice-country-value">${destination}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
+                <tr class="invoice-right-head-row-terms">
+                  <td>
+                    <div class="invoice-terms-title">支払条件 (Terms of Payment)</div>
+                  </td>
+                </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td class="info-left-cell">
-              <div class="block-title">荷受人 (Consignee)</div>
-              <div class="block-body">
-                <div class="shipper-name">${safeText(payload.consigneeName)}</div>
-                <div>${safeText(payload.consigneeAddress)}</div>
-                <div>TEL: ${safeText(payload.consigneeTel)}</div>
-                <div>TAX ID: ${safeText(payload.consigneeTaxId)}</div>
+            <td class="invoice-top-left">
+              <div class="invoice-block">
+                <div class="invoice-block-title">荷受人(Consignee)</div>
+                <div class="invoice-block-body invoice-consignee-body">
+                  <div class="invoice-party-name">${safeText(payload.consigneeName)}</div>
+                  <div>${safeText(payload.consigneeAddress)}</div>
+                  <div class="invoice-contact-gap"></div>
+                  <div>TEL: ${safeText(payload.consigneeTel)}</div>
+                  <div>TAX ID: ${safeText(payload.consigneeTaxId)}</div>
+                </div>
               </div>
             </td>
-            <td class="info-right-cell">
-              <table class="right-middle-table">
-                <tr>
-                  <td class="right-terms">
-                    <div class="block-title">支払条件 (Terms of Payment)</div>
+            <td class="invoice-top-right tight" rowspan="2">
+              <div class="invoice-right-terms-gap"></div>
+              <div class="invoice-right-remark">備考 (Remark):</div>
+              <div class="invoice-option-gap"></div>
+              <table class="invoice-option-table">
+                <tr class="invoice-option-row">
+                  <td class="invoice-option-check">&#10003;</td>
+                  <td class="invoice-option-label">有償 (Commercial Value)</td>
+                </tr>
+                <tr class="invoice-option-row">
+                  <td class="invoice-option-check"></td>
+                  <td class="invoice-option-label">無償(No Commercial Value)</td>
+                </tr>
+                <tr class="invoice-option-row invoice-option-row-gap">
+                  <td class="invoice-option-check"></td>
+                  <td class="invoice-option-label"></td>
+                </tr>
+                <tr class="invoice-option-row">
+                  <td class="invoice-option-check"></td>
+                  <td class="invoice-option-label">贈物 (Gift)</td>
+                </tr>
+                <tr class="invoice-option-row">
+                  <td class="invoice-option-check"></td>
+                  <td class="invoice-option-label">
+                    商品見本(<span class="invoice-option-label-sample-en">Sample, No Commercial Value</span>)
                   </td>
                 </tr>
-                <tr>
-                  <td class="right-note">
-                    <div class="block-title">備考 (Remark):</div>
-                  </td>
+                <tr class="invoice-option-row">
+                  <td class="invoice-option-check"></td>
+                  <td class="invoice-option-label">その他 (Other)</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td class="info-left-cell">
-              <table class="fromto-table">
-                <tr>
-                  <td class="fromto-label">From (発地国)</td>
-                  <td class="fromto-line"></td>
+            <td class="invoice-top-left">
+              <table class="invoice-fromto-table">
+                <tr class="invoice-fromto-row-from">
+                  <td class="invoice-fromto-label">From (発地国)</td>
+                  <td></td>
                 </tr>
                 <tr>
-                  <td colspan="2" class="fromto-value">${safeText(shipperInfo.countryOfOrigin)}</td>
+                  <td colspan="2" class="invoice-fromto-value">${safeText(shipperInfo.fromLocation)}</td>
                 </tr>
                 <tr>
-                  <td class="fromto-label">To (着地国)</td>
-                  <td class="fromto-line"></td>
+                  <td class="invoice-fromto-label">To (着地国)</td>
+                  <td></td>
                 </tr>
                 <tr>
-                  <td colspan="2" class="fromto-value">${destination}</td>
-                </tr>
-              </table>
-            </td>
-            <td class="info-right-cell">
-              <table class="check-table">
-                <tr>
-                  <td class="check-cell">&#10003;</td>
-                  <td>有償 (Commercial Value)</td>
-                </tr>
-                <tr>
-                  <td class="check-cell"></td>
-                  <td>無償 (No Commercial Value)</td>
-                </tr>
-                <tr>
-                  <td class="check-cell"></td>
-                  <td>贈物 (Gift)</td>
-                </tr>
-                <tr>
-                  <td class="check-cell"></td>
-                  <td>商品見本 (Sample, No Commercial Value)</td>
-                </tr>
-                <tr>
-                  <td class="check-cell"></td>
-                  <td>その他 (Other)</td>
+                  <td colspan="2" class="invoice-fromto-value">${destination}</td>
                 </tr>
               </table>
             </td>
           </tr>
         </table>
 
-        <table class="items-table">
+        <table class="items-table invoice-items-table">
           <colgroup>
             <col style="width: 4%" />
             <col style="width: 12%" />
@@ -268,14 +328,13 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
           </colgroup>
           <thead>
             <tr>
-              <th>No</th>
-              <th>品番<br/>(Part No)</th>
-              <th>品名<br/>(Part Name)</th>
+              <th colspan="2">品番<br/><span class="items-header-sub">(Part No)</span></th>
+              <th>品名<br/><span class="items-header-sub">(Part Name)</span></th>
               <th>注文書No<br/>PO No</th>
-              <th>単位<br/>(Unit)</th>
-              <th>数量<br/>(Quantity)</th>
-              <th>単価<br/>(Unit Price)<br/>USD</th>
-              <th>合計<br/>(Total Amount)<br/>USD</th>
+              <th>単位<br/><span class="items-header-sub">(Unit)</span></th>
+              <th>数量<br/><span class="items-header-sub">(Quantity)</span></th>
+              <th>単価<br/><span class="items-header-sub">(Unit Price)</span><br/>USD</th>
+              <th>合計<br/><span class="items-header-sub">(Total Amount)</span><br/>USD</th>
             </tr>
           </thead>
           <tbody>

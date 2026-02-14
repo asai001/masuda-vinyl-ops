@@ -478,6 +478,68 @@ export default function SalesManagementView() {
     return sanitized || "invoice";
   };
 
+  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
+  type SaveFilePickerHandle = {
+    createWritable: () => Promise<{
+      write: (data: Blob) => Promise<void>;
+      close: () => Promise<void>;
+    }>;
+  };
+
+  const pickSaveFileHandle = async (fileName: string): Promise<SaveFilePickerHandle | "cancelled" | null> => {
+    const picker = (
+      window as Window & {
+        showSaveFilePicker?: (options?: {
+          suggestedName?: string;
+          types?: Array<{
+            description?: string;
+            accept: Record<string, string[]>;
+          }>;
+          excludeAcceptAllOption?: boolean;
+        }) => Promise<SaveFilePickerHandle>;
+      }
+    ).showSaveFilePicker;
+    if (!picker) {
+      return null;
+    }
+    try {
+      return await picker({
+        suggestedName: fileName,
+        types: [
+          {
+            description: "Excel (.xlsx)",
+            accept: {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        return "cancelled";
+      }
+      throw error;
+    }
+  };
+
+  const saveBlobToPickedFile = async (
+    blob: Blob,
+    handle: SaveFilePickerHandle,
+  ): Promise<"saved" | "cancelled"> => {
+    try {
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return "saved";
+    } catch (error) {
+      if (isAbortError(error)) {
+        return "cancelled";
+      }
+      throw error;
+    }
+  };
+
   const openIssueDialog = (row: SalesRow) => {
     if (issuingRowId !== null) {
       return;
@@ -538,7 +600,10 @@ export default function SalesManagementView() {
     };
   };
 
-  const downloadInvoicePackingList = async (payload: InvoicePackingPayload) => {
+  const downloadInvoicePackingList = async (
+    payload: InvoicePackingPayload,
+    saveFileHandle: SaveFilePickerHandle | null,
+  ): Promise<"saved" | "cancelled"> => {
     const response = await fetch("/api/invoice-packing-list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -548,12 +613,17 @@ export default function SalesManagementView() {
       throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
     }
     const blob = await response.blob();
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
+    if (saveFileHandle) {
+      return saveBlobToPickedFile(blob, saveFileHandle);
+    }
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
+    link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
+    return "saved";
   };
 
   const openIssuePreview = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
@@ -587,11 +657,27 @@ export default function SalesManagementView() {
     if (!issuePreviewRow || !issuePreviewPayload || issuingRowId !== null) {
       return;
     }
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(issuePreviewPayload.orderNo)}.xlsx`;
+    let saveFileHandle: SaveFilePickerHandle | null = null;
+    try {
+      const picked = await pickSaveFileHandle(fileName);
+      if (picked === "cancelled") {
+        return;
+      }
+      saveFileHandle = picked;
+    } catch (error) {
+      console.error("Failed to open save dialog", error);
+      const msg = "保存先の選択に失敗しました";
+      setIssueError(msg);
+      return;
+    }
     setIssuingRowId(issuePreviewRow.id);
     setIssueError(null);
     try {
-      await downloadInvoicePackingList(issuePreviewPayload);
-      closeIssuePreview();
+      const result = await downloadInvoicePackingList(issuePreviewPayload, saveFileHandle);
+      if (result === "saved") {
+        closeIssuePreview();
+      }
     } catch (error) {
       console.error("Failed to download invoice packing list", error);
       const msg = "Excelファイルの発行に失敗しました";
