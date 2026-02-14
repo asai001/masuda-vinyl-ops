@@ -40,6 +40,43 @@ const formatPackaging = (value: number | null | undefined, unit: string) => {
   return `${formatNumber(value as number, 0)} ${escapeHtml(unitLabel)}`;
 };
 
+const formatFixedNumber = (value: number, digits = 2) => {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
+
+const formatWeightKg = (value: number) => {
+  const formatted = formatFixedNumber(value, 2);
+  if (!formatted) {
+    return "";
+  }
+  return `${formatted} kg`;
+};
+
+const calculateBoxesCount = (quantity: number, packaging: number | null | undefined) => {
+  if (!Number.isFinite(quantity) || !Number.isFinite(packaging ?? NaN)) {
+    return 0;
+  }
+  const packagingValue = packaging as number;
+  if (packagingValue <= 0) {
+    return 0;
+  }
+  return Math.ceil(quantity / packagingValue);
+};
+
+const formatBoxesCount = (quantity: number, packaging: number | null | undefined) => {
+  const boxesCount = calculateBoxesCount(quantity, packaging);
+  if (!Number.isFinite(boxesCount) || boxesCount <= 0) {
+    return "";
+  }
+  return formatNumber(boxesCount, 0);
+};
+
 const commonStyles = `
   * { box-sizing: border-box; }
   body { margin: 0; padding: 0; background: #f3f4f6; color: #111111; font-family: "NotoSerifJP", "NotoSerif", serif; }
@@ -131,12 +168,39 @@ const commonStyles = `
   .invoice-fromto-dotted { border-bottom: 1px dotted #111111; }
   .invoice-fromto-value { text-align: center; font-size: 13px; font-weight: 700; padding: 0 0 4px; line-height: 1.2; }
   .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; border: 2px solid #111111; }
-  .items-table th, .items-table td { border: 1px solid #111111; padding: 3px 4px; font-size: 11px; }
-  .items-table th { text-align: center; font-weight: 700; }
-  .items-table td { height: 20px; }
+  .items-table th, .items-table td { border: 1px solid #111111; font-size: 11px; }
+  .items-table th { text-align: center; font-weight: 700; padding: 0; }
+  .items-table td { height: 20px; padding: 3px 4px; }
   .invoice-items-table th, .invoice-items-table td { text-align: center; }
   .invoice-items-table .text-right { text-align: center; }
   .invoice-items-table .items-header-sub { font-size: 10px; }
+  .packing-items-table th, .packing-items-table td { text-align: center; font-size: 9px; }
+  .packing-items-table td { height: 30px; }
+  .packing-items-table .items-header-sub { font-size: 7px; }
+  .packing-total-row td { font-weight: 700; }
+  .packing-total-label { text-align: center; }
+  .packing-total-value { white-space: nowrap; }
+  .packing-footer-origin-cell,
+  .packing-footer-body-cell { text-align: left !important; }
+  .packing-footer-origin-cell {
+    padding: 4px 8px !important;
+    font-weight: 700;
+    text-decoration: underline;
+    border-bottom: none !important;
+  }
+  .packing-footer-body-cell { padding: 8px 10px !important; border-top: none !important; }
+  .packing-footer-layout { display: flex; min-height: 120px; }
+  .packing-footer-left { display: flex; flex-direction: column; gap: 8px; }
+  .packing-footer-row { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: baseline; }
+  .packing-footer-value { min-width: 90px; white-space: nowrap; }
+  .packing-footer-signature {
+    margin-left: auto;
+    width: 36%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18px;
+  }
   .text-right { text-align: right; }
   .text-center { text-align: center; }
   .footers { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; }
@@ -179,24 +243,7 @@ const renderInvoiceRows = (items: InvoicePackingPayload["items"]) => {
     .join("");
 };
 
-export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const destination = safeText(payload.destinationCountry);
-  const invoiceNo = safeText(payload.invoiceNo ?? "");
-  const invoiceDate = safeText(payload.invoiceDate);
-
-  return `<!DOCTYPE html>
-  <html lang="ja">
-    <head>
-      <meta charset="utf-8" />
-      <style>${commonStyles}</style>
-    </head>
-    <body>
-      <div class="page">
-        <div class="title">INVOICE</div>
-        <div class="meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
-
+const renderSharedTopSection = (payload: InvoicePackingPayload, invoiceNo: string, destination: string) => `
         <table class="invoice-top-table">
           <tr>
             <td class="invoice-top-left">
@@ -314,6 +361,27 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
             </td>
           </tr>
         </table>
+`;
+
+export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const destination = safeText(payload.destinationCountry);
+  const invoiceNo = safeText(payload.invoiceNo ?? "");
+  const invoiceDate = safeText(payload.invoiceDate);
+
+  return `<!DOCTYPE html>
+  <html lang="ja">
+    <head>
+      <meta charset="utf-8" />
+      <style>${commonStyles}</style>
+    </head>
+    <body>
+      <div class="page">
+        <div class="title">INVOICE</div>
+        <div class="meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
+
+        ${renderSharedTopSection(payload, invoiceNo, destination)}
 
         <table class="items-table invoice-items-table">
           <colgroup>
@@ -372,13 +440,18 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
             <td></td>
             <td></td>
             <td></td>
-            <td class="text-right"></td>
-            <td class="text-right"></td>
-            <td class="text-right"></td>
-            <td class="text-right"></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
           </tr>
         `;
       }
+      const boxesCount = formatBoxesCount(item.quantity, item.packaging);
+      const netWeight = formatWeightKg(0);
+      const grossWeight = formatWeightKg(item.totalWeight);
       return `
         <tr>
           <td class="text-center">${index + 1}</td>
@@ -386,10 +459,12 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
           <td>${safeText(item.partName)}</td>
           <td class="text-center">${safeText(item.poNo)}</td>
           <td class="text-center">${safeText(item.unit)}</td>
-          <td class="text-right">${formatQuantity(item.quantity)}</td>
+          <td class="text-center">${formatQuantity(item.quantity)}</td>
           <td class="text-center">${formatPackaging(item.packaging, item.unit)}</td>
-          <td class="text-right">${formatNumber(item.palletCount, 0)}</td>
-          <td class="text-right">${formatNumber(item.totalWeight)}</td>
+          <td class="text-center">${boxesCount}</td>
+          <td class="text-center">${formatNumber(item.palletCount, 0)}</td>
+          <td class="text-center">${netWeight}</td>
+          <td class="text-center">${grossWeight}</td>
         </tr>
       `;
     })
@@ -399,7 +474,16 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
 export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
   const invoiceNo = safeText(payload.invoiceNo ?? "");
+  const destination = safeText(payload.destinationCountry);
   const invoiceDate = safeText(payload.invoiceDate);
+  const totalQuantity = items.reduce((sum, item) => sum + (Number.isFinite(item.quantity) ? item.quantity : 0), 0);
+  const totalBoxes = items.reduce((sum, item) => sum + calculateBoxesCount(item.quantity, item.packaging), 0);
+  const totalPallets = items.reduce((sum, item) => sum + (Number.isFinite(item.palletCount) ? item.palletCount : 0), 0);
+  const totalGrossWeight = items.reduce(
+    (sum, item) => sum + (Number.isFinite(item.totalWeight) ? item.totalWeight : 0),
+    0,
+  );
+  const estimatedCbm = totalPallets * 1.6683;
 
   return `<!DOCTYPE html>
   <html lang="ja">
@@ -412,92 +496,75 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
         <div class="title">PACKING LIST</div>
         <div class="meta-top"><span>Date: ${invoiceDate}</span></div>
 
-        <table class="info-table">
-          <tr>
-            <td class="info-left-cell">
-              <div class="block">
-                <div class="block-title">依頼主 (Shipper Address)</div>
-                <div class="block-body">
-                  <div class="shipper-name">${safeText(shipperInfo.name)}</div>
-                  ${shipperInfo.lines.map((line) => `<div>${safeText(line)}</div>`).join("")}
-                  <div>TEL: ${safeText(shipperInfo.tel)}</div>
-                  <div>FAX: ${safeText(shipperInfo.fax)}</div>
-                </div>
-              </div>
-              <div class="block">
-                <div class="block-title">荷受人 (Consignee)</div>
-                <div class="block-body">
-                  <div class="shipper-name">${safeText(payload.consigneeName)}</div>
-                  <div>${safeText(payload.consigneeAddress)}</div>
-                  <div>TEL: ${safeText(payload.consigneeTel)}</div>
-                  <div>TAX ID: ${safeText(payload.consigneeTaxId)}</div>
-                </div>
-              </div>
-              <div class="block">
-                <table class="fromto-table">
-                  <tr>
-                    <td class="fromto-label">From (発地国)</td>
-                    <td class="fromto-line"></td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" class="fromto-value">${safeText(shipperInfo.countryOfOrigin)}</td>
-                  </tr>
-                  <tr>
-                    <td class="fromto-label">To (着地国)</td>
-                    <td class="fromto-line"></td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" class="fromto-value">${safeText(payload.destinationCountry)}</td>
-                  </tr>
-                </table>
-              </div>
-            </td>
-            <td class="info-right-cell">
-              <table class="right-top-table">
-                <tr>
-                  <td>
-                    <div class="right-cell-title">Invoice No</div>
-                    <div class="right-cell-value">${invoiceNo}</div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div class="right-cell-title">Template</div>
-                    <div class="right-cell-value">${payload.templateType === "hq" ? "HQ" : "CLIENT"}</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
+        ${renderSharedTopSection(payload, invoiceNo, destination)}
 
-        <table class="items-table">
+        <table class="items-table packing-items-table">
           <colgroup>
             <col style="width: 4%" />
-            <col style="width: 12%" />
-            <col style="width: 24%" />
-            <col style="width: 14%" />
+            <col style="width: 18%" />
+            <col style="width: 18%" />
+            <col style="width: 11%" />
+            <col style="width: 4%" />
+            <col style="width: 6%" />
+            <col style="width: 9%" />
             <col style="width: 6%" />
             <col style="width: 8%" />
-            <col style="width: 14%" />
-            <col style="width: 9%" />
-            <col style="width: 9%" />
+            <col style="width: 8%" />
+            <col style="width: 8%" />
           </colgroup>
           <thead>
             <tr>
-              <th>No</th>
-              <th>品番<br/>(Part No)</th>
-              <th>品名<br/>(Part Name)</th>
+              <th colspan="2">品番<br/><span class="items-header-sub">(Part No)</span></th>
+              <th>品名<br/><span class="items-header-sub">(Part Name)</span></th>
               <th>注文書No<br/>PO No</th>
-              <th>単位<br/>(Unit)</th>
-              <th>数量<br/>(Quantity)</th>
-              <th>入数<br/>(Packaging)</th>
-              <th>パレット<br/>(Pallet)</th>
-              <th>重量<br/>(Weight)</th>
+              <th>単位<br/><span class="items-header-sub">(Unit)</span></th>
+              <th>数量<br/><span class="items-header-sub">(Quantity)</span></th>
+              <th>梱包<br/><span class="items-header-sub">(Packing)</span></th>
+              <th>箱数<br/><span class="items-header-sub">(Number of Boxs)</span></th>
+              <th>パレット数<br/><span class="items-header-sub">(Number of Pallets)</span></th>
+              <th>正味重量<br/><span class="items-header-sub">(Net weight)</span></th>
+              <th>総重量<br/><span class="items-header-sub">(Gross weight)</span></th>
             </tr>
           </thead>
           <tbody>
             ${renderPackingRows(items)}
+            <tr class="packing-total-row">
+              <td colspan="5" class="packing-total-label">合計 （Total）</td>
+              <td class="packing-total-value">${formatNumber(totalQuantity, 0)} pcs</td>
+              <td></td>
+              <td class="packing-total-value">${formatNumber(totalBoxes, 0)} Boxs</td>
+              <td class="packing-total-value">${formatNumber(totalPallets, 0)} Pallets</td>
+              <td class="packing-total-value">${formatWeightKg(0)}</td>
+              <td class="packing-total-value">${formatWeightKg(totalGrossWeight)}</td>
+            </tr>
+            <tr>
+              <td colspan="11" class="packing-footer-origin-cell">原産国 (Country of Origin) : ${safeText(shipperInfo.countryOfOrigin)}</td>
+            </tr>
+            <tr>
+              <td colspan="11" class="packing-footer-body-cell">
+                <div class="packing-footer-layout">
+                  <div class="packing-footer-left">
+                    <div class="packing-footer-row">
+                      <span>郵便物の個数 ( Number of pieces) :</span>
+                      <span class="packing-footer-value">${formatNumber(totalQuantity, 0)} pcs</span>
+                    </div>
+                    <div class="packing-footer-row">
+                      <span>総重量 (Gross weight) Kg :</span>
+                      <span class="packing-footer-value">${formatWeightKg(totalGrossWeight)}</span>
+                    </div>
+                    <div class="packing-footer-row">
+                      <span>原産国 (Country of Origin) :${safeText(shipperInfo.countryOfOrigin)}</span>
+                      <span class="packing-footer-value">${formatFixedNumber(estimatedCbm, 2)} CBM</span>
+                    </div>
+                    <div class="packing-footer-row">
+                      <span>輸送方法 ( Shipped pei) : SEA</span>
+                      <span class="packing-footer-value"></span>
+                    </div>
+                  </div>
+                  <div class="packing-footer-signature">署名 ( Singnature )</div>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
