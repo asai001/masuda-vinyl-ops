@@ -13,5 +13,6 @@ export type OrderIssueExcelPayload = {
   supplierAddress: string;
   supplierContact: string;
   currency: string;
+  note: string;
   lineItems: OrderIssueExcelLineItem[];
 };

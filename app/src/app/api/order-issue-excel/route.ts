@@ -14,6 +14,7 @@ const LINE_START_ROW = 13;
 const LINE_END_ROW_DEFAULT = 19;
 const LINE_END_ROW_12 = 24;
 const LINE_END_ROW_17 = 29;
+const NOTE_ROW_OFFSET = 4;
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -149,6 +150,7 @@ const normalizePayload = (payload: unknown): OrderIssueExcelPayload | null => {
     supplierAddress: toNonEmptyString(payload.supplierAddress),
     supplierContact: toNonEmptyString(payload.supplierContact),
     currency: toNonEmptyString(payload.currency),
+    note: typeof payload.note === "string" ? payload.note.trim() : "",
     lineItems: normalizeLineItems(payload.lineItems),
   };
 };
@@ -248,6 +250,11 @@ export async function POST(request: Request) {
       );
       sheet.cell(`H${row}`).value(toDisplayDate(item.deliveryDate));
     });
+
+    const noteRow = plan.lineEndRow + NOTE_ROW_OFFSET;
+    const noteLabel = "※摘要";
+    const noteValue = payload.note ? `${noteLabel}\n${payload.note}` : noteLabel;
+    sheet.cell(`B${noteRow}`).value(noteValue);
 
     const buffer = await workbook.outputAsync();
     const fileBytes = Uint8Array.from(buffer as Uint8Array);

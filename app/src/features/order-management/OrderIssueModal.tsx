@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { ClientRow } from "@/features/client-master/types";
+import { renderOrderIssuePreviewHtml } from "@/features/order-management/orderIssuePreview";
 import type { OrderRow } from "@/features/order-management/types";
 import type { OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
 
@@ -70,23 +71,37 @@ const requestOrderIssueExcelBlob = async (payload: OrderIssueExcelPayload, signa
   return response.blob();
 };
 
+const resolveLineItemLimit = (lineItemCount: number) => {
+  if (lineItemCount >= 13) {
+    return 17;
+  }
+  if (lineItemCount >= 8) {
+    return 12;
+  }
+  return 7;
+};
+
 export default function OrderIssueModal({ open, order, onClose, clients = [] }: OrderIssueModalProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [orderNumberInput, setOrderNumberInput] = useState("");
+  const [noteInput, setNoteInput] = useState("");
   const [issueError, setIssueError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setOrderNumberInput("");
+      setNoteInput("");
       setIssueError(null);
       return;
     }
     if (!order) {
       setOrderNumberInput("");
+      setNoteInput("");
       return;
     }
     setIssueError(null);
     setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
+    setNoteInput(order.note ?? "");
   }, [open, order]);
 
   const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
@@ -118,7 +133,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     }));
   }, [order]);
 
-  const displayedLineItems = useMemo(() => lineItems.slice(0, 7), [lineItems]);
+  const lineItemLimit = useMemo(() => resolveLineItemLimit(lineItems.length), [lineItems.length]);
+  const displayedLineItems = useMemo(() => lineItems.slice(0, lineItemLimit), [lineItems, lineItemLimit]);
 
   const totalAmountLabel = useMemo(() => {
     if (!order) {
@@ -142,9 +158,20 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       supplierAddress,
       supplierContact,
       currency: order.currency ?? "",
+      note: noteInput.trim(),
       lineItems,
     };
-  }, [lineItems, order, resolvedOrderNumber, supplierAddress, supplierContact]);
+  }, [lineItems, noteInput, order, resolvedOrderNumber, supplierAddress, supplierContact]);
+
+  const previewHtml = useMemo(() => {
+    if (!excelPayload) {
+      return "";
+    }
+    return renderOrderIssuePreviewHtml({
+      ...excelPayload,
+      note: noteInput,
+    });
+  }, [excelPayload, noteInput]);
 
   const handleDownload = async () => {
     if (!excelPayload || isDownloading) {
@@ -174,6 +201,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       open={open}
       title="注文書の発行"
       onClose={onClose}
+      paperSx={{ width: "70vw", height: "70vh", maxWidth: "70vw" }}
+      contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center justify-end gap-2">
           <Button variant="outlined" onClick={onClose} disabled={isDownloading}>
@@ -190,25 +219,51 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="text-sm text-gray-700">テンプレート（発注フォーム.xlsx）から注文書をExcel形式で発行します。</div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">注番</label>
-          <TextField
-            size="small"
-            placeholder={defaultOrderNumber}
-            value={orderNumberInput}
-            onChange={(event) => setOrderNumberInput(event.target.value)}
-            disabled={!order || isDownloading}
-          />
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,520px)_minmax(260px,1fr)]">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-700">注番</label>
+              <TextField
+                size="small"
+                placeholder={defaultOrderNumber}
+                value={orderNumberInput}
+                onChange={(event) => setOrderNumberInput(event.target.value)}
+                disabled={!order || isDownloading}
+              />
+            </div>
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              <div>発注日: {toIsoDate(order?.orderDate)}</div>
+              <div>仕入先: {order?.supplier ?? "-"}</div>
+              <div>明細行数: {displayedLineItems.length} / {lineItemLimit}</div>
+              <div>合計: {totalAmountLabel}</div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">摘要</label>
+            <TextField
+              size="small"
+              multiline
+              minRows={2}
+              maxRows={4}
+              placeholder="摘要を入力してください"
+              value={noteInput}
+              onChange={(event) => setNoteInput(event.target.value)}
+              disabled={!order || isDownloading}
+            />
+          </div>
+          {issueError ? <div className="text-sm text-red-600">{issueError}</div> : null}
+          <div className="flex min-h-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            {order ? (
+              <iframe title="order-issue-preview" className="h-full w-full border-0 bg-white" srcDoc={previewHtml} />
+            ) : (
+              <div className="flex w-full items-center justify-center text-sm text-gray-500">
+                プレビューを表示できません。
+              </div>
+            )}
+          </div>
         </div>
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-          <div>発注日: {toIsoDate(order?.orderDate)}</div>
-          <div>仕入先: {order?.supplier ?? "-"}</div>
-          <div>明細行数: {displayedLineItems.length} / 7</div>
-          <div>合計: {totalAmountLabel}</div>
-        </div>
-        {issueError ? <div className="text-sm text-red-600">{issueError}</div> : null}
       </div>
     </Modal>
   );
