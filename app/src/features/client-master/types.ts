@@ -9,6 +9,7 @@ export type ClientRow = {
   note: string;
   address: string;
   phone: string;
+  contactPerson: string;
   taxId?: string;
   category?: string;
   region: string;
@@ -27,6 +28,7 @@ export type ClientItem = {
   status?: "active" | "inactive" | undefined;
   address?: string;
   phone?: string;
+  contactPerson?: string;
   note?: string;
   code?: string;
   taxId?: string;
@@ -39,6 +41,7 @@ export type NewClientInput = {
   note: string;
   address?: string;
   phone?: string;
+  contactPerson?: string;
   taxId?: string;
   category: string;
   region: string;

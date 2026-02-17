@@ -169,6 +169,7 @@ export default function ClientMasterView() {
       { key: "name", label: "取引先", type: "text" },
       { key: "address", label: "住所", type: "text" },
       { key: "phone", label: "電話番号", type: "text" },
+      { key: "contactPerson", label: "担当者名", type: "text" },
       { key: "taxId", label: "TAX ID", type: "text" },
     ];
   }, [rows]);
@@ -213,6 +214,8 @@ export default function ClientMasterView() {
             return values.some((value) => row.address.toLowerCase().includes(value.value.toLowerCase()));
           case "phone":
             return values.some((value) => row.phone.toLowerCase().includes(value.value.toLowerCase()));
+          case "contactPerson":
+            return values.some((value) => row.contactPerson.toLowerCase().includes(value.value.toLowerCase()));
           case "taxId":
             return values.some((value) => (row.taxId ?? "").toLowerCase().includes(value.value.toLowerCase()));
           default:

@@ -26,6 +26,7 @@ const emptyErrors = {
   name: "",
   address: "",
   phone: "",
+  contactPerson: "",
   taxId: "",
   category: "",
   region: "",
@@ -47,6 +48,7 @@ export default function NewClientModal({
     name: "",
     address: "",
     phone: "",
+    contactPerson: "",
     taxId: "",
     category: "",
     region: "",
@@ -66,6 +68,7 @@ export default function NewClientModal({
       name: "",
       address: "",
       phone: "",
+      contactPerson: "",
       taxId: "",
       category: "",
       region: "",
@@ -98,6 +101,7 @@ export default function NewClientModal({
       note: form.note.trim(),
       address: form.address.trim(),
       phone: form.phone.trim(),
+      contactPerson: form.contactPerson.trim(),
       taxId: form.taxId.trim(),
       category: form.category.trim(),
       region: form.region.trim(),
@@ -169,6 +173,19 @@ export default function NewClientModal({
             helperText={errors.phone}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">担当者名</label>
+        <TextField
+          size="small"
+          placeholder="例: Nguyen Van A"
+          value={form.contactPerson}
+          onChange={(event) => handleChange("contactPerson", event.target.value)}
+          disabled={isSaving}
+          error={Boolean(errors.contactPerson)}
+          helperText={errors.contactPerson}
+        />
       </div>
 
       <div className="flex flex-col gap-2">

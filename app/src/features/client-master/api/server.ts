@@ -67,6 +67,7 @@ function buildClientItem(
     status,
     address: base.address?.trim() || undefined,
     phone: base.phone?.trim() || undefined,
+    contactPerson: base.contactPerson?.trim() || undefined,
     note: base.note?.trim() || undefined,
     taxId: base.taxId?.trim() || undefined,
     createdAt: base.createdAt,

@@ -22,6 +22,7 @@ function isNewClientInput(v: unknown): v is NewClientInput {
     (r.status === "active" || r.status === "inactive") &&
     isOptionalString(r.address) &&
     isOptionalString(r.phone) &&
+    isOptionalString(r.contactPerson) &&
     isOptionalString(r.taxId)
   );
 }
@@ -42,6 +43,7 @@ function isUpdateClientInput(v: unknown): v is UpdateClientInput {
     (r.status === "active" || r.status === "inactive") &&
     isOptionalString(r.address) &&
     isOptionalString(r.phone) &&
+    isOptionalString(r.contactPerson) &&
     isOptionalString(r.taxId)
   );
 }
@@ -57,6 +59,7 @@ const toClientTarget = (value: unknown) => {
     clientId: typeof record.clientId === "string" ? record.clientId : undefined,
     name: typeof record.name === "string" ? record.name : undefined,
     category: typeof record.category === "string" ? record.category : undefined,
+    contactPerson: typeof record.contactPerson === "string" ? record.contactPerson : undefined,
   };
 };
 
