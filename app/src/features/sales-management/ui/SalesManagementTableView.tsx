@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
@@ -144,20 +144,42 @@ export default function SalesManagementTableView({
         header: "使用材料",
         render: (row) => {
           const materials = getMaterials(row.items);
+          const firstRow = materials.slice(0, 3);
+          const secondRow = materials.slice(3, 5);
+          const hasOverflow = materials.length > 5;
           return materials.length ? (
-            <div className="flex flex-wrap gap-1">
-              {materials.map((material) => (
-                <Chip
-                  key={material}
-                  label={material}
-                  size="small"
-                  sx={{
-                    backgroundColor: "#e8f1ff",
-                    color: "#2563eb",
-                    fontWeight: 600,
-                  }}
-                />
-              ))}
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap gap-1">
+                {firstRow.map((material) => (
+                  <Chip
+                    key={material}
+                    label={material}
+                    size="small"
+                    sx={{
+                      backgroundColor: "#e8f1ff",
+                      color: "#2563eb",
+                      fontWeight: 600,
+                    }}
+                  />
+                ))}
+              </div>
+              {secondRow.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {secondRow.map((material) => (
+                    <Chip
+                      key={material}
+                      label={material}
+                      size="small"
+                      sx={{
+                        backgroundColor: "#e8f1ff",
+                        color: "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ))}
+                  {hasOverflow ? <span className="self-center text-xs text-gray-500">...</span> : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <span className="text-sm text-gray-400">-</span>
@@ -385,3 +407,4 @@ export default function SalesManagementTableView({
     />
   );
 }
+
