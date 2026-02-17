@@ -119,6 +119,11 @@ const resolveSheetPlan = (lineItemCount: number) => {
   return { sheetName: DEFAULT_SHEET_NAME, lineEndRow: LINE_END_ROW_DEFAULT };
 };
 
+const resolveSummaryRows = (lineEndRow: number) => ({
+  subtotalRow: lineEndRow + 1,
+  totalRow: lineEndRow + 3,
+});
+
 const normalizeLineItems = (items: unknown): OrderIssueExcelLineItem[] => {
   if (!Array.isArray(items)) {
     return [];
@@ -249,6 +254,18 @@ export async function POST(request: Request) {
         unitPriceNumberFormat,
       );
       sheet.cell(`H${row}`).value(toDisplayDate(item.deliveryDate));
+    });
+
+    const { subtotalRow, totalRow } = resolveSummaryRows(plan.lineEndRow);
+    [subtotalRow, totalRow].forEach((row) => {
+      (sheet.cell(`I${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+        "numberFormat",
+        unitPriceNumberFormat,
+      );
+      (sheet.cell(`J${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+        "numberFormat",
+        unitPriceNumberFormat,
+      );
     });
 
     const noteRow = plan.lineEndRow + NOTE_ROW_OFFSET;
