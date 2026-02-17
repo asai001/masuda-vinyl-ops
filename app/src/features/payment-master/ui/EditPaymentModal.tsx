@@ -157,7 +157,7 @@ export default function EditPaymentModal({
     >
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          振込先名
+          支払先名
         </label>
         <TextField
           size="small"
