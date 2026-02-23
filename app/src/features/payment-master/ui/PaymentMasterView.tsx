@@ -18,6 +18,7 @@ import {
 } from "@/features/payment-master/api/client";
 import type { NewPaymentInput, PaymentRow } from "@/features/payment-master/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 const defaultPaymentMethods = ["銀行振込", "口座振替", "現金", "クレジットカード"];
 const fixedCostOptions = [
@@ -26,6 +27,7 @@ const fixedCostOptions = [
 ];
 
 export default function PaymentMasterView() {
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -265,7 +267,7 @@ export default function PaymentMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <PaymentMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewPaymentModal
         open={isCreateOpen}

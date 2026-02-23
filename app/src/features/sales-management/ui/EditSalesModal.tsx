@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
+import { useLanguage } from "@/lib/i18n/language";
 import type {
   SalesDocumentStatusKey,
   SalesLineItem,
@@ -135,6 +136,7 @@ export default function EditSalesModal({
   onIssue,
   isIssuing = false,
 }: EditSalesModalProps) {
+  const { tx } = useLanguage();
   const getInitialForm = (row: SalesRow | null) => ({
     orderNo: row?.orderNo ?? "",
     orderDate: row?.orderDate ?? "",
@@ -599,7 +601,9 @@ export default function EditSalesModal({
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-gray-700">製品 #{index + 1}</div>
+                  <div className="text-sm font-semibold text-gray-700">
+                    {tx("製品")} #{index + 1}
+                  </div>
                   <Button variant="text" color="error" size="small" onClick={() => handleRemoveItem(item.id)}>
                     削除
                   </Button>

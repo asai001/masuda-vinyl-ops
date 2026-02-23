@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewMaterialInput, MaterialRow } from "../types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 type Option = {
   value: string;
@@ -45,6 +46,7 @@ export default function NewMaterialModal({
   onClose,
   onSave,
 }: NewMaterialModalProps) {
+  const { tx } = useLanguage();
   const [form, setForm] = useState({
     code: "",
     name: "",
@@ -149,8 +151,8 @@ export default function NewMaterialModal({
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
-    return selected?.label ?? "有効";
-  }, [form.status, statusOptions]);
+    return tx(selected?.label ?? "有効");
+  }, [form.status, statusOptions, tx]);
 
   return (
     <Modal

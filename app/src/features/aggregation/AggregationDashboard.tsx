@@ -1,5 +1,4 @@
 "use client";
-"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, ListItemText, MenuItem, Paper, Select, TextField } from "@mui/material";
@@ -7,6 +6,7 @@ import DataTable, { TableColumn } from "@/components/DataTable";
 import BarLineChart from "@/components/charts/BarLineChart";
 import PieChart from "@/components/charts/PieChart";
 import { CURRENCY_OPTION_ITEMS, type CurrencyCode } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 import type { ExchangeRates } from "@/features/settings/types";
 import {
   convertFromUsd,
@@ -102,6 +102,7 @@ export default function AggregationDashboard({
   onDateRangeChange,
   scopeNotes,
 }: AggregationDashboardProps) {
+  const { tx } = useLanguage();
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
   const [startDate, setStartDate] = useState(initialStartDate ?? defaultRange.startDate);
   const [endDate, setEndDate] = useState(initialEndDate ?? defaultRange.endDate);
@@ -350,7 +351,7 @@ export default function AggregationDashboard({
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-gray-500">期間</span>
+              <span className="text-xs font-semibold text-gray-500">{tx("期間")}</span>
               <div className="flex items-center gap-2">
                 <TextField
                   size="small"
@@ -369,7 +370,7 @@ export default function AggregationDashboard({
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-gray-500">{partnerLabel}</span>
+              <span className="text-xs font-semibold text-gray-500">{tx(partnerLabel)}</span>
               <Select
                 size="small"
                 multiple
@@ -379,7 +380,7 @@ export default function AggregationDashboard({
                 sx={{ minWidth: { xs: 200, sm: 240 } }}
                 renderValue={(selected) => {
                   if (!selected.length) {
-                    return <span className="text-gray-400">すべて</span>;
+                    return <span className="text-gray-400">{tx("すべて")}</span>;
                   }
                   return selected.join(", ");
                 }}
@@ -394,7 +395,7 @@ export default function AggregationDashboard({
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-gray-500">集計単位</span>
+              <span className="text-xs font-semibold text-gray-500">{tx("集計単位")}</span>
               <Select
                 size="small"
                 value={groupUnit}
@@ -403,14 +404,14 @@ export default function AggregationDashboard({
               >
                 {groupUnitOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
-                    {option.label}
+                    {tx(option.label)}
                   </MenuItem>
                 ))}
               </Select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-gray-500">表示通貨</span>
+              <span className="text-xs font-semibold text-gray-500">{tx("表示通貨")}</span>
               <Select
                 size="small"
                 value={displayCurrency}
@@ -426,14 +427,14 @@ export default function AggregationDashboard({
             </div>
 
             <Button variant="outlined" size="small" onClick={handleReset} className="h-10">
-              リセット
+              {tx("リセット")}
             </Button>
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-gray-500">
             {scopeNoteItems.map((note) => (
               <span key={note} className="rounded-full bg-gray-100 px-2 py-1">
-                {note}
+                {tx(note)}
               </span>
             ))}
           </div>
@@ -446,7 +447,7 @@ export default function AggregationDashboard({
             key={item.label}
             className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm"
           >
-            <div className="text-sm font-semibold text-gray-500">{item.label}</div>
+            <div className="text-sm font-semibold text-gray-500">{tx(item.label)}</div>
             <div className="text-2xl font-bold text-gray-900">{item.value}</div>
           </div>
         ))}
@@ -454,8 +455,10 @@ export default function AggregationDashboard({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-semibold text-gray-700">{partnerLabel}割合</div>
-          <div className="text-xs text-gray-500">合計金額ベース（{displayCurrency}）</div>
+          <div className="text-sm font-semibold text-gray-700">{tx(`${partnerLabel}割合`)}</div>
+          <div className="text-xs text-gray-500">
+            {tx("合計金額ベース")}（{displayCurrency}）
+          </div>
           <div className="mt-4 flex flex-wrap items-center gap-6">
             <div className="h-55 w-55">
               <PieChart data={pieSlices} />
@@ -472,7 +475,7 @@ export default function AggregationDashboard({
                   </div>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">データなし</span>
+                <span className="text-sm text-gray-400">{tx("データなし")}</span>
               )}
             </div>
           </div>
@@ -481,8 +484,10 @@ export default function AggregationDashboard({
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-gray-700">金額推移（{groupUnitLabel}）</div>
-              <div className="text-xs text-gray-500">棒: 合計金額 / 線: 金額推移</div>
+              <div className="text-sm font-semibold text-gray-700">
+                {tx("金額推移")}（{tx(groupUnitLabel)}）
+              </div>
+              <div className="text-xs text-gray-500">{tx("棒: 合計金額 / 線: 金額推移")}</div>
             </div>
             <div className="text-xs text-gray-500">{displayCurrency}</div>
           </div>
@@ -495,17 +500,17 @@ export default function AggregationDashboard({
       {filteredRows.length ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <div className="text-sm font-semibold text-gray-700">期間別サマリー</div>
+            <div className="text-sm font-semibold text-gray-700">{tx("期間別サマリー")}</div>
             <DataTable columns={periodColumns} rows={periodRows} getRowId={(row) => row.id} />
           </div>
           <div className="flex flex-col gap-3">
-            <div className="text-sm font-semibold text-gray-700">{partnerLabel}別サマリー</div>
+            <div className="text-sm font-semibold text-gray-700">{tx(`${partnerLabel}別サマリー`)}</div>
             <DataTable columns={partnerColumns} rows={partnerRows} getRowId={(row) => row.id} />
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-6 text-sm text-gray-500">
-          条件に一致するデータがありません。
+          {tx("条件に一致するデータがありません。")}
         </div>
       )}
     </div>

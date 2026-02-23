@@ -14,6 +14,7 @@ import type { NewMaterialInput, MaterialRow } from "../types";
 import { createMaterial, deleteMaterial, fetchMaterialRows, updateMaterial } from "../api/client";
 import { fetchClientRows } from "@/features/client-master/api/client";
 import { CURRENCY_OPTIONS, CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 const statusLabels: Record<string, string> = {
   active: "有効",
@@ -21,6 +22,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function MaterialMasterView() {
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -317,7 +319,7 @@ export default function MaterialMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
 
       <MaterialMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
 

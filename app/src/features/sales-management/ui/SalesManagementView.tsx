@@ -43,6 +43,7 @@ import type { MaterialRow } from "@/features/material-master/types";
 import type { ProductRow } from "@/features/product-master/types";
 import type { ExchangeRates } from "@/features/settings/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 import {
   convertToUsd,
   DEFAULT_EXCHANGE_RATES,
@@ -55,6 +56,7 @@ import {
 
 export default function SalesManagementView() {
   const router = useRouter();
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -708,7 +710,7 @@ export default function SalesManagementView() {
     setIsSummaryOpen(false);
   };
 
-  const monthlyAmountLabel = loading ? "読み込み中..." : formatCurrencyValue("USD", monthSummary.totalUsd);
+  const monthlyAmountLabel = loading ? tx("読み込み中...") : formatCurrencyValue("USD", monthSummary.totalUsd);
   const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
 
   const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
@@ -719,20 +721,20 @@ export default function SalesManagementView() {
       <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-gray-700">集計サマリー（今月）</div>
-            <div className="text-xs text-gray-500">確定のみ・受注日基準・集計時点レート</div>
+            <div className="text-sm font-semibold text-gray-700">{tx("集計サマリー（今月）")}</div>
+            <div className="text-xs text-gray-500">{tx("確定のみ・受注日基準・集計時点レート")}</div>
           </div>
           <Button variant="contained" size="small" onClick={() => router.push("/sales-management/summary")}>
-            集計ページへ
+            {tx("集計ページへ")}
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-6">
           <div>
-            <div className="text-xs text-gray-500">USD換算合計</div>
+            <div className="text-xs text-gray-500">{tx("USD換算合計")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">件数</div>
+            <div className="text-xs text-gray-500">{tx("件数")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
           </div>
         </div>
@@ -751,7 +753,7 @@ export default function SalesManagementView() {
             onClick={openSummary}
             className="whitespace-nowrap"
           >
-            残注数確認
+            {tx("残注数確認")}
           </Button>
         }
       />
@@ -773,7 +775,7 @@ export default function SalesManagementView() {
       {issueError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{issueError}</div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <SalesManagementTableView
         rows={filteredRows}
         onRowClick={openEdit}

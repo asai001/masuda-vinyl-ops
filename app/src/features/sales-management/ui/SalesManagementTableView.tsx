@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
+import { useLanguage } from "@/lib/i18n/language";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import { salesDocumentStatusOptions, salesStatusOptions } from "@/features/sales-management/types";
 import type { SalesLineItem, SalesRow } from "@/features/sales-management/types";
@@ -58,12 +59,12 @@ const getUnitPriceLabel = (items: SalesLineItem[], currency: string) => {
   return "複数";
 };
 
-const renderStatusItems = (items: { label: string; active: boolean }[]) => (
+const renderStatusItems = (items: { label: string; active: boolean }[], tx: (text: string) => string) => (
   <div className="flex flex-col gap-1 text-xs text-gray-700">
     {items.map((item) => (
       <div key={item.label} className="flex items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${item.active ? "bg-green-500" : "bg-gray-300"}`} />
-        <span>{item.label}</span>
+        <span>{tx(item.label)}</span>
       </div>
     ))}
   </div>
@@ -96,6 +97,7 @@ export default function SalesManagementTableView({
   onIssue,
   issuingRowId,
 }: SalesManagementTableViewProps) {
+  const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -134,7 +136,7 @@ export default function SalesManagementTableView({
             <div className="flex flex-col text-sm">
               <span className="font-semibold">{summary.code}</span>
               <span className="text-gray-600">{summary.name}</span>
-              {summary.extraCount ? <span className="text-xs text-gray-500">他{summary.extraCount}件</span> : null}
+              {summary.extraCount ? <span className="text-xs text-gray-500">{tx(`他${summary.extraCount}件`)}</span> : null}
             </div>
           );
         },
@@ -190,7 +192,7 @@ export default function SalesManagementTableView({
         key: "stockQuantity",
         header: "在庫数",
         align: "right",
-        render: (row) => <span className="text-sm">{getStockLabel(row.items)}</span>,
+        render: (row) => <span className="text-sm">{tx(getStockLabel(row.items))}</span>,
       },
       {
         key: "orderQuantity",
@@ -227,7 +229,7 @@ export default function SalesManagementTableView({
         header: "単価",
         sortKey: "unitPrice",
         align: "right",
-        render: (row) => <span className="text-sm font-semibold">{getUnitPriceLabel(row.items, row.currency)}</span>,
+        render: (row) => <span className="text-sm font-semibold">{tx(getUnitPriceLabel(row.items, row.currency))}</span>,
       },
       {
         key: "amount",
@@ -278,6 +280,7 @@ export default function SalesManagementTableView({
               label: status.label,
               active: row.status[status.key],
             })),
+            tx,
           ),
       },
       {
@@ -289,6 +292,7 @@ export default function SalesManagementTableView({
               label: status.label,
               active: row.documentStatus[status.key],
             })),
+            tx,
           ),
       },
       {
@@ -313,7 +317,7 @@ export default function SalesManagementTableView({
                 onIssue?.(row);
               }}
             >
-              {isIssuing ? "発行中..." : "発行"}
+              {isIssuing ? tx("発行中...") : tx("発行")}
             </Button>
           );
         },
@@ -339,7 +343,7 @@ export default function SalesManagementTableView({
           ),
       },
     ],
-    [issuingRowId, onDelete, onIssue],
+    [issuingRowId, onDelete, onIssue, tx],
   );
 
   const handleSort = (key: string) => {
