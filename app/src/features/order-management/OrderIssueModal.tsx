@@ -25,6 +25,68 @@ const sanitizeFileName = (value: string) => {
   return sanitized || "order";
 };
 
+const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
+type SaveFilePickerHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+const pickSaveFileHandle = async (fileName: string): Promise<SaveFilePickerHandle | "cancelled" | null> => {
+  const picker = (
+    window as Window & {
+      showSaveFilePicker?: (options?: {
+        suggestedName?: string;
+        types?: Array<{
+          description?: string;
+          accept: Record<string, string[]>;
+        }>;
+        excludeAcceptAllOption?: boolean;
+      }) => Promise<SaveFilePickerHandle>;
+    }
+  ).showSaveFilePicker;
+  if (!picker) {
+    return null;
+  }
+  try {
+    return await picker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: "Excel (.xlsx)",
+          accept: {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+          },
+        },
+      ],
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      return "cancelled";
+    }
+    throw error;
+  }
+};
+
+const saveBlobToPickedFile = async (
+  blob: Blob,
+  handle: SaveFilePickerHandle,
+): Promise<"saved" | "cancelled"> => {
+  try {
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return "saved";
+  } catch (error) {
+    if (isAbortError(error)) {
+      return "cancelled";
+    }
+    throw error;
+  }
+};
+
 const formatNumber = (value: number) => {
   if (!Number.isFinite(value)) {
     return "0";
@@ -180,13 +242,25 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     setIssueError(null);
     setIsDownloading(true);
     try {
+      const fileName = `order-issue-${sanitizeFileName(resolvedOrderNumber)}.xlsx`;
+      const picked = await pickSaveFileHandle(fileName);
+      if (picked === "cancelled") {
+        return;
+      }
       const blob = await requestOrderIssueExcelBlob(excelPayload);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `発注書-${sanitizeFileName(resolvedOrderNumber)}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      if (picked) {
+        const result = await saveBlobToPickedFile(blob, picked);
+        if (result === "cancelled") {
+          return;
+        }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
       onClose();
     } catch (error) {
       console.error("Failed to issue order excel", error);
