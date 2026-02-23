@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewClientInput } from "../types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 type Option = {
   value: string;
@@ -44,6 +45,7 @@ export default function NewClientModal({
   onClose,
   onSave,
 }: NewClientModalProps) {
+  const { tx } = useLanguage();
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -113,8 +115,8 @@ export default function NewClientModal({
   };
 
   const statusLabel = useMemo(() => {
-    return form.status === "inactive" ? "無効" : "有効";
-  }, [form.status]);
+    return form.status === "inactive" ? tx("無効") : tx("有効");
+  }, [form.status, tx]);
 
   return (
     <Modal

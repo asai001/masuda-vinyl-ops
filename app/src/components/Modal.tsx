@@ -3,6 +3,8 @@
 import React from "react";
 import { Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, type SxProps, type Theme } from "@mui/material";
 import { X } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/language";
+import { translateNode } from "@/lib/i18n/translateNode";
 
 type ModalProps = {
   open: boolean;
@@ -29,6 +31,10 @@ export default function Modal({
   contentSx,
   paperSx,
 }: ModalProps) {
+  const { tx } = useLanguage();
+  const translatedChildren = React.useMemo(() => translateNode(children, tx), [children, tx]);
+  const translatedActions = React.useMemo(() => translateNode(actions, tx), [actions, tx]);
+
   return (
     <Dialog
       open={open}
@@ -38,7 +44,7 @@ export default function Modal({
       PaperProps={{ sx: { maxWidth: 800, width: "100%", ...paperSx } }}
     >
       <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
-        {title}
+        {translateNode(title, tx)}
         {showCloseButton ? (
           <IconButton onClick={onClose} size="small">
             <X size={16} />
@@ -47,12 +53,12 @@ export default function Modal({
       </DialogTitle>
       <Divider />
       <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2, ...contentSx }}>
-        {children}
+        {translatedChildren}
       </DialogContent>
       {actions ? (
         <>
           <Divider />
-          <DialogActions sx={{ px: 3, py: 2 }}>{actions}</DialogActions>
+          <DialogActions sx={{ px: 3, py: 2 }}>{translatedActions}</DialogActions>
         </>
       ) : null}
     </Dialog>

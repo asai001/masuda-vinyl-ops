@@ -11,6 +11,7 @@ import {
   FONT_SCALE_STORAGE_KEY,
   normalizeFontScale,
 } from "@/features/settings/fontScale";
+import { useLanguage } from "@/lib/i18n/language";
 import { getMyProfile, updateMyProfileAttributes } from "@/lib/auth/cognito";
 
 const initialRates = {
@@ -47,6 +48,7 @@ const hasCode = (e: unknown): e is ErrorWithCode => {
 
 export default function SettingsView() {
   const router = useRouter();
+  const { tx } = useLanguage();
 
   // exchange rates
   const [rates, setRates] = useState<ExchangeRateState>(initialRates);
@@ -229,7 +231,7 @@ export default function SettingsView() {
   };
 
   if (loadingRates || loadingProfile) {
-    return <div className="text-sm text-gray-500">読み込み中...</div>;
+    return <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>;
   }
 
   return (
@@ -240,7 +242,7 @@ export default function SettingsView() {
           aria-live="polite"
           className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
         >
-          {errorMessage}
+          {tx(errorMessage)}
         </div>
       )}
 
@@ -248,29 +250,29 @@ export default function SettingsView() {
       <form onSubmit={handleProfileSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">ユーザー情報</h2>
-            <p className="text-sm text-gray-600">ヘッダーに表示するユーザー名・所属部署を設定します</p>
+            <h2 className="text-lg font-semibold text-gray-900">{tx("ユーザー情報")}</h2>
+            <p className="text-sm text-gray-600">{tx("ヘッダーに表示するユーザー名・所属部署を設定します")}</p>
           </div>
 
           <div className="mt-6 flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-800">ユーザー名</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("ユーザー名")}</span>
               <TextField
                 size="small"
                 value={profile.userName}
                 onChange={handleProfileChange("userName")}
-                placeholder="例）Huong Nguyen"
+                placeholder={tx("例）Huong Nguyen")}
                 disabled={savingProfile || loadingProfile}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-semibold text-gray-800">所属部署</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("所属部署")}</span>
               <TextField
                 size="small"
                 value={profile.departmentName}
                 onChange={handleProfileChange("departmentName")}
-                placeholder="例）経理部"
+                placeholder={tx("例）経理部")}
                 disabled={savingProfile || loadingProfile}
               />
             </div>
@@ -284,7 +286,7 @@ export default function SettingsView() {
               className="whitespace-nowrap"
               disabled={!canSubmitProfile}
             >
-              {savingProfile ? "保存中..." : "保存"}
+              {savingProfile ? tx("保存中...") : tx("保存")}
             </Button>
           </div>
         </div>
@@ -294,12 +296,12 @@ export default function SettingsView() {
       <form onSubmit={handleFontScaleSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">文字サイズ</h2>
-            <p className="text-sm text-gray-600">アプリ全体の文字サイズを設定します</p>
+            <h2 className="text-lg font-semibold text-gray-900">{tx("文字サイズ")}</h2>
+            <p className="text-sm text-gray-600">{tx("アプリ全体の文字サイズを設定します")}</p>
           </div>
 
           <div className="mt-6 flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-800">サイズ</span>
+            <span className="text-sm font-semibold text-gray-800">{tx("サイズ")}</span>
             <TextField
               select
               size="small"
@@ -310,7 +312,7 @@ export default function SettingsView() {
             >
               {FONT_SCALE_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
-                  {option.label}
+                  {tx(option.label)}
                 </MenuItem>
               ))}
             </TextField>
@@ -324,7 +326,7 @@ export default function SettingsView() {
               className="whitespace-nowrap"
               disabled={!canSubmitFontScale}
             >
-              {savingFontScale ? "保存中..." : "保存"}
+              {savingFontScale ? tx("保存中...") : tx("保存")}
             </Button>
           </div>
         </div>
@@ -334,13 +336,13 @@ export default function SettingsView() {
       <form onSubmit={handleRatesSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">換算レート設定</h2>
-            <p className="text-sm text-gray-600">1 USD あたりの金額を入力してください</p>
+            <h2 className="text-lg font-semibold text-gray-900">{tx("換算レート設定")}</h2>
+            <p className="text-sm text-gray-600">{tx("1 USD あたりの金額を入力してください")}</p>
           </div>
 
           <div className="mt-6 flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              <span className="text-sm font-semibold text-gray-800">JPY → USD レート</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("JPY → USD レート")}</span>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-gray-600">1 USD =</span>
                 <TextField
@@ -360,7 +362,7 @@ export default function SettingsView() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="text-sm font-semibold text-gray-800">VND → USD レート</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("VND → USD レート")}</span>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-gray-600">1 USD =</span>
                 <TextField
@@ -388,7 +390,7 @@ export default function SettingsView() {
               className="whitespace-nowrap"
               disabled={!canSubmitRates}
             >
-              {savingRates ? "保存中..." : "保存"}
+              {savingRates ? tx("保存中...") : tx("保存")}
             </Button>
           </div>
         </div>

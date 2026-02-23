@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
+import { useLanguage } from "@/lib/i18n/language";
 import { MaterialRow } from "../types";
 
 const statusStyles = {
@@ -18,6 +19,7 @@ type MaterialMasterTableViewProps = {
 };
 
 export default function MaterialMasterTableView({ rows, onRowClick, onDelete }: MaterialMasterTableViewProps) {
+  const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<keyof MaterialRow>("code");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -81,7 +83,7 @@ export default function MaterialMasterTableView({ rows, onRowClick, onDelete }: 
           const statusStyle = statusStyles[row.status];
           return (
             <Chip
-              label={statusStyle.label}
+              label={tx(statusStyle.label)}
               size="small"
               sx={{
                 backgroundColor: statusStyle.backgroundColor,
@@ -110,7 +112,7 @@ export default function MaterialMasterTableView({ rows, onRowClick, onDelete }: 
         ),
       },
     ],
-    [onDelete],
+    [onDelete, tx],
   );
 
   const handleSort = (key: string) => {

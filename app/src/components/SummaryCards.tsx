@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Users } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/language";
 
 export type SummaryCard = {
   label: string;
@@ -22,6 +23,7 @@ const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; val
 };
 
 export default function SummaryCards({ cards }: SummaryCardsProps) {
+  const { tx } = useLanguage();
   const defaultIcon = <Users size={22} />;
   const columnClass = cards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3";
   return (
@@ -32,7 +34,7 @@ export default function SummaryCards({ cards }: SummaryCardsProps) {
         return (
           <div key={card.label} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
             <div>
-              <div className="text-sm font-semibold text-gray-500">{card.label}</div>
+              <div className="text-sm font-semibold text-gray-500">{tx(card.label)}</div>
               <div className={`text-2xl font-bold ${tone.value}`}>{card.value}</div>
             </div>
             <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${tone.badge}`}>

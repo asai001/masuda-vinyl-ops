@@ -12,6 +12,7 @@ import {
   normalizeExchangeRates,
   parseDateInput,
 } from "@/features/aggregation/aggregationUtils";
+import { useLanguage } from "@/lib/i18n/language";
 
 const toMonthKey = (date: Date) => {
   const year = date.getFullYear();
@@ -40,6 +41,7 @@ const getMonthKeys = (startDate: string, endDate: string) => {
 };
 
 export default function PaymentAggregationView() {
+  const { tx } = useLanguage();
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
   const [range, setRange] = useState(defaultRange);
   const [rows, setRows] = useState<PaymentManagementRow[]>([]);
@@ -129,7 +131,7 @@ export default function PaymentAggregationView() {
           支払い集計の取得に失敗しました。{loadError}
         </div>
       ) : null}
-      {loading ? <div className="text-sm text-gray-500">読み込み中...</div> : null}
+      {loading ? <div className="text-sm text-gray-500">{tx("読み込み中...")}</div> : null}
       <AggregationDashboard
         rows={aggregationRows}
         partnerLabel="カテゴリ"

@@ -11,8 +11,10 @@ import {
   DEFAULT_EXCHANGE_RATES,
   normalizeExchangeRates,
 } from "@/features/aggregation/aggregationUtils";
+import { useLanguage } from "@/lib/i18n/language";
 
 export default function SalesAggregationView() {
+  const { tx } = useLanguage();
   const [rows, setRows] = useState<SalesRow[]>([]);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_EXCHANGE_RATES);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function SalesAggregationView() {
   );
 
   if (loading) {
-    return <div className="text-sm text-gray-500">読み込み中...</div>;
+    return <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>;
   }
 
   if (loadError) {

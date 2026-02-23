@@ -12,8 +12,10 @@ import NewClientModal from "@/features/client-master/ui/NewClientModal";
 import type { NewClientInput, ClientRow } from "../types";
 import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 export default function ClientMasterView() {
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -262,7 +264,7 @@ export default function ClientMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <ClientMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewClientModal
         open={isCreateOpen}

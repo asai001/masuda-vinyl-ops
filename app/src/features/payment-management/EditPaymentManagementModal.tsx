@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { PaymentManagementRow, PaymentStatusKey } from "@/features/payment-management/types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 type Option = {
   value: string;
@@ -44,6 +45,7 @@ export default function EditPaymentManagementModal({
   onSave,
   onDelete,
 }: EditPaymentManagementModalProps) {
+  const { tx } = useLanguage();
   const getInitialForm = (row: PaymentManagementRow | null) => ({
     transferDestinationName: row?.transferDestinationName ?? "",
     category: row?.category ?? "",
@@ -115,8 +117,8 @@ export default function EditPaymentManagementModal({
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
-    return selected?.label ?? "";
-  }, [form.status, statusOptions]);
+    return tx(selected?.label ?? "");
+  }, [form.status, statusOptions, tx]);
 
   return (
     <Modal

@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentSession, getMyProfile } from "@/lib/auth/cognito";
 import { FONT_SCALE_STORAGE_KEY, normalizeFontScale } from "@/features/settings/fontScale";
+import { type TranslationKey } from "@/lib/i18n/language";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -62,23 +63,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty("--app-font-scale", String(scale));
   }, [isCheckingAuth]);
 
-  const pageTitles: Record<string, string> = {
-    "/": "ダッシュボード",
-    "/dashboard": "ダッシュボード",
-    "/client-master": "取引先マスタ",
-    "/material-master": "材料マスタ",
-    "/product-master": "製品マスタ",
-    "/order-management": "発注管理",
-    "/order-management/summary": "発注集計",
-    "/sales-management": "受注管理",
-    "/sales-management/summary": "受注集計",
-    "/payment-master": "支払いマスタ",
-    "/payment-management": "支払い管理",
-    "/payment-management/summary": "支払い集計",
-    "/settings": "各種設定",
+  const pageTitleKeys: Record<string, TranslationKey> = {
+    "/": "nav.dashboard",
+    "/dashboard": "nav.dashboard",
+    "/client-master": "nav.clientMaster",
+    "/material-master": "nav.materialMaster",
+    "/product-master": "nav.productMaster",
+    "/order-management": "nav.orderManagement",
+    "/order-management/summary": "page.orderSummary",
+    "/sales-management": "nav.salesManagement",
+    "/sales-management/summary": "page.salesSummary",
+    "/payment-master": "nav.paymentMaster",
+    "/payment-management": "nav.paymentManagement",
+    "/payment-management/summary": "page.paymentSummary",
+    "/settings": "nav.settings",
   };
 
-  const pageTitle = pageTitles[pathname ?? ""] ?? "";
+  const pageTitleKey = pageTitleKeys[pathname ?? ""] ?? "nav.dashboard";
 
   const handleNavigate = (path: string) => {
     router.push(path);
@@ -95,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden text-gray-900">
       <Sidebar onNavigate={handleNavigate} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <Header pageTitle={pageTitle} userName={userName} userRole={departmentName} />
+        <Header pageTitleKey={pageTitleKey} userName={userName} userRole={departmentName} />
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 p-6">{children}</main>
       </div>
     </div>

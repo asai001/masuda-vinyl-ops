@@ -3,6 +3,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow } from "@mui/material";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/language";
+import { translateNode } from "@/lib/i18n/translateNode";
 
 type Align = "left" | "center" | "right";
 
@@ -42,6 +44,7 @@ export default function DataTable<T>({
   defaultRowsPerPage = 10,
   rowsPerPageOptions = [10, 25, 50],
 }: TableProps<T>) {
+  const { tx } = useLanguage();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
@@ -114,6 +117,10 @@ export default function DataTable<T>({
     scheduleScrollToTop();
   };
 
+  const renderHeader = (header: React.ReactNode) => {
+    return translateNode(header, tx);
+  };
+
   return (
     <div className="flex flex-col gap-2" ref={rootRef}>
       <TableContainer
@@ -156,7 +163,7 @@ export default function DataTable<T>({
                       onClick={() => onSort(column.sortKey ?? "")}
                       className="inline-flex items-center gap-2 text-left text-gray-700 hover:text-gray-900"
                     >
-                      <span>{column.header}</span>
+                      <span>{renderHeader(column.header)}</span>
                       <span className="flex flex-col leading-none">
                         <ChevronUp
                           size={14}
@@ -173,7 +180,7 @@ export default function DataTable<T>({
                       </span>
                     </button>
                   ) : (
-                    column.header
+                    renderHeader(column.header)
                   )}
                 </TableCell>
               ))}
@@ -210,7 +217,7 @@ export default function DataTable<T>({
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           rowsPerPageOptions={rowsPerPageOptions}
-          labelRowsPerPage="表示件数"
+          labelRowsPerPage={tx("表示件数")}
         />
       ) : null}
     </div>

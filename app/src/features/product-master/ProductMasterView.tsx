@@ -20,6 +20,7 @@ import type { NewProductInput, ProductRow } from "@/features/product-master/type
 import { fetchMaterialRows } from "@/features/material-master/api/client";
 import type { MaterialRow } from "@/features/material-master/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 const statusLabels: Record<string, string> = {
   active: "有効",
@@ -29,6 +30,7 @@ const statusLabels: Record<string, string> = {
 type Option = { value: string; label: string };
 
 export default function ProductMasterView() {
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -329,7 +331,7 @@ export default function ProductMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <ProductMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewProductModal
         open={isCreateOpen}

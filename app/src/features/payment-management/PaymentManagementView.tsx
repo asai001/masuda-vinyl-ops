@@ -30,6 +30,7 @@ import { fetchExchangeRates } from "@/features/settings/api/client";
 import type { PaymentRow as PaymentDefinitionRow } from "@/features/payment-master/types";
 import type { ExchangeRates } from "@/features/settings/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 import {
   convertToUsd,
   DEFAULT_EXCHANGE_RATES,
@@ -46,6 +47,7 @@ const fixedCostOptions = [
 
 export default function PaymentManagementView() {
   const router = useRouter();
+  const { tx } = useLanguage();
   const defaultTargetMonth = new Date().toISOString().slice(0, 7);
   const {
     rows,
@@ -357,8 +359,8 @@ export default function PaymentManagementView() {
     openDelete(row);
   };
 
-  const summaryMonthLabel = targetMonth ? `集計サマリー（${targetMonth}）` : "集計サマリー";
-  const monthlyAmountLabel = loading ? "読み込み中..." : formatCurrencyValue("USD", monthSummary.totalUsd);
+  const summaryMonthLabel = targetMonth ? `${tx("集計サマリー")}（${targetMonth}）` : tx("集計サマリー");
+  const monthlyAmountLabel = loading ? tx("読み込み中...") : formatCurrencyValue("USD", monthSummary.totalUsd);
   const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
 
   const savingMessage =
@@ -391,7 +393,7 @@ export default function PaymentManagementView() {
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
       <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <div className="text-sm font-semibold text-gray-700">対象年月</div>
+        <div className="text-sm font-semibold text-gray-700">{tx("対象年月")}</div>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
           <MonthPicker value={targetMonth} onChange={setTargetMonth} />
           <Button
@@ -401,7 +403,7 @@ export default function PaymentManagementView() {
             onClick={handleGenerate}
             className="whitespace-nowrap"
           >
-            支払データ生成
+            {tx("支払データ生成")}
           </Button>
         </div>
       </div>
@@ -409,19 +411,19 @@ export default function PaymentManagementView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-sm font-semibold text-gray-700">{summaryMonthLabel}</div>
-            <div className="text-xs text-gray-500">支払済み・未払い両方 / 支払日基準 / 集計時点レート</div>
+            <div className="text-xs text-gray-500">{tx("支払済み・未払い両方 / 支払日基準 / 集計時点レート")}</div>
           </div>
           <Button variant="contained" size="small" onClick={() => router.push("/payment-management/summary")}>
-            集計ページへ
+            {tx("集計ページへ")}
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-6">
           <div>
-            <div className="text-xs text-gray-500">USD換算合計</div>
+            <div className="text-xs text-gray-500">{tx("USD換算合計")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">件数</div>
+            <div className="text-xs text-gray-500">{tx("件数")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
           </div>
         </div>
@@ -448,7 +450,7 @@ export default function PaymentManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <PaymentManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewPaymentManagementModal
         open={isCreateOpen}
