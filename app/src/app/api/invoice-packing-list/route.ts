@@ -201,13 +201,14 @@ export async function POST(request: Request) {
         invoiceCell.value(invoiceNo ? `${label}\n${invoiceNo}` : `${label}\n`);
       }
     }
-    sheet.cell("J12").value(payload.destinationCountry);
+    const destinationCountry = templateType === "hq" ? "JAPAN" : payload.destinationCountry;
+    sheet.cell("J12").value(destinationCountry);
     if (templateType !== "hq") {
       sheet.cell("A18").value(payload.consigneeName);
       sheet.cell("A19").value(payload.consigneeAddress);
       sheet.cell("A21").value(formatTel(payload.consigneeTel ?? ""));
       sheet.cell("A22").value(formatTaxId(payload.consigneeTaxId ?? ""));
-      sheet.cell("A27").value(payload.destinationCountry);
+      sheet.cell("A27").value(destinationCountry);
     }
 
     const items = Array.isArray(payload.items) ? payload.items : [];
