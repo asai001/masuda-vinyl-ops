@@ -13,7 +13,16 @@ export const translateNode = (node: React.ReactNode, tx: (text: string) => strin
   }
 
   if (Array.isArray(node)) {
-    return node.map((child) => translateNode(child, tx));
+    let hasChange = false;
+    // Preserve React's child keys (including implicit keys for sibling JSX children).
+    const translated = React.Children.map(node, (child) => {
+      const nextChild = translateNode(child, tx);
+      if (nextChild !== child) {
+        hasChange = true;
+      }
+      return nextChild;
+    });
+    return hasChange ? translated : node;
   }
 
   if (!React.isValidElement(node)) {
