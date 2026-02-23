@@ -37,6 +37,8 @@ const describeArc = (cx: number, cy: number, r: number, startAngle: number, endA
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
 };
 
+const FULL_CIRCLE_EPSILON = 1e-6;
+
 export default function PieChart({
   data,
   size = 220,
@@ -79,18 +81,37 @@ export default function PieChart({
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img">
       {slices.map((slice, index) => {
+        const angle = slice.endAngle - slice.startAngle;
+        const isFullCircle = angle >= Math.PI * 2 - FULL_CIRCLE_EPSILON;
+
         return (
-          <path
-            key={`${slice.label}-${index}`}
-            d={describeArc(center, center, radius, slice.startAngle, slice.endAngle)}
-            fill={slice.color}
-            stroke={strokeWidth ? "#ffffff" : "none"}
-            strokeWidth={strokeWidth}
-          >
-            <title>
-              {slice.label}: {slice.value}
-            </title>
-          </path>
+          isFullCircle ? (
+            <circle
+              key={`${slice.label}-${index}`}
+              cx={center}
+              cy={center}
+              r={radius}
+              fill={slice.color}
+              stroke={strokeWidth ? "#ffffff" : "none"}
+              strokeWidth={strokeWidth}
+            >
+              <title>
+                {slice.label}: {slice.value}
+              </title>
+            </circle>
+          ) : (
+            <path
+              key={`${slice.label}-${index}`}
+              d={describeArc(center, center, radius, slice.startAngle, slice.endAngle)}
+              fill={slice.color}
+              stroke={strokeWidth ? "#ffffff" : "none"}
+              strokeWidth={strokeWidth}
+            >
+              <title>
+                {slice.label}: {slice.value}
+              </title>
+            </path>
+          )
         );
       })}
       {showCenterLabel ? (
