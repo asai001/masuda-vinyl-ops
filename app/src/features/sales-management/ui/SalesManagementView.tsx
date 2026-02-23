@@ -563,7 +563,8 @@ export default function SalesManagementView() {
   ): Promise<InvoicePackingPayload> => {
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
-    const destinationCountry = countryLabelMap[region] ?? region;
+    const destinationCountry =
+      templateType === "hq" ? "JAPAN" : (countryLabelMap[region] ?? region);
     let rateSnapshot = DEFAULT_EXCHANGE_RATES;
     try {
       rateSnapshot = await fetchExchangeRates();
@@ -594,6 +595,7 @@ export default function SalesManagementView() {
       invoiceNo: row.orderNo,
       templateType,
       destinationCountry,
+      remark: row.note ?? "",
       consigneeName: row.customerName,
       consigneeAddress: customerInfo?.address ?? "",
       consigneeTel: customerInfo?.phone ?? "",
