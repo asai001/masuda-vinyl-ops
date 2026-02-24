@@ -21,6 +21,7 @@ function isNewProductInput(v: unknown): v is NewProductInput {
   return (
     isNonEmptyString(r.code) &&
     isNonEmptyString(r.name) &&
+    isNullableNumber(r.packaging) &&
     isNonEmptyString(r.category) &&
     isNonEmptyString(r.unit) &&
     isNonEmptyString(r.currency) &&

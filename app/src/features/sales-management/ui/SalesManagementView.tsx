@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { CheckCircle, Clock, Package, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
 import ToolBar, { FilterDefinition, FilterRow } from "@/components/ToolBar";
 import SummaryCards, { SummaryCard } from "@/components/SummaryCards";
 import LoadingModal from "@/components/LoadingModal";
@@ -17,6 +18,7 @@ import NewSalesModal from "@/features/sales-management/ui/NewSalesModal";
 import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
 import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
 import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
+import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import {
   createSalesOrder,
@@ -41,14 +43,20 @@ import type { MaterialRow } from "@/features/material-master/types";
 import type { ProductRow } from "@/features/product-master/types";
 import type { ExchangeRates } from "@/features/settings/types";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
-
-const defaultExchangeRates: ExchangeRates = {
-  jpyPerUsd: 150,
-  vndPerUsd: 25000,
-};
-const normalizeRate = (value: number, fallback: number) => (Number.isFinite(value) && value > 0 ? value : fallback);
+import { useLanguage } from "@/lib/i18n/language";
+import {
+  convertToUsd,
+  DEFAULT_EXCHANGE_RATES,
+  formatCurrencyValue,
+  formatNumberValue,
+  getCurrentMonthRange,
+  isWithinRange,
+  normalizeExchangeRates,
+} from "@/features/aggregation/aggregationUtils";
 
 export default function SalesManagementView() {
+  const router = useRouter();
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -73,6 +81,10 @@ export default function SalesManagementView() {
   const [issueTarget, setIssueTarget] = useState<SalesRow | null>(null);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [issueDialogKey, setIssueDialogKey] = useState(0);
+  const [isIssuePreviewOpen, setIsIssuePreviewOpen] = useState(false);
+  const [issuePreviewPayload, setIssuePreviewPayload] = useState<InvoicePackingPayload | null>(null);
+  const [issuePreviewRow, setIssuePreviewRow] = useState<SalesRow | null>(null);
+  const [isIssuePreviewLoading, setIsIssuePreviewLoading] = useState(false);
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
@@ -86,6 +98,7 @@ export default function SalesManagementView() {
   const [clientRows, setClientRows] = useState<ClientRow[]>([]);
   const [materialRows, setMaterialRows] = useState<MaterialRow[]>([]);
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_EXCHANGE_RATES);
 
   const reload = async () => {
     const fetched = await fetchSalesOrderRows();
@@ -203,6 +216,26 @@ export default function SalesManagementView() {
       cancelled = true;
     };
   }, [replaceRows]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await fetchExchangeRates();
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates(fetched));
+        }
+      } catch (error) {
+        console.error("Failed to load exchange rates", error);
+        if (!cancelled) {
+          setExchangeRates(normalizeExchangeRates());
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 取引先/材料/製品の候補を初回取得
   useEffect(() => {
@@ -352,6 +385,24 @@ export default function SalesManagementView() {
     });
   }, [filters, rows]);
 
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const monthSummary = useMemo(() => {
+    let totalUsd = 0;
+    let count = 0;
+    rows.forEach((row) => {
+      if (!row.documentStatus.orderReceived) {
+        return;
+      }
+      if (!isWithinRange(row.orderDate, monthRange.startDate, monthRange.endDate)) {
+        return;
+      }
+      const metrics = calculateSalesMetrics(row.items);
+      count += 1;
+      totalUsd += convertToUsd(metrics.amount, row.currency, exchangeRates);
+    });
+    return { totalUsd, count };
+  }, [exchangeRates, monthRange.endDate, monthRange.startDate, rows]);
+
   const summaryCards = useMemo<SummaryCard[]>(() => {
     const totalCount = rows.length;
     const shippedCount = rows.filter((row) => row.status.shipped).length;
@@ -429,6 +480,68 @@ export default function SalesManagementView() {
     return sanitized || "invoice";
   };
 
+  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
+  type SaveFilePickerHandle = {
+    createWritable: () => Promise<{
+      write: (data: Blob) => Promise<void>;
+      close: () => Promise<void>;
+    }>;
+  };
+
+  const pickSaveFileHandle = async (fileName: string): Promise<SaveFilePickerHandle | "cancelled" | null> => {
+    const picker = (
+      window as Window & {
+        showSaveFilePicker?: (options?: {
+          suggestedName?: string;
+          types?: Array<{
+            description?: string;
+            accept: Record<string, string[]>;
+          }>;
+          excludeAcceptAllOption?: boolean;
+        }) => Promise<SaveFilePickerHandle>;
+      }
+    ).showSaveFilePicker;
+    if (!picker) {
+      return null;
+    }
+    try {
+      return await picker({
+        suggestedName: fileName,
+        types: [
+          {
+            description: "Excel (.xlsx)",
+            accept: {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        return "cancelled";
+      }
+      throw error;
+    }
+  };
+
+  const saveBlobToPickedFile = async (
+    blob: Blob,
+    handle: SaveFilePickerHandle,
+  ): Promise<"saved" | "cancelled"> => {
+    try {
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return "saved";
+    } catch (error) {
+      if (isAbortError(error)) {
+        return "cancelled";
+      }
+      throw error;
+    }
+  };
+
   const openIssueDialog = (row: SalesRow) => {
     if (issuingRowId !== null) {
       return;
@@ -444,25 +557,21 @@ export default function SalesManagementView() {
     setIssueTarget(null);
   };
 
-  const handleIssue = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
-    if (issuingRowId !== null) {
-      return;
-    }
-    setIssuingRowId(row.id);
-    setIssueError(null);
+  const buildInvoicePackingPayload = async (
+    row: SalesRow,
+    templateType: InvoicePackingTemplate,
+  ): Promise<InvoicePackingPayload> => {
     const customerInfo = clientRows.find((item) => item.name === row.customerName);
     const region = customerInfo?.region ?? row.customerRegion ?? "";
-    const destinationCountry = countryLabelMap[region] ?? region;
-    let exchangeRates = defaultExchangeRates;
+    const destinationCountry =
+      templateType === "hq" ? "JAPAN" : (countryLabelMap[region] ?? region);
+    let rateSnapshot = DEFAULT_EXCHANGE_RATES;
     try {
-      exchangeRates = await fetchExchangeRates();
+      rateSnapshot = await fetchExchangeRates();
     } catch (error) {
       console.error("Failed to load exchange rates", error);
     }
-    const safeRates = {
-      jpyPerUsd: normalizeRate(exchangeRates.jpyPerUsd, defaultExchangeRates.jpyPerUsd),
-      vndPerUsd: normalizeRate(exchangeRates.vndPerUsd, defaultExchangeRates.vndPerUsd),
-    };
+    const safeRates = normalizeExchangeRates(rateSnapshot);
     const currency = row.currency?.toUpperCase();
     const usdRate = currency === "JPY" ? 1 / safeRates.jpyPerUsd : currency === "VND" ? 1 / safeRates.vndPerUsd : 1;
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
@@ -477,37 +586,102 @@ export default function SalesManagementView() {
         unitPrice: item.unitPrice * safeUsdRate,
         palletCount: item.palletCount,
         totalWeight: item.totalWeight,
+        packaging: product?.packaging ?? null,
       };
     });
-    const payload: InvoicePackingPayload = {
+    return {
       orderNo: row.orderNo,
       invoiceDate: formatInvoiceDate(),
       invoiceNo: row.orderNo,
       templateType,
       destinationCountry,
+      remark: row.note ?? "",
       consigneeName: row.customerName,
       consigneeAddress: customerInfo?.address ?? "",
       consigneeTel: customerInfo?.phone ?? "",
       consigneeTaxId: customerInfo?.taxId ?? "",
       items,
     };
+  };
 
+  const downloadInvoicePackingList = async (
+    payload: InvoicePackingPayload,
+    saveFileHandle: SaveFilePickerHandle | null,
+  ): Promise<"saved" | "cancelled"> => {
+    const response = await fetch("/api/invoice-packing-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
+    }
+    const blob = await response.blob();
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
+    if (saveFileHandle) {
+      return saveBlobToPickedFile(blob, saveFileHandle);
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+    return "saved";
+  };
+
+  const openIssuePreview = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
+    setIssueError(null);
+    setIssuePreviewRow(row);
+    setIssuePreviewPayload(null);
+    setIsIssuePreviewOpen(true);
+    setIsIssuePreviewLoading(true);
     try {
-      const response = await fetch("/api/invoice-packing-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
+      const payload = await buildInvoicePackingPayload(row, templateType);
+      setIssuePreviewPayload(payload);
+    } catch (error) {
+      console.error("Failed to build invoice preview", error);
+      setIssueError("プレビューの生成に失敗しました。");
+      setIsIssuePreviewOpen(false);
+      setIssuePreviewRow(null);
+      setIssuePreviewPayload(null);
+    } finally {
+      setIsIssuePreviewLoading(false);
+    }
+  };
+
+  const closeIssuePreview = () => {
+    setIsIssuePreviewOpen(false);
+    setIssuePreviewPayload(null);
+    setIssuePreviewRow(null);
+    setIsIssuePreviewLoading(false);
+  };
+
+  const handleIssuePreview = async () => {
+    if (!issuePreviewRow || !issuePreviewPayload || issuingRowId !== null) {
+      return;
+    }
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(issuePreviewPayload.orderNo)}.xlsx`;
+    let saveFileHandle: SaveFilePickerHandle | null = null;
+    try {
+      const picked = await pickSaveFileHandle(fileName);
+      if (picked === "cancelled") {
+        return;
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `インボイス-パッキングリスト-${sanitizeFileName(row.orderNo)}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      saveFileHandle = picked;
+    } catch (error) {
+      console.error("Failed to open save dialog", error);
+      const msg = "保存先の選択に失敗しました";
+      setIssueError(msg);
+      return;
+    }
+    setIssuingRowId(issuePreviewRow.id);
+    setIssueError(null);
+    try {
+      const result = await downloadInvoicePackingList(issuePreviewPayload, saveFileHandle);
+      if (result === "saved") {
+        closeIssuePreview();
+      }
     } catch (error) {
       console.error("Failed to download invoice packing list", error);
       const msg = "Excelファイルの発行に失敗しました";
@@ -525,7 +699,7 @@ export default function SalesManagementView() {
     const target = issueTarget;
     closeIssueDialog();
     if (target) {
-      handleIssue(target, templateType);
+      void openIssuePreview(target, templateType);
     }
   };
 
@@ -538,11 +712,35 @@ export default function SalesManagementView() {
     setIsSummaryOpen(false);
   };
 
+  const monthlyAmountLabel = loading ? tx("読み込み中...") : formatCurrencyValue("USD", monthSummary.totalUsd);
+  const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
+
   const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
 
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} />
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-gray-700">{tx("集計サマリー（今月）")}</div>
+            <div className="text-xs text-gray-500">{tx("確定のみ・受注日基準・集計時点レート")}</div>
+          </div>
+          <Button variant="contained" size="small" onClick={() => router.push("/sales-management/summary")}>
+            {tx("集計ページへ")}
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-6">
+          <div>
+            <div className="text-xs text-gray-500">{tx("USD換算合計")}</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">{tx("件数")}</div>
+            <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
+          </div>
+        </div>
+      </div>
       <ToolBar
         filterDefinitions={filterDefinitions}
         filters={filters}
@@ -557,7 +755,7 @@ export default function SalesManagementView() {
             onClick={openSummary}
             className="whitespace-nowrap"
           >
-            残注数確認
+            {tx("残注数確認")}
           </Button>
         }
       />
@@ -579,7 +777,7 @@ export default function SalesManagementView() {
       {issueError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{issueError}</div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <SalesManagementTableView
         rows={filteredRows}
         onRowClick={openEdit}
@@ -618,6 +816,14 @@ export default function SalesManagementView() {
         sales={issueTarget}
         onClose={closeIssueDialog}
         onSelect={handleIssueTemplateSelect}
+      />
+      <InvoicePackingPreviewModal
+        open={isIssuePreviewOpen}
+        payload={issuePreviewPayload}
+        loading={isIssuePreviewLoading}
+        issuing={Boolean(issuePreviewRow && issuingRowId === issuePreviewRow.id)}
+        onClose={closeIssuePreview}
+        onIssue={handleIssuePreview}
       />
       <DeleteSalesDialog
         open={Boolean(deletingRow)}

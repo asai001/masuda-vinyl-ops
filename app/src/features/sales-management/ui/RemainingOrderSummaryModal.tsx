@@ -5,6 +5,7 @@ import { Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, 
 import Modal from "@/components/Modal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import type { SalesRow } from "@/features/sales-management/types";
+import { useLanguage } from "@/lib/i18n/language";
 
 type SummaryRow = {
   customerName: string;
@@ -70,6 +71,7 @@ const bodyCellSx = {
 };
 
 export default function RemainingOrderSummaryModal({ open, rows, onClose }: RemainingOrderSummaryModalProps) {
+  const { tx } = useLanguage();
   const defaultRange = useMemo(() => getDefaultDateRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.startDate);
   const [endDate, setEndDate] = useState(defaultRange.endDate);
@@ -101,22 +103,22 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
   return (
     <Modal
       open={open}
-      title="顧客別残注数サマリー"
+      title={tx("顧客別残注数サマリー")}
       onClose={onClose}
       actions={
         <div className="flex w-full items-center justify-end">
           <Button variant="outlined" onClick={onClose}>
-            閉じる
+            {tx("閉じる")}
           </Button>
         </div>
       }
       maxWidth="md"
     >
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-        <label className="text-sm font-semibold text-gray-700">開始日</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("開始日")}</label>
         <TextField size="small" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
         <span className="text-gray-400">〜</span>
-        <label className="text-sm font-semibold text-gray-700">終了日</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("終了日")}</label>
         <TextField size="small" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
       </div>
 
@@ -124,15 +126,15 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
         <Table size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: "#f8fafc" }}>
-              <TableCell sx={headerCellSx}>顧客名</TableCell>
+              <TableCell sx={headerCellSx}>{tx("顧客名")}</TableCell>
               <TableCell align="right" sx={headerCellSx}>
-                合計注数
+                {tx("合計注数")}
               </TableCell>
               <TableCell align="right" sx={headerCellSx}>
-                合計出荷数
+                {tx("合計出荷数")}
               </TableCell>
               <TableCell align="right" sx={headerCellSx}>
-                残注数
+                {tx("残注数")}
               </TableCell>
             </TableRow>
           </TableHead>
@@ -155,7 +157,7 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
             ) : (
               <TableRow>
                 <TableCell colSpan={4} sx={{ ...bodyCellSx, textAlign: "center", color: "#6b7280", py: 3 }}>
-                  該当する残注数はありません
+                  {tx("該当する残注数はありません")}
                 </TableCell>
               </TableRow>
             )}

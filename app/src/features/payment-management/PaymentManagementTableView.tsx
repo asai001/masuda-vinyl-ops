@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
+import { useLanguage } from "@/lib/i18n/language";
 import type { PaymentManagementRow } from "@/features/payment-management/types";
 
 const categoryStyles: Record<string, { backgroundColor: string; color: string }> = {
@@ -34,11 +35,20 @@ type PaymentManagementTableViewProps = {
 };
 
 export default function PaymentManagementTableView({ rows, onRowClick, onDelete }: PaymentManagementTableViewProps) {
+  const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<keyof PaymentManagementRow>("id");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const columns = useMemo<TableColumn<PaymentManagementRow>[]>(
     () => [
+      {
+        key: "transferDestinationName",
+        header: "支払先名",
+        sortKey: "transferDestinationName",
+        render: (row) => (
+          <span className="text-sm">{row.transferDestinationName ? row.transferDestinationName : "-"}</span>
+        ),
+      },
       {
         key: "category",
         header: "カテゴリ",
@@ -65,7 +75,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
         render: (row) => (
           <div className="flex flex-col gap-1">
             <span className="text-sm font-semibold text-gray-900">{row.content}</span>
-            {row.isFixedCost ? <span className="text-xs font-semibold text-blue-600">固定費</span> : null}
+            {row.isFixedCost ? <span className="text-xs font-semibold text-blue-600">{tx("固定費")}</span> : null}
           </div>
         ),
       },
@@ -95,7 +105,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
           const statusStyle = statusStyles[row.status];
           return (
             <Chip
-              label={statusStyle.label}
+              label={tx(statusStyle.label)}
               size="small"
               sx={{
                 backgroundColor: statusStyle.backgroundColor,
@@ -124,7 +134,7 @@ export default function PaymentManagementTableView({ rows, onRowClick, onDelete 
         ),
       },
     ],
-    [onDelete],
+    [onDelete, tx],
   );
 
   const handleSort = (key: string) => {

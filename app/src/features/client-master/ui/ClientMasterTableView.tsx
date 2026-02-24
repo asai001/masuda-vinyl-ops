@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
+import { useLanguage } from "@/lib/i18n/language";
 import { ClientRow } from "../types";
 
 const statusStyles = {
@@ -18,6 +19,7 @@ type ClientMasterTableViewProps = {
 };
 
 export default function ClientMasterTableView({ rows, onRowClick, onDelete }: ClientMasterTableViewProps) {
+  const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<keyof ClientRow>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -30,8 +32,15 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
         <div>
           <div className="text-sm font-semibold text-gray-900">{row.name}</div>
           <div className="text-xs text-gray-500">{row.note}</div>
-          <div className="text-xs text-gray-500">住所: {row.address || "（未設定）"}</div>
-          <div className="text-xs text-gray-500">TEL: {row.phone || "（未設定）"}</div>
+          <div className="text-xs text-gray-500">
+            {tx("住所")}: {row.address || tx("（未設定）")}
+          </div>
+          <div className="text-xs text-gray-500">
+            {tx("電話番号")}: {row.phone || tx("（未設定）")}
+          </div>
+          <div className="text-xs text-gray-500">
+            {tx("担当者名")}: {row.contactPerson || tx("（未設定）")}
+          </div>
         </div>
       ),
     },
@@ -79,7 +88,7 @@ export default function ClientMasterTableView({ rows, onRowClick, onDelete }: Cl
         const statusStyle = statusStyles[row.status];
         return (
           <Chip
-            label={statusStyle.label}
+            label={tx(statusStyle.label)}
             size="small"
             sx={{
               backgroundColor: statusStyle.backgroundColor,

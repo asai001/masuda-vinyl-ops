@@ -16,30 +16,40 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { useLanguage, type TranslationKey } from "@/lib/i18n/language";
 
 interface SidebarProps {
   onNavigate?: (path: string) => void;
 }
 
 const menuItems = [
-  { text: "ダッシュボード", icon: LayoutDashboard, path: "/dashboard" },
-  { text: "取引先マスタ", icon: Users, path: "/client-master" },
-  { text: "材料マスタ", icon: Blocks, path: "/material-master" },
-  { text: "発注管理", icon: ShoppingCart, path: "/order-management" },
-  { text: "製品マスタ", icon: Package, path: "/product-master" },
-  { text: "受注管理", icon: TrendingUp, path: "/sales-management" },
-  { text: "支払いマスタ", icon: CreditCard, path: "/payment-master" },
-  { text: "支払い管理", icon: DollarSign, path: "/payment-management" },
-];
+  { labelKey: "nav.dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { labelKey: "nav.clientMaster", icon: Users, path: "/client-master" },
+  { labelKey: "nav.materialMaster", icon: Blocks, path: "/material-master" },
+  { labelKey: "nav.orderManagement", icon: ShoppingCart, path: "/order-management" },
+  { labelKey: "nav.productMaster", icon: Package, path: "/product-master" },
+  { labelKey: "nav.salesManagement", icon: TrendingUp, path: "/sales-management" },
+  { labelKey: "nav.paymentMaster", icon: CreditCard, path: "/payment-master" },
+  { labelKey: "nav.paymentManagement", icon: DollarSign, path: "/payment-management" },
+] as const satisfies ReadonlyArray<{
+  labelKey: TranslationKey;
+  icon: typeof LayoutDashboard;
+  path: string;
+}>;
 
 const bottomMenuItems = [
-  { text: "各種設定", icon: Settings, path: "/settings" },
-  { text: "ログアウト", icon: LogOut, path: "/logout" },
-];
+  { labelKey: "nav.settings", icon: Settings, path: "/settings" },
+  { labelKey: "nav.logout", icon: LogOut, path: "/logout" },
+] as const satisfies ReadonlyArray<{
+  labelKey: TranslationKey;
+  icon: typeof Settings;
+  path: string;
+}>;
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -66,7 +76,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     if (path === "/dashboard") {
       return pathname === "/" || pathname === "/dashboard";
     }
-    return pathname === path;
+    return pathname === path || pathname?.startsWith(`${path}/`);
   };
 
   return (
@@ -75,8 +85,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       <div className="flex items-center justify-between px-4 h-25 py-2 border-b border-gray-200">
         {open && (
           <div>
-            <h1 className="text-xl font-bold">増田ビニール</h1>
-            <p className="text-sm text-gray-600 mt-1">オペレーションシステム</p>
+            <h1 className="text-xl font-bold">{t("app.name")}</h1>
+            <p className="text-sm text-gray-600 mt-1">{t("app.subtitle")}</p>
           </div>
         )}
         <button onClick={handleDrawerToggle} className="p-1 hover:bg-gray-100 rounded">
@@ -89,19 +99,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         {menuItems.map((item) => {
           const active = isActive(item.path);
           const Icon = item.icon;
+          const label = t(item.labelKey);
           return (
             <button
-              key={item.text}
+              key={item.path}
               onClick={() => handleMenuClick(item.path)}
-              title={!open ? item.text : undefined}
+              title={!open ? label : undefined}
               className={`w-full h-15 flex items-center py-1.5 transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
               <Icon size={28} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3.5" : ""}`} />
-              {open && (
-                <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{item.text}</span>
-              )}
+              {open && <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{label}</span>}
             </button>
           );
         })}
@@ -114,19 +123,18 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         {bottomMenuItems.map((item) => {
           const active = isActive(item.path);
           const Icon = item.icon;
+          const label = t(item.labelKey);
           return (
             <button
-              key={item.text}
+              key={item.path}
               onClick={() => handleMenuClick(item.path)}
-              title={!open ? item.text : undefined}
+              title={!open ? label : undefined}
               className={`w-full h-15 flex items-center transition-colors ${open ? "px-4 justify-start" : "px-0 justify-center"} ${
                 active ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
               <Icon size={28} className={`${active ? "text-blue-600" : "text-gray-400"} ${open ? "mr-3.5" : ""}`} />
-              {open && (
-                <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{item.text}</span>
-              )}
+              {open && <span className={`text-base ${active ? "text-blue-600 font-semibold" : "text-gray-700 font-medium"}`}>{label}</span>}
             </button>
           );
         })}

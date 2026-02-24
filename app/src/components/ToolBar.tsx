@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Button, IconButton, MenuItem, Paper, Select, TextField } from "@mui/material";
 import { Plus, X } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/language";
 
 type FilterOption = {
   value: string;
@@ -47,6 +48,7 @@ export default function ToolBar({
   createLabel = "新規登録",
   rightActions,
 }: ToolBarProps) {
+  const { tx } = useLanguage();
   const initialKey = filterDefinitions[0]?.key ?? "";
 
   const filterDefinitionMap = useMemo(() => {
@@ -84,7 +86,7 @@ export default function ToolBar({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Button variant="outlined" size="small" startIcon={<Plus size={16} />} onClick={handleAddFilter}>
-            フィルタ追加
+            {tx("フィルタ追加")}
           </Button>
           <div className="flex items-center gap-2">
             {rightActions}
@@ -94,7 +96,7 @@ export default function ToolBar({
               className="w-fit whitespace-nowrap"
               onClick={onCreate}
             >
-              {createLabel}
+              {tx(createLabel)}
             </Button>
           </div>
         </div>
@@ -113,7 +115,7 @@ export default function ToolBar({
                 >
                   {filterDefinitions.map((definitionOption) => (
                     <MenuItem key={definitionOption.key} value={definitionOption.key}>
-                      {definitionOption.label}
+                      {tx(definitionOption.label)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -126,15 +128,15 @@ export default function ToolBar({
                     sx={{ minWidth: { sm: 200 } }}
                     renderValue={(selected) => {
                       if (!selected) {
-                        return <span className="text-gray-400">値を選択</span>;
+                        return <span className="text-gray-400">{tx("値を選択")}</span>;
                       }
                       const option = definition.options?.find((item) => item.value === selected);
-                      return option?.label ?? selected;
+                      return option ? tx(option.label) : selected;
                     }}
                   >
                     {definition.options?.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
-                        {option.label}
+                        {tx(option.label)}
                       </MenuItem>
                     ))}
                   </Select>
@@ -143,7 +145,7 @@ export default function ToolBar({
                     <TextField
                       size="small"
                       type="number"
-                      placeholder="最小"
+                      placeholder={tx("最小")}
                       value={filter.value}
                       onChange={(event) => handleFilterRangeChange(filter.id, "value", event.target.value)}
                       sx={{ width: 120 }}
@@ -153,7 +155,7 @@ export default function ToolBar({
                     <TextField
                       size="small"
                       type="number"
-                      placeholder="最大"
+                      placeholder={tx("最大")}
                       value={filter.valueTo ?? ""}
                       onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
                       sx={{ width: 120 }}
@@ -165,7 +167,7 @@ export default function ToolBar({
                     <TextField
                       size="small"
                       type="date"
-                      placeholder="年/月/日"
+                      placeholder={tx("年/月/日")}
                       value={filter.value}
                       onChange={(event) => handleFilterRangeChange(filter.id, "value", event.target.value)}
                       sx={{ width: 160 }}
@@ -174,7 +176,7 @@ export default function ToolBar({
                     <TextField
                       size="small"
                       type="date"
-                      placeholder="年/月/日"
+                      placeholder={tx("年/月/日")}
                       value={filter.valueTo ?? ""}
                       onChange={(event) => handleFilterRangeChange(filter.id, "valueTo", event.target.value)}
                       sx={{ width: 160 }}
@@ -183,7 +185,7 @@ export default function ToolBar({
                 ) : (
                   <TextField
                     size="small"
-                    placeholder="値を入力"
+                    placeholder={tx("値を入力")}
                     value={filter.value}
                     onChange={(event) => handleFilterValueChange(filter.id, event.target.value)}
                     sx={{ minWidth: { sm: 200 } }}

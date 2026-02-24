@@ -69,6 +69,7 @@ function buildPaymentItem(
   orgId: string,
   base: Partial<PaymentManagementItem> & { paymentId: string; displayNo: number },
 ): PaymentManagementItem {
+  const transferDestinationName = base.transferDestinationName?.trim() || undefined;
   const category = (base.category ?? "").trim();
   const content = (base.content ?? "").trim();
   const currency = (base.currency ?? "").trim();
@@ -96,6 +97,7 @@ function buildPaymentItem(
 
     yearMonth,
     paymentDate,
+    transferDestinationName,
     category,
     content,
     contentLower,
@@ -289,9 +291,9 @@ export async function generatePayments(orgId: string, yearMonth: string): Promis
   );
 
   const generated: PaymentManagementItem[] = [];
-  for (const def of paymentDefs) {
-    const legacyDay = (def as { paymentDay?: number }).paymentDay;
-    const day = typeof def.paymentDate === "number" ? def.paymentDate : typeof legacyDay === "number" ? legacyDay : null;
+    for (const def of paymentDefs) {
+      const legacyDay = (def as { paymentDay?: number }).paymentDay;
+      const day = typeof def.paymentDate === "number" ? def.paymentDate : typeof legacyDay === "number" ? legacyDay : null;
     if (!day || day < 1 || day > 31) {
       continue;
     }
@@ -322,6 +324,7 @@ export async function generatePayments(orgId: string, yearMonth: string): Promis
       buildPaymentItem(orgId, {
         paymentId,
         displayNo,
+        transferDestinationName: def.transferDestinationName,
         category,
         content,
         amount,

@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
-import { Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton } from "@mui/material";
+import { Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, type SxProps, type Theme } from "@mui/material";
 import { X } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/language";
+import { translateNode } from "@/lib/i18n/translateNode";
 
 type ModalProps = {
   open: boolean;
@@ -13,6 +15,8 @@ type ModalProps = {
   maxWidth?: false | "xs" | "sm" | "md" | "lg" | "xl";
   fullWidth?: boolean;
   showCloseButton?: boolean;
+  contentSx?: SxProps<Theme>;
+  paperSx?: SxProps<Theme>;
 };
 
 export default function Modal({
@@ -24,17 +28,23 @@ export default function Modal({
   maxWidth = false,
   fullWidth = true,
   showCloseButton = true,
+  contentSx,
+  paperSx,
 }: ModalProps) {
+  const { tx } = useLanguage();
+  const translatedChildren = React.useMemo(() => translateNode(children, tx), [children, tx]);
+  const translatedActions = React.useMemo(() => translateNode(actions, tx), [actions, tx]);
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
       maxWidth={maxWidth}
       fullWidth={fullWidth}
-      PaperProps={{ sx: { maxWidth: 800, width: "100%" } }}
+      PaperProps={{ sx: { maxWidth: 800, width: "100%", ...paperSx } }}
     >
       <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
-        {title}
+        {translateNode(title, tx)}
         {showCloseButton ? (
           <IconButton onClick={onClose} size="small">
             <X size={16} />
@@ -42,13 +52,13 @@ export default function Modal({
         ) : null}
       </DialogTitle>
       <Divider />
-      <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2 }}>
-        {children}
+      <DialogContent className="flex flex-col gap-4" sx={{ px: 3, py: 2, ...contentSx }}>
+        {translatedChildren}
       </DialogContent>
       {actions ? (
         <>
           <Divider />
-          <DialogActions sx={{ px: 3, py: 2 }}>{actions}</DialogActions>
+          <DialogActions sx={{ px: 3, py: 2 }}>{translatedActions}</DialogActions>
         </>
       ) : null}
     </Dialog>

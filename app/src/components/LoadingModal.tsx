@@ -2,6 +2,7 @@
 
 import React from "react";
 import { CircularProgress, Dialog, DialogContent } from "@mui/material";
+import { useLanguage } from "@/lib/i18n/language";
 
 type LoadingModalProps = {
   open: boolean;
@@ -9,6 +10,8 @@ type LoadingModalProps = {
 };
 
 export default function LoadingModal({ open, message = "保存中" }: LoadingModalProps) {
+  const { tx } = useLanguage();
+
   return (
     <Dialog
       open={open}
@@ -33,7 +36,7 @@ export default function LoadingModal({ open, message = "保存中" }: LoadingMod
     >
       <DialogContent className="flex flex-col items-center justify-center gap-4 py-10">
         <CircularProgress size={50} />
-        <span className="text-gray-700 mt-8">{message}</span>
+        <span className="text-gray-700 mt-8">{tx(message)}</span>
       </DialogContent>
     </Dialog>
   );

@@ -21,6 +21,7 @@ function isNewPaymentInput(v: unknown): v is NewPaymentInput {
   const r = v as Record<string, unknown>;
 
   if (
+    !isOptionalString(r.transferDestinationName) ||
     !isNonEmptyString(r.category) ||
     !isNonEmptyString(r.content) ||
     typeof r.isFixedCost !== "boolean" ||

@@ -69,6 +69,7 @@ const normalizePayload = (payload: Partial<OrderIssuePdfPayload>): OrderIssuePdf
   supplierPhone: typeof payload.supplierPhone === "string" ? payload.supplierPhone : "-",
   lineItems: normalizeLineItems(payload.lineItems),
   amountLabel: typeof payload.amountLabel === "string" ? payload.amountLabel : "-",
+  currency: typeof payload.currency === "string" ? payload.currency : "",
   note: typeof payload.note === "string" ? payload.note : "",
 });
 

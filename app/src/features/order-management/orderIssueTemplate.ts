@@ -16,6 +16,7 @@ export type OrderIssuePdfPayload = {
   supplierPhone: string;
   lineItems: PdfLineItem[];
   amountLabel: string;
+  currency: string;
   note: string;
 };
 
@@ -37,6 +38,7 @@ const escapeHtml = (value: string) =>
 
 export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFontSources) => {
   const safe = (value: string) => escapeHtml(value);
+  const currencyLabel = payload.currency ? `(${safe(payload.currency)})` : "";
   const rows = Array.from({ length: 9 }, (_, index) => payload.lineItems[index] ?? null);
   const rowsHtml = rows
     .map((row, index) => {
@@ -102,12 +104,14 @@ export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFo
         .note-row td > div:last-child { font-weight: 400; }
         .note-value { white-space: pre-wrap; line-height: 1.4; font-weight: 400; }
         .issuer-address { font-size: 14px; font-weight: 400; }
-        .stamp { margin-top: 40px; margin-right: 80px; text-align: right; }
-        .stamp-table { width: 192px; border-collapse: collapse; margin-left: auto; border: 1px solid #111111; table-layout: fixed; }
-        .stamp-table th, .stamp-table td { border: 1px solid #111111; text-align: center; vertical-align: middle; width: 96px; }
-        .stamp-table thead tr { height: 48px; }
-        .stamp-table tbody tr { height: 72px; }
+        .stamp { margin-top: 36px; text-align: right; }
+        .stamp-table { width: 300px; border-collapse: collapse; margin-left: auto; border: 1px solid #111111; table-layout: fixed; }
+        .stamp-table th, .stamp-table td { border: 1px solid #111111; text-align: center; vertical-align: middle; width: 100px; }
+        .stamp-table thead tr { height: 44px; }
+        .stamp-table tbody tr { height: 88px; }
         .stamp-table th { font-size: 12px; font-weight: 600; }
+        .stamp-title { font-weight: 700; }
+        .stamp-sub { font-size: 11px; }
         .table-row { height: 40px; }
       </style>
     </head>
@@ -176,7 +180,7 @@ export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFo
             </th>
             <th>
               <div>金額</div>
-              <div class="header-sub vn">Số tiền (VND)</div>
+              <div class="header-sub vn">Số tiền ${currencyLabel}</div>
             </th>
           </tr>
         </thead>
@@ -204,12 +208,23 @@ export const renderOrderIssueHtml = (payload: OrderIssuePdfPayload, fonts: PdfFo
         <table class="stamp-table">
           <thead>
             <tr>
-              <th>Vice Director</th>
-              <th>GM</th>
+              <th>
+                <div class="stamp-title">承認者</div>
+                <div class="stamp-sub vn">Xác nhận</div>
+              </th>
+              <th>
+                <div class="stamp-title">確認者</div>
+                <div class="stamp-sub vn">Kiểm tra</div>
+              </th>
+              <th>
+                <div class="stamp-title">担当者</div>
+                <div class="stamp-sub vn">Phụ trách</div>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr>
+              <td></td>
               <td></td>
               <td></td>
             </tr>

@@ -35,6 +35,14 @@ export default function PaymentMasterTableView({ rows, onRowClick, onDelete }: P
   const columns = useMemo<TableColumn<PaymentRow>[]>(
     () => [
       {
+        key: "transferDestinationName",
+        header: "支払先名",
+        sortKey: "transferDestinationName",
+        render: (row) => (
+          <span className="text-sm">{row.transferDestinationName ? row.transferDestinationName : "-"}</span>
+        ),
+      },
+      {
         key: "content",
         header: "内容",
         sortKey: "content",

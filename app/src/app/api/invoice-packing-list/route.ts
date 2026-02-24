@@ -105,6 +105,17 @@ const updateSharedStringCounts = async (buffer: Buffer) => {
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 };
 
+const escapeNumberFormatText = (value: string) => value.replace(/"/g, '""');
+
+const toPackingFormat = (unitLabel: string) => {
+  const trimmed = unitLabel.trim();
+  if (!trimmed) {
+    return "0";
+  }
+  const safe = escapeNumberFormatText(trimmed);
+  return `0 "${safe}"`;
+};
+
 export async function POST(request: Request) {
   const action = "invoice-packing-list.generate";
   const resource = "invoice-packing-list";
@@ -190,13 +201,14 @@ export async function POST(request: Request) {
         invoiceCell.value(invoiceNo ? `${label}\n${invoiceNo}` : `${label}\n`);
       }
     }
-    sheet.cell("J12").value(payload.destinationCountry);
+    const destinationCountry = templateType === "hq" ? "JAPAN" : payload.destinationCountry;
+    sheet.cell("J12").value(destinationCountry);
     if (templateType !== "hq") {
       sheet.cell("A18").value(payload.consigneeName);
       sheet.cell("A19").value(payload.consigneeAddress);
       sheet.cell("A21").value(formatTel(payload.consigneeTel ?? ""));
       sheet.cell("A22").value(formatTaxId(payload.consigneeTaxId ?? ""));
-      sheet.cell("A27").value(payload.destinationCountry);
+      sheet.cell("A27").value(destinationCountry);
     }
 
     const items = Array.isArray(payload.items) ? payload.items : [];
@@ -249,6 +261,14 @@ export async function POST(request: Request) {
 
     if (templateType === "hq") {
       for (let row = hqPackingStartRow; row <= hqPackingEndRow; row += 1) {
+        (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+        packingSheet.cell(`G${row}`).value(null);
+        (packingSheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+          "numberFormat",
+          "General",
+        );
+        (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+        packingSheet.cell(`H${row}`).value(null);
         packingSheet.cell(`J${row}`).value("");
         packingSheet.cell(`K${row}`).value("");
       }
@@ -257,11 +277,30 @@ export async function POST(request: Request) {
         const row = hqPackingStartRow + index;
         const palletCount = Number.isFinite(item.palletCount) ? item.palletCount : 0;
         const totalWeight = Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
+        const packingLabel = item.unit ? `${item.unit}/box` : "/box";
+        const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
+        if (packingValue !== null) {
+          (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+          packingSheet.cell(`G${row}`).value(packingValue);
+          (packingSheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+            "numberFormat",
+            toPackingFormat(packingLabel),
+          );
+          packingSheet.cell(`H${row}`).value(null);
+        }
         packingSheet.cell(`J${row}`).value(palletCount);
         packingSheet.cell(`K${row}`).value(totalWeight);
       });
     } else {
       for (let row = clientPackingStartRow; row <= clientPackingEndRow; row += 1) {
+        (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+        packingSheet.cell(`H${row}`).value(null);
+        (packingSheet.cell(`H${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+          "numberFormat",
+          "General",
+        );
+        (packingSheet.cell(`I${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+        packingSheet.cell(`I${row}`).value(null);
         packingSheet.cell(`K${row}`).value("");
         packingSheet.cell(`M${row}`).value("");
       }
@@ -270,6 +309,17 @@ export async function POST(request: Request) {
         const row = clientPackingStartRow + index;
         const palletCount = Number.isFinite(item.palletCount) ? item.palletCount : 0;
         const totalWeight = Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
+        const packingLabel = item.unit ? `${item.unit}/box` : "/box";
+        const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
+        if (packingValue !== null) {
+          (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+          packingSheet.cell(`H${row}`).value(packingValue);
+          (packingSheet.cell(`H${row}`) as unknown as { style: (name: string, value: string) => void }).style(
+            "numberFormat",
+            toPackingFormat(packingLabel),
+          );
+          packingSheet.cell(`I${row}`).value(null);
+        }
         packingSheet.cell(`K${row}`).value(palletCount);
         packingSheet.cell(`M${row}`).value(totalWeight);
       });

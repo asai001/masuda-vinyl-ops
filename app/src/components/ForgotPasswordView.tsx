@@ -113,7 +113,7 @@ export default function ForgotPasswordView() {
     }
 
     if (!identifier.trim()) {
-      setErrorMessage("ログインIDを入力してください。");
+      setErrorMessage("メールアドレスを入力してください。");
       return;
     }
 
@@ -141,7 +141,7 @@ export default function ForgotPasswordView() {
     }
 
     if (!identifier.trim()) {
-      setErrorMessage("ログインIDを入力してください。");
+      setErrorMessage("メールアドレスを入力してください。");
       return;
     }
 
@@ -218,13 +218,13 @@ export default function ForgotPasswordView() {
                   受信した確認コードと新しいパスワードを入力してください。
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[0.95rem] text-neutral-600">ログインID</span>
+                  <span className="text-[0.95rem] text-neutral-600">メールアドレス</span>
                   <input
                     id="identifier"
                     name="identifier"
-                    type="text"
-                    autoComplete="username"
-                    aria-label="ログインID"
+                    type="email"
+                    autoComplete="email"
+                    aria-label="メールアドレス"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     required
@@ -307,13 +307,13 @@ export default function ForgotPasswordView() {
                   登録済みのメールアドレス宛に確認コードを送信します。
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[0.95rem] text-neutral-600">ログインID</span>
+                  <span className="text-[0.95rem] text-neutral-600">メールアドレス</span>
                   <input
                     id="identifier"
                     name="identifier"
-                    type="text"
-                    autoComplete="username"
-                    aria-label="ログインID"
+                    type="email"
+                    autoComplete="email"
+                    aria-label="メールアドレス"
                     value={identifier}
                     onChange={handleIdentifierChange}
                     required

@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import { MaterialRow } from "../types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 type Option = {
   value: string;
@@ -15,7 +16,6 @@ type Option = {
 type EditMaterialModalProps = {
   open: boolean;
   material: MaterialRow | null;
-  existingMaterials: MaterialRow[];
   categoryOptions: Option[];
   supplierOptions: Option[];
   unitOptions: Option[];
@@ -25,9 +25,6 @@ type EditMaterialModalProps = {
   onSave: (material: MaterialRow) => void;
   onDelete?: (material: MaterialRow) => void;
 };
-
-const isBlank = (v: string) => v.trim().length === 0;
-const normalizeCode = (value: string) => value.trim().toLowerCase();
 
 const emptyErrors = {
   code: "",
@@ -44,7 +41,6 @@ const emptyErrors = {
 export default function EditMaterialModal({
   open,
   material,
-  existingMaterials,
   categoryOptions,
   supplierOptions,
   unitOptions,
@@ -54,6 +50,7 @@ export default function EditMaterialModal({
   onSave,
   onDelete,
 }: EditMaterialModalProps) {
+  const { tx } = useLanguage();
   const getInitialForm = (row: MaterialRow | null) => ({
     code: row?.code ?? "",
     name: row?.name ?? "",
@@ -102,17 +99,16 @@ export default function EditMaterialModal({
   };
 
   const handleSave = () => {
+    const unitPriceValue = form.unitPrice.trim();
+    const parsedPrice = unitPriceValue ? Number(form.unitPrice) : 0;
     const nextErrors = {
-      code: isBlank(form.code) ? "空文字だけでは登録できません" : "",
-      name: isBlank(form.name) ? "空文字だけでは登録できません" : "",
-      supplier: isBlank(form.supplier) ? "空文字だけでは登録できません" : "",
-      category: isBlank(form.category) ? "空文字だけでは登録できません" : "",
-      unit: isBlank(form.unit) ? "空文字だけでは登録できません" : "",
-      currency: isBlank(form.currency) ? "空文字だけでは登録できません" : "",
-      unitPrice: isBlank(form.unitPrice) ? "空文字だけでは登録できません" : "",
-      status: isBlank(form.status) ? "空文字だけでは登録できません" : "",
-      note: "",
+      ...emptyErrors,
+      unitPrice: unitPriceValue && Number.isNaN(parsedPrice) ? "数値で入力してください" : "",
     };
+    if (!nextErrors.unitPrice && unitPriceValue && parsedPrice < 0) {
+      nextErrors.unitPrice = "0以上で入力してください";
+    }
+
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some((message) => message)) {
@@ -121,36 +117,11 @@ export default function EditMaterialModal({
     }
     setActionError(null);
 
-    const parsedPrice = Number(form.unitPrice);
-    if (Number.isNaN(parsedPrice)) {
-      setErrors((prev) => ({ ...prev, unitPrice: "数値で入力してください" }));
-      setActionError("入力内容をご確認ください。");
-      return;
-    }
-    if (parsedPrice < 0) {
-      setErrors((prev) => ({ ...prev, unitPrice: "0以上で入力してください" }));
-      setActionError("入力内容をご確認ください。");
-      return;
-    }
-
     if (!material) {
       return;
     }
 
-    const normalizedCode = normalizeCode(form.code);
-    if (normalizedCode) {
-      const hasDuplicate = existingMaterials.some((row) => {
-        if (row.materialId === material.materialId) {
-          return false;
-        }
-        return normalizeCode(row.code) === normalizedCode;
-      });
-      if (hasDuplicate) {
-        setErrors((prev) => ({ ...prev, code: "品番が既に登録されています" }));
-        setActionError("入力内容をご確認ください。");
-        return;
-      }
-    }
+    // 品番の重複チェックは行わない
 
     onSave({
       ...material,
@@ -168,8 +139,8 @@ export default function EditMaterialModal({
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
-    return selected?.label ?? "有効";
-  }, [form.status, statusOptions]);
+    return tx(selected?.label ?? "有効");
+  }, [form.status, statusOptions, tx]);
 
   return (
     <Modal
@@ -199,9 +170,7 @@ export default function EditMaterialModal({
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          品番 <span className="text-red-500">*</span>
-        </label>
+        <label className="text-sm font-semibold text-gray-700">品番</label>
         <TextField
           size="small"
           placeholder="例: PI-001"
@@ -214,7 +183,7 @@ export default function EditMaterialModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          品目名 <span className="text-red-500">*</span>
+          品目名
         </label>
         <TextField
           size="small"
@@ -229,7 +198,7 @@ export default function EditMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            仕入先 <span className="text-red-500">*</span>
+            仕入先
           </label>
           <Autocomplete
             options={supplierOptions}
@@ -250,7 +219,7 @@ export default function EditMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            カテゴリ <span className="text-red-500">*</span>
+            カテゴリ
           </label>
           <Autocomplete
             freeSolo
@@ -275,7 +244,7 @@ export default function EditMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            単位 <span className="text-red-500">*</span>
+            単位
           </label>
           <Autocomplete
             freeSolo
@@ -297,7 +266,7 @@ export default function EditMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
+            通貨
           </label>
           <FormControl size="small" error={Boolean(errors.currency)}>
             <Select
@@ -320,7 +289,7 @@ export default function EditMaterialModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            標準単価 <span className="text-red-500">*</span>
+            標準単価
           </label>
           <TextField
             size="small"
@@ -335,7 +304,7 @@ export default function EditMaterialModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            ステータス <span className="text-red-500">*</span>
+            ステータス
           </label>
           <FormControl size="small" error={Boolean(errors.status)}>
             <Select

@@ -12,8 +12,10 @@ import NewClientModal from "@/features/client-master/ui/NewClientModal";
 import type { NewClientInput, ClientRow } from "../types";
 import { createClient, deleteClient, fetchClientRows, updateClient } from "../api/client";
 import { CURRENCY_OPTION_ITEMS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 export default function ClientMasterView() {
+  const { tx } = useLanguage();
   const {
     rows,
     replaceRows,
@@ -169,6 +171,7 @@ export default function ClientMasterView() {
       { key: "name", label: "取引先", type: "text" },
       { key: "address", label: "住所", type: "text" },
       { key: "phone", label: "電話番号", type: "text" },
+      { key: "contactPerson", label: "担当者名", type: "text" },
       { key: "taxId", label: "TAX ID", type: "text" },
     ];
   }, [rows]);
@@ -213,6 +216,8 @@ export default function ClientMasterView() {
             return values.some((value) => row.address.toLowerCase().includes(value.value.toLowerCase()));
           case "phone":
             return values.some((value) => row.phone.toLowerCase().includes(value.value.toLowerCase()));
+          case "contactPerson":
+            return values.some((value) => row.contactPerson.toLowerCase().includes(value.value.toLowerCase()));
           case "taxId":
             return values.some((value) => (row.taxId ?? "").toLowerCase().includes(value.value.toLowerCase()));
           default:
@@ -259,7 +264,7 @@ export default function ClientMasterView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {loading && <div className="text-sm text-gray-500">読み込み中...</div>}
+      {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
       <ClientMasterTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewClientModal
         open={isCreateOpen}

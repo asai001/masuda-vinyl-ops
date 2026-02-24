@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewProductInput, ProductRow } from "./types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
+import { useLanguage } from "@/lib/i18n/language";
 
 type Option = {
   value: string;
@@ -26,6 +27,7 @@ type NewProductModalProps = {
 const emptyErrors = {
   code: "",
   name: "",
+  packaging: "",
   category: "",
   unit: "",
   currency: "",
@@ -47,6 +49,7 @@ export default function NewProductModal({
   onClose,
   onSave,
 }: NewProductModalProps) {
+  const { tx } = useLanguage();
   const [form, setForm] = useState({
     code: "",
     name: "",
@@ -56,6 +59,7 @@ export default function NewProductModal({
     unitPrice: "",
     status: "active",
     note: "",
+    packaging: "",
     weight: "0",
     length: "0",
     speed: "0",
@@ -74,6 +78,7 @@ export default function NewProductModal({
       unitPrice: "",
       status: "active",
       note: "",
+      packaging: "",
       weight: "0",
       length: "0",
       speed: "0",
@@ -94,7 +99,7 @@ export default function NewProductModal({
     setActionError(null);
   };
 
-  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed", value: string) => {
+  const handleNumberChange = (key: "unitPrice" | "weight" | "length" | "speed" | "packaging", value: string) => {
     if (value.trim().startsWith("-")) {
       return;
     }
@@ -109,30 +114,18 @@ export default function NewProductModal({
 
   const handleSave = () => {
     const codeValue = form.code.trim();
+    const unitPriceValue = form.unitPrice.trim();
+    const parsedPrice = unitPriceValue ? Number(form.unitPrice) : 0;
     const nextErrors = {
-      code: codeValue ? "" : "必須項目です",
-      name: form.name ? "" : "必須項目です",
-      category: form.category ? "" : "必須項目です",
-      unit: form.unit ? "" : "必須項目です",
-      currency: form.currency ? "" : "必須項目です",
-      unitPrice: form.unitPrice ? "" : "必須項目です",
-      status: form.status ? "" : "必須項目です",
-      weight: "",
-      length: "",
-      speed: "",
-      materials: form.materials.length ? "" : "必須項目です",
+      ...emptyErrors,
+      unitPrice: unitPriceValue && Number.isNaN(parsedPrice) ? "数値で入力してください" : "",
     };
-
-    const parsedPrice = Number(form.unitPrice);
-    if (!nextErrors.unitPrice && Number.isNaN(parsedPrice)) {
-      nextErrors.unitPrice = "数値で入力してください";
-    } else if (!nextErrors.unitPrice && parsedPrice < 0) {
+    if (!nextErrors.unitPrice && unitPriceValue && parsedPrice < 0) {
       nextErrors.unitPrice = "0以上で入力してください";
     }
 
-    const parseRequiredNumber = (value: string, key: "weight" | "length" | "speed") => {
+    const parseOptionalNumber = (value: string, key: "weight" | "length" | "speed") => {
       if (!value.trim()) {
-        nextErrors[key] = "必須項目です";
         return null;
       }
       const parsed = Number(value);
@@ -147,11 +140,18 @@ export default function NewProductModal({
       return parsed;
     };
 
-    const parsedWeight = parseRequiredNumber(form.weight, "weight");
-    const parsedLength = parseRequiredNumber(form.length, "length");
-    const parsedSpeed = parseRequiredNumber(form.speed, "speed");
+    const parsedWeight = parseOptionalNumber(form.weight, "weight");
+    const parsedLength = parseOptionalNumber(form.length, "length");
+    const parsedSpeed = parseOptionalNumber(form.speed, "speed");
 
-    if (!nextErrors.code) {
+    const parsedPackaging = form.packaging.trim() ? Number(form.packaging) : null;
+    if (parsedPackaging !== null && Number.isNaN(parsedPackaging)) {
+      nextErrors.packaging = "数値で入力してください";
+    } else if (parsedPackaging !== null && parsedPackaging < 0) {
+      nextErrors.packaging = "0以上で入力してください";
+    }
+
+    if (codeValue) {
       const normalizedCode = codeValue.toLowerCase();
       const isDuplicate = existingProducts.some((row) => row.code.trim().toLowerCase() === normalizedCode);
       if (isDuplicate) {
@@ -170,6 +170,7 @@ export default function NewProductModal({
     onSave({
       code: codeValue,
       name: form.name,
+      packaging: parsedPackaging,
       category: form.category,
       unit: form.unit,
       currency: form.currency,
@@ -186,8 +187,8 @@ export default function NewProductModal({
 
   const statusLabel = useMemo(() => {
     const selected = statusOptions.find((option) => option.value === form.status);
-    return selected?.label ?? "有効";
-  }, [form.status, statusOptions]);
+    return tx(selected?.label ?? "有効");
+  }, [form.status, statusOptions, tx]);
 
   const materialLabelMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -217,7 +218,7 @@ export default function NewProductModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            品番 <span className="text-red-500">*</span>
+            品番
           </label>
           <TextField
             size="small"
@@ -230,7 +231,7 @@ export default function NewProductModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            品目名 <span className="text-red-500">*</span>
+            品目名
           </label>
           <TextField
             size="small"
@@ -243,10 +244,24 @@ export default function NewProductModal({
         </div>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">梱包数（/box）</label>
+        <TextField
+          size="small"
+          type="number"
+          placeholder="例: 20"
+          value={form.packaging}
+          onChange={(event) => handleNumberChange("packaging", event.target.value)}
+          error={Boolean(errors.packaging)}
+          helperText={errors.packaging}
+          slotProps={{ htmlInput: { min: 0, step: "1" } }}
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            カテゴリ <span className="text-red-500">*</span>
+            カテゴリ
           </label>
           <Autocomplete
             freeSolo
@@ -268,7 +283,7 @@ export default function NewProductModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            単位 <span className="text-red-500">*</span>
+            単位
           </label>
           <Autocomplete
             freeSolo
@@ -293,7 +308,7 @@ export default function NewProductModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            標準単価 <span className="text-red-500">*</span>
+            標準単価
           </label>
           <TextField
             size="small"
@@ -308,7 +323,7 @@ export default function NewProductModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            通貨 <span className="text-red-500">*</span>
+            通貨
           </label>
           <FormControl size="small" error={Boolean(errors.currency)}>
             <Select
@@ -330,7 +345,7 @@ export default function NewProductModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          ステータス <span className="text-red-500">*</span>
+          ステータス
         </label>
         <FormControl size="small" error={Boolean(errors.status)}>
           <Select
@@ -368,7 +383,7 @@ export default function NewProductModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            重量 (g) <span className="text-red-500">*</span>
+            重量 (g)
           </label>
           <TextField
             size="small"
@@ -383,7 +398,7 @@ export default function NewProductModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            長さ (mm) <span className="text-red-500">*</span>
+            長さ (mm)
           </label>
           <TextField
             size="small"
@@ -398,7 +413,7 @@ export default function NewProductModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
-            分速 (m/min) <span className="text-red-500">*</span>
+            分速 (m/min)
           </label>
           <TextField
             size="small"
@@ -415,7 +430,7 @@ export default function NewProductModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">
-          使用材料 <span className="text-red-500">*</span>
+          使用材料
         </label>
         <Select
           size="small"

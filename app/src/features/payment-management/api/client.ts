@@ -37,6 +37,7 @@ function toRow(item: PaymentManagementItem): PaymentManagementRow {
     id,
     paymentId: item.paymentId,
     yearMonth,
+    transferDestinationName: item.transferDestinationName ?? "",
     category: item.category ?? "",
     content: item.content ?? "",
     amount: typeof item.amount === "number" ? item.amount : 0,
@@ -75,6 +76,7 @@ export async function createPayment(input: NewPaymentManagementInput): Promise<P
 const toUpdatePayload = (row: PaymentManagementRow): UpdatePaymentManagementInput => ({
   paymentId: row.paymentId,
   yearMonth: row.yearMonth,
+  transferDestinationName: row.transferDestinationName ?? "",
   category: row.category,
   content: row.content,
   amount: row.amount,

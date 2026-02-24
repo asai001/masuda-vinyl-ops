@@ -3,6 +3,7 @@ export type ProductRow = {
   productId: string;
   code: string;
   name: string;
+  packaging: number | null;
   category: string;
   unit: string;
   currency: string;
@@ -24,6 +25,7 @@ export type ProductItem = {
   displayNo?: number;
   code: string;
   name: string;
+  packaging?: number | null;
   category?: string;
   unit?: string;
   currency?: string;

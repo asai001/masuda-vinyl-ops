@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
+import { useLanguage } from "@/lib/i18n/language";
 import { documentStatusOptions, orderStatusOptions, type OrderRow } from "@/features/order-management/types";
 
 const unitPriceFormatter = new Intl.NumberFormat("en-US", {
@@ -55,12 +56,12 @@ type OrderManagementTableViewProps = {
   onIssue?: (row: OrderRow) => void;
 };
 
-const renderStatusItems = (items: { label: string; active: boolean }[]) => (
+const renderStatusItems = (items: { label: string; active: boolean }[], tx: (text: string) => string) => (
   <div className="flex flex-col gap-1 text-xs text-gray-700">
     {items.map((item) => (
       <div key={item.label} className="flex items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${item.active ? "bg-green-500" : "bg-gray-300"}`} />
-        <span className="whitespace-nowrap">{item.label}</span>
+        <span className="whitespace-nowrap">{tx(item.label)}</span>
       </div>
     ))}
   </div>
@@ -72,6 +73,7 @@ export default function OrderManagementTableView({
   onRowClick,
   onIssue,
 }: OrderManagementTableViewProps) {
+  const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -99,7 +101,9 @@ export default function OrderManagementTableView({
             <div className="flex flex-col text-sm">
               <span className="font-semibold whitespace-nowrap">{summary.code}</span>
               <span className="text-gray-600 whitespace-nowrap">{summary.name}</span>
-              {summary.extraCount ? <span className="text-xs text-gray-500">他{summary.extraCount}件</span> : null}
+              {summary.extraCount ? (
+                <span className="text-xs text-gray-500">{tx(`他${summary.extraCount}件`)}</span>
+              ) : null}
             </div>
           );
         },
@@ -109,7 +113,7 @@ export default function OrderManagementTableView({
         header: "数量",
         sortKey: "quantity",
         align: "right",
-        render: (row) => <span className="text-sm whitespace-nowrap">{getQuantityLabel(row.items)}</span>,
+        render: (row) => <span className="text-sm whitespace-nowrap">{tx(getQuantityLabel(row.items))}</span>,
       },
       {
         key: "unitPrice",
@@ -117,7 +121,7 @@ export default function OrderManagementTableView({
         sortKey: "unitPrice",
         align: "right",
         render: (row) => (
-          <span className="text-sm font-semibold whitespace-nowrap">{getUnitPriceLabel(row.items, row.currency)}</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{tx(getUnitPriceLabel(row.items, row.currency))}</span>
         ),
       },
       {
@@ -146,6 +150,7 @@ export default function OrderManagementTableView({
               label: status.label,
               active: row.status[status.key],
             })),
+            tx,
           ),
       },
       {
@@ -157,11 +162,12 @@ export default function OrderManagementTableView({
               label: status.label,
               active: row.documentStatus[status.key],
             })),
+            tx,
           ),
       },
       {
         key: "issue",
-        header: <span>注文書</span>,
+        header: <span>{tx("注文書")}</span>,
         align: "center",
         render: (row) => (
           <Button
@@ -172,7 +178,7 @@ export default function OrderManagementTableView({
               onIssue?.(row);
             }}
           >
-            発行
+            {tx("発行")}
           </Button>
         ),
       },
@@ -194,7 +200,7 @@ export default function OrderManagementTableView({
         ),
       },
     ],
-    [onDelete, onIssue],
+    [onDelete, onIssue, tx],
   );
 
   const handleSort = (key: string) => {

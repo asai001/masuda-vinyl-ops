@@ -22,6 +22,7 @@ function toRow(item: PaymentDefinitionItem): PaymentRow {
   return {
     id,
     paymentDefId: item.paymentDefId,
+    transferDestinationName: item.transferDestinationName ?? "",
     category: item.category ?? "",
     content: item.content ?? "",
     isFixedCost: item.isFixedCost ?? false,
@@ -60,6 +61,7 @@ export async function createPaymentDefinition(input: NewPaymentInput): Promise<P
 function toUpdatePayload(row: PaymentRow): UpdatePaymentInput {
   return {
     paymentDefId: row.paymentDefId,
+    transferDestinationName: row.transferDestinationName ?? "",
     category: row.category,
     content: row.content,
     isFixedCost: row.isFixedCost,

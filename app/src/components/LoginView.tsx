@@ -47,7 +47,7 @@ const getLoginErrorMessage = (error: unknown, context: "sign-in" | "new-password
     case "NotAuthorizedException":
       return context === "new-password"
         ? "パスワード更新のセッションが無効です。最初からログインしてください。"
-        : "ログインIDまたはパスワードが正しくありません。";
+        : "メールアドレスまたはパスワードが正しくありません。";
     case "UserNotFoundException":
       return "ユーザーが見つかりません。";
     case "PasswordResetRequiredException":
@@ -138,7 +138,7 @@ export default function LoginView() {
     }
 
     if (!form.identifier.trim() || !form.password) {
-      setErrorMessage("ログインIDとパスワードを入力してください。");
+      setErrorMessage("メールアドレスとパスワードを入力してください。");
       return;
     }
 
@@ -273,13 +273,13 @@ export default function LoginView() {
             ) : (
               <>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[0.95rem] text-neutral-600">ログインID</span>
+                  <span className="text-[0.95rem] text-neutral-600">メールアドレス</span>
                   <input
                     id="identifier"
                     name="identifier"
-                    type="text"
-                    autoComplete="username"
-                    aria-label="ログインID"
+                    type="email"
+                    autoComplete="email"
+                    aria-label="メールアドレス"
                     value={form.identifier}
                     onChange={handleTextChange("identifier")}
                     required

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, CircularProgress, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { ClientRow } from "@/features/client-master/types";
+import { renderOrderIssuePreviewHtml } from "@/features/order-management/orderIssuePreview";
 import type { OrderRow } from "@/features/order-management/types";
-import { fetchExchangeRates } from "@/features/settings/api/client";
-import type { ExchangeRates } from "@/features/settings/types";
-import { renderOrderIssueHtml, type OrderIssuePdfPayload, type PdfFontSources } from "./orderIssueTemplate";
+import type { OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
 
 type OrderIssueModalProps = {
   open: boolean;
@@ -16,273 +15,258 @@ type OrderIssueModalProps = {
   clients?: ClientRow[];
 };
 
-const amountFormatter = new Intl.NumberFormat("en-US");
-const defaultExchangeRates: ExchangeRates = {
-  jpyPerUsd: 150,
-  vndPerUsd: 25000,
-};
-const isAbortError = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
+const amountFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 6,
+});
 
-const previewFontSources: PdfFontSources = {
-  jpRegular: "/fonts/NotoSerifJP-Regular.ttf",
-  jpBold: "/fonts/NotoSerifJP-Bold.ttf",
-  vnRegular: "/fonts/NotoSerif-Regular.ttf",
-  vnBold: "/fonts/NotoSerif-Bold.ttf",
+const sanitizeFileName = (value: string) => {
+  const trimmed = value.trim();
+  const sanitized = trimmed.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "");
+  return sanitized || "order";
 };
-const formatIssueDate = (value?: string | null) => {
+
+const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
+type SaveFilePickerHandle = {
+  createWritable: () => Promise<{
+    write: (data: Blob) => Promise<void>;
+    close: () => Promise<void>;
+  }>;
+};
+
+const pickSaveFileHandle = async (fileName: string): Promise<SaveFilePickerHandle | "cancelled" | null> => {
+  const picker = (
+    window as Window & {
+      showSaveFilePicker?: (options?: {
+        suggestedName?: string;
+        types?: Array<{
+          description?: string;
+          accept: Record<string, string[]>;
+        }>;
+        excludeAcceptAllOption?: boolean;
+      }) => Promise<SaveFilePickerHandle>;
+    }
+  ).showSaveFilePicker;
+  if (!picker) {
+    return null;
+  }
+  try {
+    return await picker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: "Excel (.xlsx)",
+          accept: {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+          },
+        },
+      ],
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      return "cancelled";
+    }
+    throw error;
+  }
+};
+
+const saveBlobToPickedFile = async (
+  blob: Blob,
+  handle: SaveFilePickerHandle,
+): Promise<"saved" | "cancelled"> => {
+  try {
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return "saved";
+  } catch (error) {
+    if (isAbortError(error)) {
+      return "cancelled";
+    }
+    throw error;
+  }
+};
+
+const formatNumber = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return amountFormatter.format(value);
+};
+
+const toIsoDate = (value?: string | null) => {
   if (!value) {
-    return "-";
+    return "";
   }
   const match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (!match) {
+  if (match) {
+    const [, year, month, day] = match;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
     return value;
   }
-  const [, year, month, day] = match;
-  return `${Number(day)}/${Number(month)}/${year}`;
+  const date = new Date(parsed);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
-const a4WidthPx = (210 / 25.4) * 96;
-const a4HeightPx = (297 / 25.4) * 96;
-type PreviewSize = { width: number; height: number };
-const requestPdfBlob = async (payload: OrderIssuePdfPayload, signal?: AbortSignal) => {
-  const response = await fetch("/api/order-issue-pdf", {
+
+const buildSupplierContactLabel = (contactPerson?: string, phone?: string) => {
+  const person = contactPerson?.trim() ?? "";
+  const phoneNumber = phone?.trim() ?? "";
+  if (person && phoneNumber) {
+    return `${person}:${phoneNumber}`;
+  }
+  return person || phoneNumber;
+};
+
+const requestOrderIssueExcelBlob = async (payload: OrderIssueExcelPayload, signal?: AbortSignal) => {
+  const response = await fetch("/api/order-issue-excel", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
     signal,
   });
   if (!response.ok) {
-    throw new Error(`PDF生成に失敗しました (${response.status})`);
+    throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
   }
   return response.blob();
 };
 
+const resolveLineItemLimit = (lineItemCount: number) => {
+  if (lineItemCount >= 13) {
+    return 17;
+  }
+  if (lineItemCount >= 8) {
+    return 12;
+  }
+  return 7;
+};
+
 export default function OrderIssueModal({ open, order, onClose, clients = [] }: OrderIssueModalProps) {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [issueNote, setIssueNote] = useState("");
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(defaultExchangeRates);
-  const [previewScale, setPreviewScale] = useState(1);
-  const [previewContentSize, setPreviewContentSize] = useState<PreviewSize>({
-    width: a4WidthPx,
-    height: a4HeightPx,
-  });
-  const [previewSize, setPreviewSize] = useState<PreviewSize>({
-    width: a4WidthPx,
-    height: a4HeightPx,
-  });
-  const previewContainerRef = useRef<HTMLDivElement | null>(null);
-  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [orderNumberInput, setOrderNumberInput] = useState("");
+  const [noteInput, setNoteInput] = useState("");
+  const [issueError, setIssueError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
+      setOrderNumberInput("");
+      setNoteInput("");
+      setIssueError(null);
       return;
     }
-    const ac = new AbortController();
-    (async () => {
-      try {
-        const data = await fetchExchangeRates(ac.signal);
-        if (!ac.signal.aborted) {
-          setExchangeRates({
-            jpyPerUsd: data.jpyPerUsd,
-            vndPerUsd: data.vndPerUsd,
-          });
-        }
-      } catch (e) {
-        if (!isAbortError(e)) {
-          console.error("Failed to load exchange rates", e);
-        }
-      }
-    })();
-    return () => ac.abort();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
-      setIssueNote("");
+    if (!order) {
+      setOrderNumberInput("");
+      setNoteInput("");
       return;
     }
-    setIssueNote(order?.note?.trim() ?? "");
+    setIssueError(null);
+    setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
+    setNoteInput(order.note ?? "");
   }, [open, order]);
 
-  const applyScale = (contentSize: PreviewSize) => {
-    const element = previewContainerRef.current;
-    if (!element) {
-      return;
-    }
-    const width = element.clientWidth;
-    if (!width) {
-      return;
-    }
-    const rect = element.getBoundingClientRect();
-    const dialogContent = element.closest(".MuiDialogContent-root");
-    const contentRect = dialogContent?.getBoundingClientRect();
-    const availableHeight = contentRect ? contentRect.bottom - rect.top : window.innerHeight - rect.top - 24;
-    const padding = 16;
-    const maxWidth = Math.max(0, width - padding);
-    const maxHeight = Math.max(0, availableHeight - padding);
-    if (!maxWidth || !maxHeight) {
-      return;
-    }
-    const scale = Math.min(1, maxWidth / contentSize.width, maxHeight / contentSize.height);
-    setPreviewScale(scale);
-    setPreviewSize({ width: contentSize.width * scale, height: contentSize.height * scale });
-  };
+  const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
+  const resolvedOrderNumber = orderNumberInput.trim() || defaultOrderNumber;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    applyScale(previewContentSize);
-    const element = previewContainerRef.current;
-    if (!element) {
-      return;
-    }
-    const handleResize = () => applyScale(previewContentSize);
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(element);
-    window.addEventListener("resize", handleResize);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [open, previewContentSize]);
-  const issueDate = formatIssueDate(order?.orderDate);
-  const orderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
-  const supplierName = order?.supplier ?? "取引先名";
   const supplierInfo = useMemo(() => {
     if (!order) {
       return null;
     }
     return clients.find((row) => row.name === order.supplier) ?? null;
   }, [clients, order]);
-  const supplierAddress = supplierInfo?.address || "（未設定）";
-  const supplierPhone = supplierInfo?.phone || "（未設定）";
-  const supplierAddressLine1 = supplierAddress;
-  const supplierAddressLine2 = "";
 
-  const safeRates = useMemo(() => {
-    const jpyPerUsd =
-      Number.isFinite(exchangeRates.jpyPerUsd) && exchangeRates.jpyPerUsd > 0
-        ? exchangeRates.jpyPerUsd
-        : defaultExchangeRates.jpyPerUsd;
-    const vndPerUsd =
-      Number.isFinite(exchangeRates.vndPerUsd) && exchangeRates.vndPerUsd > 0
-        ? exchangeRates.vndPerUsd
-        : defaultExchangeRates.vndPerUsd;
-    return { jpyPerUsd, vndPerUsd };
-  }, [exchangeRates]);
+  const supplierAddress = supplierInfo?.address?.trim() ?? "";
+  const supplierContact = useMemo(
+    () => buildSupplierContactLabel(supplierInfo?.contactPerson, supplierInfo?.phone),
+    [supplierInfo?.contactPerson, supplierInfo?.phone],
+  );
 
-  const vndRate = useMemo(() => {
-    if (!order) {
-      return 1;
-    }
-    switch (order.currency) {
-      case "USD":
-        return safeRates.vndPerUsd;
-      case "JPY":
-        return safeRates.vndPerUsd / safeRates.jpyPerUsd;
-      case "VND":
-      default:
-        return 1;
-    }
-  }, [order, safeRates]);
-  const amountLabel = useMemo(() => {
-    if (!order) {
-      return "-";
-    }
-    const totalAmount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) * vndRate;
-    return amountFormatter.format(totalAmount);
-  }, [order, vndRate]);
   const lineItems = useMemo(() => {
     if (!order) {
       return [];
     }
     return order.items.map((item) => ({
-      name: item.itemName,
-      unit: item.unit || "-",
-      quantity: amountFormatter.format(item.quantity),
-      unitPrice: amountFormatter.format(item.unitPrice * vndRate),
-      deliveryDate: order.deliveryDate,
-      amount: amountFormatter.format(item.quantity * item.unitPrice * vndRate),
+      name: item.itemName ?? "",
+      unit: item.unit ?? "",
+      quantity: Number.isFinite(item.quantity) ? item.quantity : 0,
+      unitPrice: Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+      deliveryDate: toIsoDate(order.deliveryDate),
     }));
-  }, [order, vndRate]);
-  const noteLabel = issueNote.trim();
+  }, [order]);
 
-  const pdfPayload = useMemo<OrderIssuePdfPayload | null>(() => {
+  const lineItemLimit = useMemo(() => resolveLineItemLimit(lineItems.length), [lineItems.length]);
+  const displayedLineItems = useMemo(() => lineItems.slice(0, lineItemLimit), [lineItems, lineItemLimit]);
+
+  const totalAmountLabel = useMemo(() => {
+    if (!order) {
+      return "-";
+    }
+    const total = displayedLineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    if (!order.currency) {
+      return formatNumber(total);
+    }
+    return `${formatNumber(total)} ${order.currency}`;
+  }, [displayedLineItems, order]);
+
+  const excelPayload = useMemo<OrderIssueExcelPayload | null>(() => {
     if (!order) {
       return null;
     }
     return {
-      orderNumber,
-      issueDate,
-      supplierName,
-      supplierAddressLine1,
-      supplierAddressLine2,
-      supplierPhone,
+      orderNumber: resolvedOrderNumber,
+      issueDate: toIsoDate(order.orderDate),
+      supplierName: order.supplier ?? "",
+      supplierAddress,
+      supplierContact,
+      currency: order.currency ?? "",
+      note: noteInput.trim(),
       lineItems,
-      amountLabel,
-      note: noteLabel,
     };
-  }, [
-    order,
-    orderNumber,
-    issueDate,
-    supplierName,
-    supplierAddressLine1,
-    supplierAddressLine2,
-    supplierPhone,
-    lineItems,
-    amountLabel,
-    noteLabel,
-  ]);
+  }, [lineItems, noteInput, order, resolvedOrderNumber, supplierAddress, supplierContact]);
 
   const previewHtml = useMemo(() => {
-    if (!pdfPayload) {
+    if (!excelPayload) {
       return "";
     }
-    return renderOrderIssueHtml(pdfPayload, previewFontSources);
-  }, [pdfPayload]);
+    return renderOrderIssuePreviewHtml({
+      ...excelPayload,
+      note: noteInput,
+    });
+  }, [excelPayload, noteInput]);
+
   const handleDownload = async () => {
-    if (!pdfPayload || isDownloading) {
+    if (!excelPayload || isDownloading) {
       return;
     }
+    setIssueError(null);
     setIsDownloading(true);
     try {
-      const blob = await requestPdfBlob(pdfPayload);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `order-${orderNumber}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const fileName = `order-issue-${sanitizeFileName(resolvedOrderNumber)}.xlsx`;
+      const picked = await pickSaveFileHandle(fileName);
+      if (picked === "cancelled") {
+        return;
+      }
+      const blob = await requestOrderIssueExcelBlob(excelPayload);
+      if (picked) {
+        const result = await saveBlobToPickedFile(blob, picked);
+        if (result === "cancelled") {
+          return;
+        }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+      onClose();
     } catch (error) {
-      console.error("Failed to download order PDF", error);
+      console.error("Failed to issue order excel", error);
+      setIssueError("Excelファイルの発行に失敗しました。");
     } finally {
       setIsDownloading(false);
-    }
-  };
-
-  const previewMessageClass = "flex h-full items-center justify-center text-sm text-gray-500";
-  const handlePreviewLoad = () => {
-    const frame = previewFrameRef.current;
-    if (!frame) {
-      return;
-    }
-    const measureContent = () => {
-      const doc = frame.contentDocument;
-      const rootRect = doc?.documentElement?.getBoundingClientRect();
-      const bodyRect = doc?.body?.getBoundingClientRect();
-      const width = Math.max(bodyRect?.width ?? 0, rootRect?.width ?? 0, a4WidthPx);
-      const height = Math.max(bodyRect?.height ?? 0, rootRect?.height ?? 0, a4HeightPx);
-      const nextSize = { width, height };
-      setPreviewContentSize(nextSize);
-      applyScale(nextSize);
-    };
-    measureContent();
-    const doc = frame.contentDocument;
-    if (doc?.fonts?.ready) {
-      doc.fonts.ready.then(measureContent).catch(() => {
-        // Ignore font load errors for preview scaling.
-      });
     }
   };
 
@@ -291,9 +275,11 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       open={open}
       title="注文書の発行"
       onClose={onClose}
+      paperSx={{ width: "70vw", height: "70vh", maxWidth: "70vw" }}
+      contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center justify-end gap-2">
-          <Button variant="outlined" onClick={onClose}>
+          <Button variant="outlined" onClick={onClose} disabled={isDownloading}>
             キャンセル
           </Button>
           <Button
@@ -307,50 +293,49 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
         </div>
       }
     >
-      <div className="text-sm">注文書は VND に換算して発行します。</div>
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">摘要（発行時のみ）</label>
-          <TextField
-            size="small"
-            multiline
-            minRows={3}
-            placeholder="摘要を入力（任意）"
-            value={issueNote}
-            onChange={(event) => setIssueNote(event.target.value)}
-            disabled={!order}
-          />
-          <div className="text-xs text-gray-500">摘要はシステムには保存されません。</div>
-        </div>
-        <div className="mt-6 text-sm font-semibold text-gray-700">プレビュー</div>
-        <div className="mt-4 flex justify-center">
-          <div ref={previewContainerRef} className="w-full max-w-180">
-            <div
-              className="relative mx-auto overflow-hidden bg-white"
-              style={{ width: previewSize.width, height: previewSize.height }}
-            >
-              {open ? (
-                pdfPayload ? (
-                  <iframe
-                    title="注文書プレビュー"
-                    className="block border-0 bg-white"
-                    ref={previewFrameRef}
-                    scrolling="no"
-                    style={{
-                      width: previewContentSize.width,
-                      height: previewContentSize.height,
-                      overflow: "hidden",
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: "top left",
-                    }}
-                    srcDoc={previewHtml}
-                    onLoad={handlePreviewLoad}
-                  />
-                ) : (
-                  <div className={previewMessageClass}>プレビューを生成できません。</div>
-                )
-              ) : null}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="text-sm text-gray-700">テンプレート（発注フォーム.xlsx）から注文書をExcel形式で発行します。</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,520px)_minmax(260px,1fr)]">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-700">注番</label>
+              <TextField
+                size="small"
+                placeholder={defaultOrderNumber}
+                value={orderNumberInput}
+                onChange={(event) => setOrderNumberInput(event.target.value)}
+                disabled={!order || isDownloading}
+              />
             </div>
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              <div>発注日: {toIsoDate(order?.orderDate)}</div>
+              <div>仕入先: {order?.supplier ?? "-"}</div>
+              <div>明細行数: {displayedLineItems.length} / {lineItemLimit}</div>
+              <div>合計: {totalAmountLabel}</div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">摘要</label>
+            <TextField
+              size="small"
+              multiline
+              minRows={2}
+              maxRows={4}
+              placeholder="摘要を入力してください"
+              value={noteInput}
+              onChange={(event) => setNoteInput(event.target.value)}
+              disabled={!order || isDownloading}
+            />
+          </div>
+          {issueError ? <div className="text-sm text-red-600">{issueError}</div> : null}
+          <div className="flex min-h-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            {order ? (
+              <iframe title="order-issue-preview" className="h-full w-full border-0 bg-white" srcDoc={previewHtml} />
+            ) : (
+              <div className="flex w-full items-center justify-center text-sm text-gray-500">
+                プレビューを表示できません。
+              </div>
+            )}
           </div>
         </div>
       </div>
