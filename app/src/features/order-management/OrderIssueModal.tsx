@@ -15,6 +15,8 @@ type OrderIssueModalProps = {
   clients?: ClientRow[];
 };
 
+const ORDER_ISSUE_PREVIEW_SCALE = 0.9;
+
 const amountFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 6,
 });
@@ -275,7 +277,12 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       open={open}
       title="注文書の発行"
       onClose={onClose}
-      paperSx={{ width: "70vw", height: "70vh", maxWidth: "70vw" }}
+      paperSx={{
+        width: { xs: "95vw", md: "82vw" },
+        maxWidth: { xs: "95vw", md: "82vw" },
+        height: "95vh",
+        maxHeight: "95vh",
+      }}
       contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center justify-end gap-2">
@@ -295,8 +302,8 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="text-sm text-gray-700">テンプレート（発注フォーム.xlsx）から注文書をExcel形式で発行します。</div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,520px)_minmax(260px,1fr)]">
+        <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="flex min-h-0 flex-col gap-3 md:overflow-y-auto md:pr-1">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-gray-700">注番</label>
               <TextField
@@ -313,24 +320,34 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
               <div>明細行数: {displayedLineItems.length} / {lineItemLimit}</div>
               <div>合計: {totalAmountLabel}</div>
             </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-700">摘要</label>
+              <TextField
+                size="small"
+                multiline
+                minRows={2}
+                maxRows={4}
+                placeholder="摘要を入力してください"
+                value={noteInput}
+                onChange={(event) => setNoteInput(event.target.value)}
+                disabled={!order || isDownloading}
+              />
+            </div>
+            {issueError ? <div className="text-sm text-red-600">{issueError}</div> : null}
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">摘要</label>
-            <TextField
-              size="small"
-              multiline
-              minRows={2}
-              maxRows={4}
-              placeholder="摘要を入力してください"
-              value={noteInput}
-              onChange={(event) => setNoteInput(event.target.value)}
-              disabled={!order || isDownloading}
-            />
-          </div>
-          {issueError ? <div className="text-sm text-red-600">{issueError}</div> : null}
-          <div className="flex min-h-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <div className="flex min-h-[320px] min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-3 md:min-h-0">
             {order ? (
-              <iframe title="order-issue-preview" className="h-full w-full border-0 bg-white" srcDoc={previewHtml} />
+              <iframe
+                title="order-issue-preview"
+                className="border-0 bg-white"
+                srcDoc={previewHtml}
+                style={{
+                  width: `${100 / ORDER_ISSUE_PREVIEW_SCALE}%`,
+                  height: `${100 / ORDER_ISSUE_PREVIEW_SCALE}%`,
+                  transform: `scale(${ORDER_ISSUE_PREVIEW_SCALE})`,
+                  transformOrigin: "top left",
+                }}
+              />
             ) : (
               <div className="flex w-full items-center justify-center text-sm text-gray-500">
                 プレビューを表示できません。
