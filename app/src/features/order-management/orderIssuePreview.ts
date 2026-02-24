@@ -114,32 +114,32 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
       <meta charset="utf-8" />
       <style>
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: #f3f4f6; color: #111111; font-family: "NotoSerifJP", "NotoSerif", serif; }
+        html, body { margin: 0; padding: 0; overflow-x: hidden; background: #f3f4f6; color: #111111; font-family: "NotoSerifJP", "NotoSerif", serif; }
         @font-face { font-family: "NotoSerifJP"; src: url("/fonts/NotoSerifJP-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; }
         @font-face { font-family: "NotoSerifJP"; src: url("/fonts/NotoSerifJP-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; }
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; }
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; }
         .vn { font-family: "NotoSerif", "NotoSerifJP", serif; }
-        .page { width: 210mm; min-height: 297mm; margin: 12px auto; background: #ffffff; padding: 10mm 8mm; }
+        .page { width: min(210mm, calc(100vw - 16px)); min-height: 297mm; margin: 8px auto; background: #ffffff; padding: 10mm 8mm; }
         .title { text-align: center; margin-top: 3mm; line-height: 1.2; }
         .title-main { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
         .title-sub { font-size: 14px; font-weight: 400; letter-spacing: 0.8px; }
-        .header-row { display: flex; gap: 10mm; margin-top: 6mm; }
-        .supplier-block { flex: 1; margin-top: 10mm; }
-        .issuer-block { width: 45%; display: flex; flex-direction: column; gap: 1mm; }
+        .header-row { display: flex; gap: 7mm; margin-top: 6mm; }
+        .supplier-block { flex: 1; min-width: 0; margin-top: 10mm; }
+        .issuer-block { width: 43%; min-width: 0; display: flex; flex-direction: column; gap: 1mm; }
         .meta-box { margin-left: auto; width: 44mm; text-align: center; margin-bottom: 5mm; line-height: 1.2; }
         .meta-order-no { font-size: 9px; font-weight: 700; }
         .meta-order-code { font-size: 11px; font-weight: 700; }
         .meta-order-label { display: inline-block; margin-top: 2mm; padding: 0 3mm 1px; border-bottom: 1px solid #111111; font-size: 9px; font-weight: 700; }
         .meta-date { font-size: 10px; margin-top: 2mm; }
-        .supplier-name { font-size: 14px; font-weight: 700; text-decoration: underline; }
-        .text-line { font-size: 10px; line-height: 1.35; }
-        .issuer-name { font-size: 12px; font-weight: 700; margin-top: 2mm; }
+        .supplier-name { font-size: 14px; font-weight: 700; text-decoration: underline; overflow-wrap: anywhere; word-break: break-word; }
+        .text-line { font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word; }
+        .issuer-name { font-size: 12px; font-weight: 700; margin-top: 2mm; overflow-wrap: anywhere; word-break: break-word; }
         .description { margin: 6mm 1mm 4mm; line-height: 1.45; font-size: 10px; }
         .description .vn { display: block; margin-top: 2mm; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-        .items-table { width: 96%; margin: 0 auto; border: 1.4px solid #111111; }
-        .items-table th, .items-table td { border: 1px solid #111111; text-align: center; vertical-align: middle; padding: 1px 3px; font-size: 10px; }
+        .items-table { width: 92%; margin: 0 auto; border: 1.4px solid #111111; }
+        .items-table th, .items-table td { border: 1px solid #111111; text-align: center; vertical-align: middle; padding: 1px 2px; font-size: 10px; }
         .items-table thead th { height: 28px; line-height: 1.2; font-weight: 700; }
         .items-table thead .sub { font-size: 9px; font-weight: 400; }
         .line-row td { height: 20px; }
@@ -148,9 +148,9 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
         .summary-row .amount { text-align: right; padding-right: 8px; font-weight: 700; }
         .vat-row td { height: 22px; }
         .memo-row td { height: 48px; text-align: left; vertical-align: top; padding: 4px 8px; font-size: 9px; }
-        .stamp-wrap { width: 96%; margin: 6mm auto 0; display: flex; justify-content: flex-end; }
-        .stamp-table { width: 96mm; border: 1px solid #111111; }
-        .stamp-table th, .stamp-table td { border: 1px solid #111111; width: 32mm; text-align: center; vertical-align: middle; }
+        .stamp-wrap { width: 92%; margin: 6mm auto 0; display: flex; justify-content: flex-end; }
+        .stamp-table { width: 90mm; border: 1px solid #111111; }
+        .stamp-table th, .stamp-table td { border: 1px solid #111111; width: 30mm; text-align: center; vertical-align: middle; }
         .stamp-table th { height: 28px; font-size: 10px; font-weight: 700; }
         .stamp-table td { height: 64px; }
       </style>
@@ -186,13 +186,13 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
         </div>
         <table class="items-table">
           <colgroup>
-            <col style="width: 5%;" />
-            <col style="width: 29%;" />
-            <col style="width: 8%;" />
-            <col style="width: 12%;" />
-            <col style="width: 15%;" />
-            <col style="width: 15%;" />
-            <col style="width: 16%;" />
+            <col style="width: 4.5%;" />
+            <col style="width: 30.5%;" />
+            <col style="width: 7.5%;" />
+            <col style="width: 11.5%;" />
+            <col style="width: 14.5%;" />
+            <col style="width: 14.5%;" />
+            <col style="width: 17%;" />
           </colgroup>
           <thead>
             <tr>
