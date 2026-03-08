@@ -3,6 +3,8 @@ import XlsxPopulate from "xlsx-populate";
 import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import type { OrderIssueExcelLineItem, OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
+import { getSettingsData } from "@/features/settings/api/server";
+import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 
 export const runtime = "nodejs";
 
@@ -17,6 +19,8 @@ const LINE_END_ROW_17 = 29;
 const NOTE_ROW_OFFSET = 4;
 const USD_CURRENCY_CODE = "USD";
 const USD_NUMBER_FORMAT = '#,##0.00 "USD"';
+const SETTINGS_SHEET_NAMES = ["setting", "Setting"] as const;
+const SETTINGS_ADDRESS_CELL = "A1";
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -89,6 +93,27 @@ const sanitizeFileName = (value: string) => {
   return sanitized || "order";
 };
 
+const buildCompanyInfoText = (settings: {
+  issuerName?: string;
+  issuerAddress?: string;
+  issuerPhone?: string;
+  issuerFax?: string;
+}) => {
+  const companyName = settings.issuerName?.trim() ?? "";
+  const companyAddress = settings.issuerAddress?.trim() ?? "";
+  const tel = settings.issuerPhone?.trim() ?? "";
+  const fax = settings.issuerFax?.trim() ?? "";
+  const contactParts: string[] = [];
+  if (tel) {
+    contactParts.push(`TELL: ${tel}`);
+  }
+  if (fax) {
+    contactParts.push(`FAX: ${fax}`);
+  }
+  const contactLine = contactParts.join(" ");
+  return [companyName, companyAddress, contactLine].filter((line) => line.length > 0).join("\n");
+};
+
 type HiddenSheet = {
   hidden: (value?: boolean) => unknown;
 };
@@ -110,6 +135,16 @@ const getSheetOrThrow = (
     throw new Error(`Template sheet not found: ${sheetName}`);
   }
   return sheet;
+};
+
+const getFirstExistingSheet = (workbook: { sheet: (name: string) => unknown }, sheetNames: readonly string[]) => {
+  for (const name of sheetNames) {
+    const sheet = workbook.sheet(name);
+    if (sheet) {
+      return sheet;
+    }
+  }
+  return null;
 };
 
 const setSheetHidden = (sheet: unknown, hidden: boolean) => {
@@ -185,6 +220,20 @@ export async function POST(request: Request) {
   const action = "order-issue-excel.generate";
   const resource = "order-issue-excel";
   let payload: OrderIssueExcelPayload | null = null;
+  const auth = await requireAuthContext(request);
+  if (!auth.ok) {
+    await writeAuditLog({
+      req: request,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
 
   try {
     const body = await request.json();
@@ -196,6 +245,8 @@ export async function POST(request: Request) {
   if (!payload || !payload.orderNumber || !payload.issueDate) {
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: payload ? { orderNumber: payload.orderNumber } : undefined,
@@ -209,6 +260,20 @@ export async function POST(request: Request) {
   try {
     const templatePath = path.join(process.cwd(), "public", TEMPLATE_FILE_NAME);
     const workbook = await XlsxPopulate.fromFileAsync(templatePath);
+    const companySettings = await getSettingsData(orgId, "DEFAULT");
+    const companyInfoText = buildCompanyInfoText(companySettings);
+
+    const settingsSheet = getFirstExistingSheet(workbook as unknown as { sheet: (name: string) => unknown }, SETTINGS_SHEET_NAMES);
+    if (settingsSheet) {
+      (
+        settingsSheet as {
+          cell: (address: string) => { value: (value?: string | number | boolean | Date | null) => unknown };
+        }
+      )
+        .cell(SETTINGS_ADDRESS_CELL)
+        .value(companyInfoText);
+    }
+
     const defaultSheet = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, DEFAULT_SHEET_NAME);
     const sheet12 = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, SHEET_NAME_12);
     const sheet17 = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, SHEET_NAME_17);
@@ -294,6 +359,8 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: { orderNumber: payload.orderNumber },
@@ -314,6 +381,8 @@ export async function POST(request: Request) {
     const msg = error instanceof Error ? error.message : "Failed to generate order issue excel";
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: payload ? { orderNumber: payload.orderNumber } : undefined,

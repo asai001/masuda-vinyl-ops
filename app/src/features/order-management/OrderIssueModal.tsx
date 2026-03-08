@@ -7,6 +7,8 @@ import type { ClientRow } from "@/features/client-master/types";
 import { renderOrderIssuePreviewHtml } from "@/features/order-management/orderIssuePreview";
 import type { OrderRow } from "@/features/order-management/types";
 import type { OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
+import { getIdTokenJwt } from "@/lib/auth/cognito";
+import { fetchSettings } from "@/features/settings/api/client";
 
 type OrderIssueModalProps = {
   open: boolean;
@@ -133,9 +135,16 @@ const buildSupplierContactLabel = (contactPerson?: string, phone?: string) => {
 };
 
 const requestOrderIssueExcelBlob = async (payload: OrderIssueExcelPayload, signal?: AbortSignal) => {
+  const token = await getIdTokenJwt();
+  if (!token) {
+    throw new Error("UNAUTHORIZED");
+  }
   const response = await fetch("/api/order-issue-excel", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
     signal,
   });
@@ -160,6 +169,12 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [issueError, setIssueError] = useState<string | null>(null);
+  const [issuerProfile, setIssuerProfile] = useState({
+    issuerName: "",
+    issuerAddress: "",
+    issuerPhone: "",
+    issuerFax: "",
+  });
 
   useEffect(() => {
     if (!open) {
@@ -177,6 +192,29 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
     setNoteInput(order.note ?? "");
   }, [open, order]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const settings = await fetchSettings(ac.signal);
+        setIssuerProfile({
+          issuerName: settings.issuerName ?? "",
+          issuerAddress: settings.issuerAddress ?? "",
+          issuerPhone: settings.issuerPhone ?? "",
+          issuerFax: settings.issuerFax ?? "",
+        });
+      } catch (error) {
+        if (!isAbortError(error)) {
+          console.error("Failed to load issuer profile", error);
+        }
+      }
+    })();
+    return () => ac.abort();
+  }, [open]);
 
   const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
   const resolvedOrderNumber = orderNumberInput.trim() || defaultOrderNumber;
@@ -241,8 +279,9 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     return renderOrderIssuePreviewHtml({
       ...excelPayload,
       note: noteInput,
+      ...issuerProfile,
     });
-  }, [excelPayload, noteInput]);
+  }, [excelPayload, issuerProfile, noteInput]);
 
   const handleDownload = async () => {
     if (!excelPayload || isDownloading) {
@@ -273,6 +312,10 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       onClose();
     } catch (error) {
       console.error("Failed to issue order excel", error);
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        setIssueError("ログイン状態を確認して、再度お試しください。");
+        return;
+      }
       setIssueError("Excelファイルの発行に失敗しました。");
     } finally {
       setIsDownloading(false);

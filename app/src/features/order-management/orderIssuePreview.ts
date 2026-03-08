@@ -1,8 +1,11 @@
 import type { OrderIssueExcelLineItem, OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
-import { issuerInfo } from "@/features/order-management/orderIssueTemplate";
 
 export type OrderIssuePreviewPayload = OrderIssueExcelPayload & {
   note?: string;
+  issuerName?: string;
+  issuerAddress?: string;
+  issuerPhone?: string;
+  issuerFax?: string;
 };
 
 const USD_CURRENCY_CODE = "USD";
@@ -18,6 +21,19 @@ const escapeHtml = (value: string) =>
 const safeText = (value?: string | null) => escapeHtml((value ?? "").trim());
 
 const safeMultilineText = (value?: string | null) => safeText(value).replace(/\r?\n/g, "<br />");
+
+const buildIssuerContactLine = (phone?: string | null, fax?: string | null) => {
+  const phoneText = (phone ?? "").trim();
+  const faxText = (fax ?? "").trim();
+  const parts: string[] = [];
+  if (phoneText) {
+    parts.push(`TELL: ${phoneText}`);
+  }
+  if (faxText) {
+    parts.push(`FAX: ${faxText}`);
+  }
+  return parts.join(" ");
+};
 
 const formatNumber = (value: number, digits = 0) => {
   if (!Number.isFinite(value)) {
@@ -111,6 +127,9 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
   const outputItems = payload.lineItems.slice(0, rowCount);
   const subtotal = outputItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const amountLabel = formatMoney(subtotal, safeCurrency);
+  const issuerName = (payload.issuerName ?? "").trim();
+  const issuerAddress = safeMultilineText(payload.issuerAddress);
+  const issuerContactLine = buildIssuerContactLine(payload.issuerPhone, payload.issuerFax);
 
   return `<!DOCTYPE html>
   <html lang="ja">
@@ -177,11 +196,9 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
               <div class="meta-order-label vn">Mã đặt hàng:</div>
               <div class="meta-date">${safeText(toDisplayDate(payload.issueDate))}</div>
             </div>
-            <div class="issuer-name">${safeText(issuerInfo.name)}</div>
-            ${issuerInfo.addressLines
-              .map((line) => `<div class="text-line vn">${safeText(line)}</div>`)
-              .join("")}
-            <div class="text-line">TEL: ${safeText(issuerInfo.phone)}</div>
+            <div class="issuer-name">${safeText(issuerName)}</div>
+            ${issuerAddress ? `<div class="text-line vn">${issuerAddress}</div>` : ""}
+            ${issuerContactLine ? `<div class="text-line">${safeText(issuerContactLine)}</div>` : ""}
           </div>
         </div>
         <div class="description">
