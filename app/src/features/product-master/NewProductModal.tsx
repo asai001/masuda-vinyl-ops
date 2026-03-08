@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Autocomplete, Button, Checkbox, FormControl, FormHelperText, ListItemText, MenuItem, Select, TextField } from "@mui/material";
+import { Autocomplete, Button, Checkbox, FormControl, FormHelperText, MenuItem, Select, TextField } from "@mui/material";
 import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import type { NewProductInput, ProductRow } from "./types";
@@ -107,7 +107,8 @@ export default function NewProductModal({
   };
 
   const handleMaterialsChange = (value: string[]) => {
-    setForm((prev) => ({ ...prev, materials: value }));
+    const normalized = Array.from(new Set(value.map((item) => item.trim()).filter(Boolean)));
+    setForm((prev) => ({ ...prev, materials: normalized }));
     setErrors((prev) => ({ ...prev, materials: "" }));
     setActionError(null);
   };
@@ -150,6 +151,13 @@ export default function NewProductModal({
     } else if (parsedPackaging !== null && parsedPackaging < 0) {
       nextErrors.packaging = "0以上で入力してください";
     }
+    if (materialOptions.length > 0) {
+      const allowedMaterialValues = new Set(materialOptions.map((option) => option.value));
+      const hasUnknownMaterial = form.materials.some((material) => !allowedMaterialValues.has(material));
+      if (hasUnknownMaterial) {
+        nextErrors.materials = "材料マスタに登録済みの材料のみ選択できます";
+      }
+    }
 
     if (codeValue) {
       const normalizedCode = codeValue.toLowerCase();
@@ -190,11 +198,15 @@ export default function NewProductModal({
     return tx(selected?.label ?? "有効");
   }, [form.status, statusOptions, tx]);
 
-  const materialLabelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    materialOptions.forEach((option) => map.set(option.value, option.label));
+  const materialOptionMap = useMemo(() => {
+    const map = new Map<string, Option>();
+    materialOptions.forEach((option) => map.set(option.value, option));
     return map;
   }, [materialOptions]);
+  const selectedMaterialOptions = useMemo(
+    () => form.materials.map((value) => materialOptionMap.get(value) ?? { value, label: value }),
+    [form.materials, materialOptionMap],
+  );
 
   return (
     <Modal
@@ -432,28 +444,34 @@ export default function NewProductModal({
         <label className="text-sm font-semibold text-gray-700">
           使用材料
         </label>
-        <Select
-          size="small"
+        <Autocomplete
           multiple
-          displayEmpty
-          value={form.materials}
-          onChange={(event) => handleMaterialsChange(event.target.value as string[])}
-          error={Boolean(errors.materials)}
-          renderValue={(selected) => {
-            if (!selected.length) {
-              return <span className="text-gray-400">選択してください</span>;
-            }
-            return selected.map((value) => materialLabelMap.get(value) ?? value).join(", ");
+          disableCloseOnSelect
+          filterSelectedOptions
+          options={materialOptions}
+          value={selectedMaterialOptions}
+          onChange={(_, newValue) => handleMaterialsChange(newValue.map((option) => option.value))}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          getOptionLabel={(option) => option.label}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...optionProps } = props as typeof props & { key: React.Key };
+            return (
+              <li key={key} {...optionProps}>
+                <Checkbox checked={selected} size="small" sx={{ mr: 1 }} />
+                {option.label}
+              </li>
+            );
           }}
-        >
-          {materialOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              <Checkbox checked={form.materials.indexOf(option.value) > -1} />
-              <ListItemText primary={option.label} />
-            </MenuItem>
-          ))}
-        </Select>
-        {errors.materials ? <div className="text-xs text-red-500">{errors.materials}</div> : null}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="選択または入力してください"
+              error={Boolean(errors.materials)}
+              helperText={errors.materials}
+            />
+          )}
+        />
         {!materialOptions.length ? (
           <div className="text-xs text-gray-400">材料が登録されていません。</div>
         ) : null}
