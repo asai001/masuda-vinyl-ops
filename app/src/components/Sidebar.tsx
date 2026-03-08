@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage, type TranslationKey } from "@/lib/i18n/language";
+import { MASKED_COMPANY_NAME, shouldMaskCompanyName } from "@/lib/branding";
 
 interface SidebarProps {
   onNavigate?: (path: string) => void;
@@ -50,6 +51,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
   const { t } = useLanguage();
+  const appName = shouldMaskCompanyName() ? MASKED_COMPANY_NAME : t("app.name");
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
@@ -85,7 +87,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       <div className="flex items-center justify-between px-4 h-25 py-2 border-b border-gray-200">
         {open && (
           <div>
-            <h1 className="text-xl font-bold">{t("app.name")}</h1>
+            <h1 className="text-xl font-bold">{appName}</h1>
             <p className="text-sm text-gray-600 mt-1">{t("app.subtitle")}</p>
           </div>
         )}
