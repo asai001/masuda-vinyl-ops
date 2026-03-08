@@ -16,10 +16,7 @@ type OrderIssueModalProps = {
 };
 
 const ORDER_ISSUE_PREVIEW_SCALE = 0.9;
-
-const amountFormatter = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 6,
-});
+const USD_CURRENCY_CODE = "USD";
 
 const sanitizeFileName = (value: string) => {
   const trimmed = value.trim();
@@ -89,11 +86,24 @@ const saveBlobToPickedFile = async (
   }
 };
 
-const formatNumber = (value: number) => {
+const formatNumber = (value: number, digits = 0) => {
   if (!Number.isFinite(value)) {
     return "0";
   }
-  return amountFormatter.format(value);
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
+
+const formatMoney = (value: number, currency: string) => {
+  const normalizedCurrency = currency.trim();
+  const digits = normalizedCurrency.toUpperCase() === USD_CURRENCY_CODE ? 2 : 0;
+  const formatted = formatNumber(value, digits);
+  if (!normalizedCurrency) {
+    return formatted;
+  }
+  return `${formatted} ${normalizedCurrency}`;
 };
 
 const toIsoDate = (value?: string | null) => {
@@ -205,10 +215,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       return "-";
     }
     const total = displayedLineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    if (!order.currency) {
-      return formatNumber(total);
-    }
-    return `${formatNumber(total)} ${order.currency}`;
+    return formatMoney(total, order.currency ?? "");
   }, [displayedLineItems, order]);
 
   const excelPayload = useMemo<OrderIssueExcelPayload | null>(() => {

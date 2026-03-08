@@ -5,6 +5,8 @@ export type OrderIssuePreviewPayload = OrderIssueExcelPayload & {
   note?: string;
 };
 
+const USD_CURRENCY_CODE = "USD";
+
 const escapeHtml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -28,11 +30,13 @@ const formatNumber = (value: number, digits = 0) => {
 };
 
 const formatMoney = (value: number, currency: string) => {
-  const formatted = formatNumber(value, 0);
-  if (!currency) {
+  const normalizedCurrency = currency.trim();
+  const digits = normalizedCurrency.toUpperCase() === USD_CURRENCY_CODE ? 2 : 0;
+  const formatted = formatNumber(value, digits);
+  if (!normalizedCurrency) {
     return formatted;
   }
-  return `${formatted} ${currency}`;
+  return `${formatted} ${normalizedCurrency}`;
 };
 
 const toDisplayDate = (value?: string | null) => {

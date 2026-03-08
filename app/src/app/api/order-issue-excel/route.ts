@@ -15,6 +15,8 @@ const LINE_END_ROW_DEFAULT = 19;
 const LINE_END_ROW_12 = 24;
 const LINE_END_ROW_17 = 29;
 const NOTE_ROW_OFFSET = 4;
+const USD_CURRENCY_CODE = "USD";
+const USD_NUMBER_FORMAT = '#,##0.00 "USD"';
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -69,7 +71,16 @@ const buildUnitPriceNumberFormat = (currency: string) => {
   if (!trimmed) {
     return "#,##0";
   }
+  if (trimmed.toUpperCase() === USD_CURRENCY_CODE) {
+    return USD_NUMBER_FORMAT;
+  }
   return `#,##0 "${escapeNumberFormatText(trimmed)}"`;
+};
+
+const isUsdCurrency = (currency: string) => currency.trim().toUpperCase() === USD_CURRENCY_CODE;
+
+const setCellNumberFormat = (sheet: { cell: (address: string) => unknown }, address: string, numberFormat: string) => {
+  (sheet.cell(address) as unknown as { style: (name: string, value: string) => void }).style("numberFormat", numberFormat);
 };
 
 const sanitizeFileName = (value: string) => {
@@ -123,6 +134,16 @@ const resolveSummaryRows = (lineEndRow: number) => ({
   subtotalRow: lineEndRow + 1,
   totalRow: lineEndRow + 3,
 });
+
+const applyUsdNumberFormatForOrderIssue = (sheet: { cell: (address: string) => unknown }, lineEndRow: number) => {
+  for (let row = LINE_START_ROW; row <= lineEndRow; row += 1) {
+    setCellNumberFormat(sheet, `G${row}`, USD_NUMBER_FORMAT);
+    setCellNumberFormat(sheet, `J${row}`, USD_NUMBER_FORMAT);
+  }
+  const { subtotalRow, totalRow } = resolveSummaryRows(lineEndRow);
+  setCellNumberFormat(sheet, `I${subtotalRow}`, USD_NUMBER_FORMAT);
+  setCellNumberFormat(sheet, `I${totalRow}`, USD_NUMBER_FORMAT);
+};
 
 const normalizeLineItems = (items: unknown): OrderIssueExcelLineItem[] => {
   if (!Array.isArray(items)) {
@@ -236,10 +257,7 @@ export async function POST(request: Request) {
       sheet.cell(`F${row}`).value(null);
       sheet.cell(`G${row}`).value(null);
       sheet.cell(`H${row}`).value("");
-      (sheet.cell(`I${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `I${row}`, unitPriceNumberFormat);
     }
 
     const outputItems = payload.lineItems.slice(0, maxRows);
@@ -249,24 +267,19 @@ export async function POST(request: Request) {
       sheet.cell(`E${row}`).value(item.unit);
       sheet.cell(`F${row}`).value(item.quantity);
       sheet.cell(`G${row}`).value(item.unitPrice);
-      (sheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `G${row}`, unitPriceNumberFormat);
       sheet.cell(`H${row}`).value(toDisplayDate(item.deliveryDate));
     });
 
     const { subtotalRow, totalRow } = resolveSummaryRows(plan.lineEndRow);
     [subtotalRow, totalRow].forEach((row) => {
-      (sheet.cell(`I${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
-      (sheet.cell(`J${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `I${row}`, unitPriceNumberFormat);
+      setCellNumberFormat(sheet, `J${row}`, unitPriceNumberFormat);
     });
+
+    if (isUsdCurrency(payload.currency)) {
+      applyUsdNumberFormatForOrderIssue(sheet, plan.lineEndRow);
+    }
 
     const noteRow = plan.lineEndRow + NOTE_ROW_OFFSET;
     const noteLabel = "※摘要";
