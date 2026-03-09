@@ -1,17 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from "@mui/material";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
 import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
 import type { SalesRow } from "@/features/sales-management/types";
 import { useLanguage } from "@/lib/i18n/language";
+
+type OrderSummaryRow = {
+  salesOrderId: string;
+  orderNo: string;
+  orderQuantity: number;
+  shippedQuantity: number;
+  remainingQuantity: number;
+};
 
 type SummaryRow = {
   customerName: string;
   orderQuantity: number;
   shippedQuantity: number;
   remainingQuantity: number;
+  orders: OrderSummaryRow[];
 };
 
 type RemainingOrderSummaryModalProps = {
@@ -75,6 +85,7 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
   const defaultRange = useMemo(() => getDefaultDateRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.startDate);
   const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(() => new Set());
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
     const summaryMap = new Map<string, SummaryRow>();
@@ -83,22 +94,59 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
         return;
       }
       const metrics = calculateSalesMetrics(row.items);
+      if (metrics.remainingQuantity === 0) {
+        return;
+      }
       const existing = summaryMap.get(row.customerName);
       if (existing) {
         existing.orderQuantity += metrics.orderQuantity;
         existing.shippedQuantity += metrics.shippedQuantity;
         existing.remainingQuantity += metrics.remainingQuantity;
+        existing.orders.push({
+          salesOrderId: row.salesOrderId,
+          orderNo: row.orderNo,
+          orderQuantity: metrics.orderQuantity,
+          shippedQuantity: metrics.shippedQuantity,
+          remainingQuantity: metrics.remainingQuantity,
+        });
       } else {
         summaryMap.set(row.customerName, {
           customerName: row.customerName,
           orderQuantity: metrics.orderQuantity,
           shippedQuantity: metrics.shippedQuantity,
           remainingQuantity: metrics.remainingQuantity,
+          orders: [
+            {
+              salesOrderId: row.salesOrderId,
+              orderNo: row.orderNo,
+              orderQuantity: metrics.orderQuantity,
+              shippedQuantity: metrics.shippedQuantity,
+              remainingQuantity: metrics.remainingQuantity,
+            },
+          ],
         });
       }
     });
-    return Array.from(summaryMap.values()).filter((row) => row.remainingQuantity !== 0);
+    return Array.from(summaryMap.values())
+      .filter((row) => row.remainingQuantity !== 0)
+      .map((row) => ({
+        ...row,
+        orders: [...row.orders].sort((a, b) => a.orderNo.localeCompare(b.orderNo, "ja")),
+      }))
+      .sort((a, b) => a.customerName.localeCompare(b.customerName, "ja"));
   }, [endDate, rows, startDate]);
+
+  const handleToggleCustomer = (customerName: string) => {
+    setExpandedCustomers((prev) => {
+      const next = new Set(prev);
+      if (next.has(customerName)) {
+        next.delete(customerName);
+      } else {
+        next.add(customerName);
+      }
+      return next;
+    });
+  };
 
   return (
     <Modal
@@ -127,6 +175,7 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
           <TableHead>
             <TableRow sx={{ backgroundColor: "#f8fafc" }}>
               <TableCell sx={headerCellSx}>{tx("顧客名")}</TableCell>
+              <TableCell sx={headerCellSx}>PO No.</TableCell>
               <TableCell align="right" sx={headerCellSx}>
                 {tx("合計注数")}
               </TableCell>
@@ -140,23 +189,59 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
           </TableHead>
           <TableBody>
             {summaryRows.length ? (
-              summaryRows.map((row) => (
-                <TableRow key={row.customerName}>
-                  <TableCell sx={{ ...bodyCellSx, fontWeight: 600 }}>{row.customerName}</TableCell>
-                  <TableCell align="right" sx={bodyCellSx}>
-                    {amountFormatter.format(row.orderQuantity)}
-                  </TableCell>
-                  <TableCell align="right" sx={bodyCellSx}>
-                    {amountFormatter.format(row.shippedQuantity)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ ...bodyCellSx, fontWeight: 600, color: "#f97316" }}>
-                    {amountFormatter.format(row.remainingQuantity)}
-                  </TableCell>
-                </TableRow>
-              ))
+              summaryRows.map((row) => {
+                const isExpanded = expandedCustomers.has(row.customerName);
+                return (
+                  <Fragment key={row.customerName}>
+                    <TableRow>
+                      <TableCell sx={{ ...bodyCellSx, fontWeight: 600 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCustomer(row.customerName)}
+                          className="flex items-center gap-1 rounded px-1 py-1 text-left hover:bg-gray-100"
+                          aria-expanded={isExpanded}
+                          aria-label={`${row.customerName} ${isExpanded ? "collapse" : "expand"}`}
+                        >
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          <span>{row.customerName}</span>
+                        </button>
+                      </TableCell>
+                      <TableCell sx={{ ...bodyCellSx, color: "#6b7280" }}>-</TableCell>
+                      <TableCell align="right" sx={bodyCellSx}>
+                        {amountFormatter.format(row.orderQuantity)}
+                      </TableCell>
+                      <TableCell align="right" sx={bodyCellSx}>
+                        {amountFormatter.format(row.shippedQuantity)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ ...bodyCellSx, fontWeight: 600, color: "#f97316" }}>
+                        {amountFormatter.format(row.remainingQuantity)}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded
+                      ? row.orders.map((order) => (
+                          <TableRow key={`${row.customerName}-${order.salesOrderId}`} sx={{ backgroundColor: "#f8fafc" }}>
+                            <TableCell sx={bodyCellSx} />
+                            <TableCell sx={{ ...bodyCellSx, fontWeight: 600, color: "#1d4ed8" }}>
+                              {order.orderNo || "-"}
+                            </TableCell>
+                            <TableCell align="right" sx={bodyCellSx}>
+                              {amountFormatter.format(order.orderQuantity)}
+                            </TableCell>
+                            <TableCell align="right" sx={bodyCellSx}>
+                              {amountFormatter.format(order.shippedQuantity)}
+                            </TableCell>
+                            <TableCell align="right" sx={{ ...bodyCellSx, fontWeight: 600, color: "#f97316" }}>
+                              {amountFormatter.format(order.remainingQuantity)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      : null}
+                  </Fragment>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={4} sx={{ ...bodyCellSx, textAlign: "center", color: "#6b7280", py: 3 }}>
+                <TableCell colSpan={5} sx={{ ...bodyCellSx, textAlign: "center", color: "#6b7280", py: 3 }}>
                   {tx("該当する残注数はありません")}
                 </TableCell>
               </TableRow>
