@@ -9,6 +9,7 @@ import {
   requestPasswordReset,
   type ForgotPasswordDelivery,
 } from "@/lib/auth/cognito";
+import { getDisplayCompanyName } from "@/lib/branding";
 
 type AuthError = {
   code?: string;
@@ -66,6 +67,7 @@ type Step = "request" | "confirm" | "done";
 
 export default function ForgotPasswordView() {
   const router = useRouter();
+  const companyName = getDisplayCompanyName("full");
   const [step, setStep] = useState<Step>("request");
   const [identifier, setIdentifier] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -187,7 +189,7 @@ export default function ForgotPasswordView() {
       <main className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-start px-6 pt-20 pb-12">
         <header className="text-center">
           <p className="whitespace-nowrap text-[clamp(1.5rem,2.6vw,2.2rem)] font-bold tracking-[0.04em] leading-tight">
-            増田ビニール株式会社
+            {companyName}
           </p>
           <p className="mt-2 text-[0.95rem] font-semibold tracking-[0.28em] text-slate-500">オペレーションシステム</p>
         </header>

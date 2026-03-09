@@ -9,6 +9,7 @@ import {
   signInWithPassword,
   type NewPasswordChallenge,
 } from "@/lib/auth/cognito";
+import { getDisplayCompanyName } from "@/lib/branding";
 
 type AuthError = {
   code?: string;
@@ -87,6 +88,7 @@ type NewPasswordState = NewPasswordChallenge & {
 
 export default function LoginView() {
   const router = useRouter();
+  const companyName = getDisplayCompanyName("full");
   const [form, setForm] = useState<LoginFormState>({
     identifier: "",
     password: "",
@@ -215,7 +217,7 @@ export default function LoginView() {
       <main className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-start px-6 pt-20 pb-12">
         <header className="text-center">
           <p className="whitespace-nowrap text-[clamp(1.5rem,2.6vw,2.2rem)] font-bold tracking-[0.04em] leading-tight">
-            増田ビニール株式会社
+            {companyName}
           </p>
           <p className="mt-2 text-[0.95rem] font-semibold tracking-[0.28em] text-slate-500">オペレーションシステム</p>
         </header>
