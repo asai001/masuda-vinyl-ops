@@ -577,6 +577,9 @@ export default function SalesManagementView() {
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
     const items = row.items.map((item) => {
       const product = productRows.find((productRow) => productRow.code === item.productCode);
+      const weight =
+        (typeof item.weight === "number" && Number.isFinite(item.weight) ? item.weight : null) ??
+        (typeof product?.weight === "number" && Number.isFinite(product.weight) ? product.weight : null);
       return {
         partNo: item.productCode,
         partName: item.productName,
@@ -584,6 +587,7 @@ export default function SalesManagementView() {
         unit: product?.unit ?? "",
         quantity: item.orderQuantity,
         unitPrice: item.unitPrice * safeUsdRate,
+        weight,
         palletCount: item.palletCount,
         totalWeight: item.totalWeight,
         packaging: product?.packaging ?? null,
