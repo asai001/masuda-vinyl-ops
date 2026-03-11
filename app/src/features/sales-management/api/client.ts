@@ -1,4 +1,5 @@
 import { getIdTokenJwt } from "@/lib/auth/cognito";
+import { getPrimaryDeliveryDate } from "@/features/sales-management/salesManagementUtils";
 import {
   salesDocumentStatusOptions,
   salesStatusOptions,
@@ -7,6 +8,7 @@ import {
   type SalesLineItem,
   type SalesOrderItem,
   type SalesRow,
+  type SalesShipment,
   type SalesStatus,
   type UpdateSalesOrderInput,
 } from "../types";
@@ -55,7 +57,51 @@ const normalizeNumber = (value: unknown, fallback = 0): number =>
 const normalizeNullableNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-const normalizeItems = (items: unknown): SalesLineItem[] => {
+const normalizeString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+
+const normalizeShipments = (
+  shipments: unknown,
+  fallbackDeliveryDate = "",
+  legacyShippedQuantity: unknown = 0,
+): SalesShipment[] => {
+  const fallbackDate = normalizeString(fallbackDeliveryDate);
+
+  if (Array.isArray(shipments)) {
+    return shipments.map((shipment, index) => {
+      if (!shipment || typeof shipment !== "object") {
+        return {
+          id: index + 1,
+          deliveryDate: fallbackDate,
+          shippedQuantity: 0,
+        };
+      }
+
+      const record = shipment as Record<string, unknown>;
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        deliveryDate: normalizeString(record.deliveryDate) || fallbackDate,
+        shippedQuantity: normalizeNumber(record.shippedQuantity),
+      };
+    });
+  }
+
+  const legacyDate = fallbackDate;
+  const shippedQuantity = normalizeNumber(legacyShippedQuantity);
+  if (!legacyDate && shippedQuantity <= 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: 1,
+      deliveryDate: legacyDate,
+      shippedQuantity,
+    },
+  ];
+};
+
+const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineItem[] => {
+  const fallbackDate = normalizeString(fallbackDeliveryDate);
   if (!Array.isArray(items)) {
     return [];
   }
@@ -68,49 +114,60 @@ const normalizeItems = (items: unknown): SalesLineItem[] => {
         materials: [],
         stockQuantity: null,
         orderQuantity: 0,
-        shippedQuantity: 0,
         unitPrice: 0,
         palletCount: 0,
         totalWeight: 0,
         weight: null,
         length: null,
         speed: null,
+        shipments: normalizeShipments([], fallbackDate, 0),
       };
     }
     const record = item as Record<string, unknown>;
     return {
       id: typeof record.id === "number" ? record.id : index + 1,
-      productCode: typeof record.productCode === "string" ? record.productCode : "",
-      productName: typeof record.productName === "string" ? record.productName : "",
+      productCode: normalizeString(record.productCode),
+      productName: normalizeString(record.productName),
       materials: normalizeMaterials(record.materials),
       stockQuantity: normalizeNullableNumber(record.stockQuantity),
       orderQuantity: normalizeNumber(record.orderQuantity),
-      shippedQuantity: normalizeNumber(record.shippedQuantity),
       unitPrice: normalizeNumber(record.unitPrice),
       palletCount: normalizeNumber(record.palletCount),
       totalWeight: normalizeNumber(record.totalWeight),
       weight: normalizeNullableNumber(record.weight),
       length: normalizeNullableNumber(record.length),
       speed: normalizeNullableNumber(record.speed),
+      shipments: normalizeShipments(record.shipments, normalizeString(record.deliveryDate) || fallbackDate, record.shippedQuantity),
     };
   });
 };
 
 function toRow(item: SalesOrderItem): SalesRow {
-  const items = normalizeItems(item.items);
+  const status = normalizeStatus(item.status);
+  const fallbackDeliveryDate = normalizeString(item.deliveryDate);
+  const items = normalizeItems(item.items, fallbackDeliveryDate);
+  const orderAmount = items.reduce((sum, line) => sum + line.orderQuantity * line.unitPrice, 0);
+  const paidAmount =
+    typeof item.paidAmount === "number" && Number.isFinite(item.paidAmount)
+      ? item.paidAmount
+      : status.paid
+        ? orderAmount
+        : 0;
   const id = Number(item.displayNo ?? 0);
   return {
     id,
     salesOrderId: item.salesOrderId,
-    orderNo: item.orderNo ?? "",
-    orderDate: item.orderDate ?? "",
-    customerName: item.customerName ?? "",
-    customerRegion: item.customerRegion ?? "",
-    deliveryDate: item.deliveryDate ?? "",
-    currency: item.currency ?? "",
-    note: item.note ?? "",
+    orderNo: normalizeString(item.orderNo),
+    orderDate: normalizeString(item.orderDate),
+    customerName: normalizeString(item.customerName),
+    customerRegion: normalizeString(item.customerRegion),
+    deliveryDate: fallbackDeliveryDate || getPrimaryDeliveryDate(items),
+    paidAmount,
+    paidDate: normalizeString(item.paidDate),
+    currency: normalizeString(item.currency),
+    note: normalizeString(item.note),
     items,
-    status: normalizeStatus(item.status),
+    status,
     documentStatus: normalizeDocumentStatus(item.documentStatus),
   };
 }
@@ -145,6 +202,8 @@ const toUpdatePayload = (row: SalesRow): UpdateSalesOrderInput => ({
   customerName: row.customerName,
   customerRegion: row.customerRegion,
   deliveryDate: row.deliveryDate,
+  paidAmount: row.paidAmount,
+  paidDate: row.paidDate,
   currency: row.currency,
   note: row.note,
   items: row.items,

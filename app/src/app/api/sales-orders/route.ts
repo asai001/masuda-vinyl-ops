@@ -15,6 +15,7 @@ import {
 const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 const isOptionalString = (v: unknown): v is string | undefined => v === undefined || typeof v === "string";
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isOptionalFiniteNumber = (v: unknown): v is number | undefined => v === undefined || isFiniteNumber(v);
 const isNumberOrNull = (v: unknown): v is number | null => v === null || isFiniteNumber(v);
 const isStringArray = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((item) => typeof item === "string");
@@ -38,6 +39,17 @@ const isDocumentStatus = (value: unknown): value is Record<SalesDocumentStatusKe
   return documentStatusKeys.every((key) => typeof record[key] === "boolean");
 };
 
+const isSalesShipment = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return isFiniteNumber(record.id) && isNonEmptyString(record.deliveryDate) && isFiniteNumber(record.shippedQuantity);
+};
+
+const isOptionalSalesShipments = (value: unknown): boolean =>
+  value === undefined || (Array.isArray(value) && value.every(isSalesShipment));
+
 const isSalesLineItem = (value: unknown): value is SalesLineItem => {
   if (!value || typeof value !== "object") {
     return false;
@@ -50,13 +62,15 @@ const isSalesLineItem = (value: unknown): value is SalesLineItem => {
     isStringArray(record.materials) &&
     isNumberOrNull(record.stockQuantity) &&
     isFiniteNumber(record.orderQuantity) &&
-    isFiniteNumber(record.shippedQuantity) &&
     isFiniteNumber(record.unitPrice) &&
     isFiniteNumber(record.palletCount) &&
     isFiniteNumber(record.totalWeight) &&
     isNumberOrNull(record.weight) &&
     isNumberOrNull(record.length) &&
-    isNumberOrNull(record.speed)
+    isNumberOrNull(record.speed) &&
+    isOptionalSalesShipments(record.shipments) &&
+    isOptionalString(record.deliveryDate) &&
+    isOptionalFiniteNumber(record.shippedQuantity)
   );
 };
 
@@ -71,7 +85,9 @@ function isNewSalesOrderInput(value: unknown): value is NewSalesOrderInput {
   return (
     isNonEmptyString(record.orderNo) &&
     isNonEmptyString(record.orderDate) &&
-    isNonEmptyString(record.deliveryDate) &&
+    isOptionalString(record.deliveryDate) &&
+    isOptionalFiniteNumber(record.paidAmount) &&
+    isOptionalString(record.paidDate) &&
     isNonEmptyString(record.customerName) &&
     typeof record.customerRegion === "string" &&
     isNonEmptyString(record.currency) &&

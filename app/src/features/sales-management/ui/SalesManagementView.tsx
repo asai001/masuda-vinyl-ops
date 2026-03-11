@@ -19,7 +19,11 @@ import RemainingOrderSummaryModal from "@/features/sales-management/ui/Remaining
 import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
 import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
 import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
-import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
+import {
+  buildShippedAmountEntries,
+  calculateSalesMetrics,
+  collectDeliveryDates,
+} from "@/features/sales-management/salesManagementUtils";
 import {
   createSalesOrder,
   deleteSalesOrder,
@@ -286,9 +290,12 @@ export default function SalesManagementView() {
       { key: "remainingQuantity", label: "残注数", type: "range" },
       { key: "unitPrice", label: "単価", type: "range" },
       { key: "amount", label: "金額", type: "range" },
+      { key: "paidAmount", label: "入金額", type: "range" },
+      { key: "unpaidAmount", label: "未入金金額", type: "range" },
       { key: "requiredMaterial", label: "必要材料量", type: "range" },
       { key: "moldingTime", label: "成形時間", type: "range" },
-      { key: "deliveryDate", label: "納品予定日", type: "date-range" },
+      { key: "deliveryDate", label: "出荷日", type: "date-range" },
+      { key: "paidDate", label: "入金日", type: "date-range" },
       { key: "status", label: "ステータス", type: "select", options: statusFilterOptions },
       { key: "documentStatus", label: "請求状況", type: "select", options: documentFilterOptions },
     ];
@@ -332,7 +339,7 @@ export default function SalesManagementView() {
     };
 
     return rows.filter((row) => {
-      const metrics = calculateSalesMetrics(row.items);
+      const metrics = calculateSalesMetrics(row.items, row.paidAmount);
       return Object.entries(groupedFilters).every(([key, values]) => {
         if (!values.length) {
           return true;
@@ -368,12 +375,20 @@ export default function SalesManagementView() {
             return values.some((value) => row.items.some((item) => matchesNumberRange(item.unitPrice, value)));
           case "amount":
             return values.some((value) => matchesNumberRange(metrics.amount, value));
+          case "paidAmount":
+            return values.some((value) => matchesNumberRange(row.paidAmount, value));
+          case "unpaidAmount":
+            return values.some((value) => matchesNumberRange(metrics.unpaidAmount, value));
           case "requiredMaterial":
             return values.some((value) => matchesNumberRange(metrics.requiredMaterial, value));
           case "moldingTime":
             return values.some((value) => matchesNumberRange(metrics.moldingTime, value));
           case "deliveryDate":
-            return values.some((value) => matchesDateRange(row.deliveryDate, value));
+            return values.some((value) =>
+              collectDeliveryDates(row.items, row.deliveryDate).some((deliveryDate) => matchesDateRange(deliveryDate, value)),
+            );
+          case "paidDate":
+            return values.some((value) => matchesDateRange(row.paidDate, value));
           case "status":
             return values.some((value) => row.status[value.value as SalesStatusKey]);
           case "documentStatus":
@@ -388,19 +403,23 @@ export default function SalesManagementView() {
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const monthSummary = useMemo(() => {
     let totalUsd = 0;
-    let count = 0;
+    let paymentCount = 0;
     rows.forEach((row) => {
       if (!row.documentStatus.orderReceived) {
         return;
       }
-      if (!isWithinRange(row.orderDate, monthRange.startDate, monthRange.endDate)) {
-        return;
+      const shippedEntries = buildShippedAmountEntries(row.items, row.deliveryDate);
+      shippedEntries.forEach((entry) => {
+        if (isWithinRange(entry.date, monthRange.startDate, monthRange.endDate)) {
+          totalUsd += convertToUsd(entry.amount, row.currency, exchangeRates);
+        }
+      });
+
+      if (row.paidAmount > 0 && isWithinRange(row.paidDate, monthRange.startDate, monthRange.endDate)) {
+        paymentCount += 1;
       }
-      const metrics = calculateSalesMetrics(row.items);
-      count += 1;
-      totalUsd += convertToUsd(metrics.amount, row.currency, exchangeRates);
     });
-    return { totalUsd, count };
+    return { totalUsd, paymentCount };
   }, [exchangeRates, monthRange.endDate, monthRange.startDate, rows]);
 
   const summaryCards = useMemo<SummaryCard[]>(() => {
@@ -717,7 +736,7 @@ export default function SalesManagementView() {
   };
 
   const monthlyAmountLabel = loading ? tx("読み込み中...") : formatCurrencyValue("USD", monthSummary.totalUsd);
-  const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.count);
+  const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.paymentCount);
 
   const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
 
@@ -728,7 +747,7 @@ export default function SalesManagementView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-sm font-semibold text-gray-700">{tx("集計サマリー（今月）")}</div>
-            <div className="text-xs text-gray-500">{tx("確定のみ・受注日基準・集計時点レート")}</div>
+            <div className="text-xs text-gray-500">{tx("確定のみ・出荷日基準・集計時点レート")}</div>
           </div>
           <Button variant="contained" size="small" onClick={() => router.push("/sales-management/summary")}>
             {tx("集計ページへ")}
@@ -740,7 +759,7 @@ export default function SalesManagementView() {
             <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">{tx("件数")}</div>
+            <div className="text-xs text-gray-500">{tx("入金件数")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
           </div>
         </div>

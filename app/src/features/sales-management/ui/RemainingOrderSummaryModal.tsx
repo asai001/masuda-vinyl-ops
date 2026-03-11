@@ -162,12 +162,15 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
       }
       maxWidth="md"
     >
-      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-        <label className="text-sm font-semibold text-gray-700">{tx("開始日")}</label>
-        <TextField size="small" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-        <span className="text-gray-400">〜</span>
-        <label className="text-sm font-semibold text-gray-700">{tx("終了日")}</label>
-        <TextField size="small" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+      <div className="flex flex-col gap-1">
+        <div className="text-xs text-gray-500">{tx("期間条件: 受注日")}</div>
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
+          <label className="text-sm font-semibold text-gray-700">{tx("開始日")}</label>
+          <TextField size="small" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          <span className="text-gray-400">〜</span>
+          <label className="text-sm font-semibold text-gray-700">{tx("終了日")}</label>
+          <TextField size="small" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+        </div>
       </div>
 
       <TableContainer component={Paper} elevation={0} className="rounded-lg border border-gray-200 overflow-hidden">

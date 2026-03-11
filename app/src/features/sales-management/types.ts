@@ -16,6 +16,12 @@ export const salesDocumentStatusOptions = [
 export type SalesDocumentStatusKey = (typeof salesDocumentStatusOptions)[number]["key"];
 export type SalesDocumentStatus = Record<SalesDocumentStatusKey, boolean>;
 
+export type SalesShipment = {
+  id: number;
+  deliveryDate: string;
+  shippedQuantity: number;
+};
+
 export type SalesLineItem = {
   id: number;
   productCode: string;
@@ -23,13 +29,15 @@ export type SalesLineItem = {
   materials: string[];
   stockQuantity: number | null;
   orderQuantity: number;
-  shippedQuantity: number;
   unitPrice: number;
   palletCount: number;
   totalWeight: number;
   weight: number | null;
   length: number | null;
   speed: number | null;
+  shipments: SalesShipment[];
+  deliveryDate?: string;
+  shippedQuantity?: number;
 };
 
 export type SalesRow = {
@@ -40,6 +48,8 @@ export type SalesRow = {
   customerName: string;
   customerRegion: string;
   deliveryDate: string;
+  paidAmount: number;
+  paidDate: string;
   currency: string;
   note: string;
   items: SalesLineItem[];
@@ -57,6 +67,8 @@ export type SalesOrderItem = {
   orderNo: string;
   orderDate: string;
   deliveryDate: string;
+  paidAmount?: number;
+  paidDate?: string;
   customerName: string;
   customerRegion?: string;
   currency: string;

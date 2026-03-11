@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -17,9 +17,12 @@ import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import { useLanguage } from "@/lib/i18n/language";
 import type {
+  SalesDocumentStatus,
   SalesDocumentStatusKey,
   SalesLineItem,
   SalesRow,
+  SalesShipment,
+  SalesStatus,
   SalesStatusKey,
 } from "@/features/sales-management/types";
 
@@ -53,6 +56,17 @@ type DocumentOption = {
   label: string;
 };
 
+type ShipmentForm = {
+  id: number;
+  deliveryDate: string;
+  shippedQuantity: string;
+};
+
+type ShipmentError = {
+  deliveryDate?: string;
+  shippedQuantity?: string;
+};
+
 type LineItemForm = {
   id: number;
   productCode: string;
@@ -63,10 +77,10 @@ type LineItemForm = {
   palletCount: string;
   totalWeight: string;
   stockQuantity: string;
-  shippedQuantity: string;
   weight: number | null;
   length: number | null;
   speed: number | null;
+  shipments: ShipmentForm[];
 };
 
 type LineItemError = {
@@ -76,7 +90,8 @@ type LineItemError = {
   palletCount?: string;
   totalWeight?: string;
   stockQuantity?: string;
-  shippedQuantity?: string;
+  shipments?: Record<number, ShipmentError>;
+  shipmentTotal?: string;
 };
 
 type EditSalesModalProps = {
@@ -94,17 +109,38 @@ type EditSalesModalProps = {
   isIssuing?: boolean;
 };
 
+type SalesFormState = {
+  orderNo: string;
+  orderDate: string;
+  customerName: string;
+  customerRegion: string;
+  currency: string;
+  paidAmount: string;
+  paidDate: string;
+  note: string;
+  status: SalesStatus;
+  documentStatus: SalesDocumentStatus;
+  items: LineItemForm[];
+};
+
 const emptyErrors = {
   orderNo: "",
   orderDate: "",
-  deliveryDate: "",
   customerName: "",
   currency: "",
+  paidAmount: "",
+  paidDate: "",
 };
 
 type ErrorKey = keyof typeof emptyErrors;
 
 const amountFormatter = new Intl.NumberFormat("en-US");
+
+const createEmptyShipment = (id: number, deliveryDate = ""): ShipmentForm => ({
+  id,
+  deliveryDate,
+  shippedQuantity: "0",
+});
 
 const createEmptyItem = (id: number): LineItemForm => ({
   id,
@@ -116,11 +152,79 @@ const createEmptyItem = (id: number): LineItemForm => ({
   palletCount: "0",
   totalWeight: "0",
   stockQuantity: "0",
-  shippedQuantity: "0",
   weight: null,
   length: null,
   speed: null,
+  shipments: [],
 });
+
+const toShipmentForms = (item: SalesLineItem, fallbackDate = ""): ShipmentForm[] => {
+  if (item.shipments.length) {
+    return item.shipments.map((shipment) => ({
+      id: shipment.id,
+      deliveryDate: shipment.deliveryDate,
+      shippedQuantity: String(shipment.shippedQuantity),
+    }));
+  }
+
+  if ((item.deliveryDate || fallbackDate) && typeof item.shippedQuantity === "number") {
+    return [
+      {
+        id: 1,
+        deliveryDate: item.deliveryDate || fallbackDate,
+        shippedQuantity: String(item.shippedQuantity),
+      },
+    ];
+  }
+
+  return [];
+};
+
+const getInitialForm = (row: SalesRow | null): SalesFormState => ({
+  orderNo: row?.orderNo ?? "",
+  orderDate: row?.orderDate ?? "",
+  customerName: row?.customerName ?? "",
+  customerRegion: row?.customerRegion ?? "",
+  currency: row?.currency ?? "",
+  paidAmount: String(row?.paidAmount ?? 0),
+  paidDate: row?.paidDate ?? "",
+  note: row?.note ?? "",
+  status: row?.status ?? {
+    shipped: false,
+    delivered: false,
+    paid: false,
+  },
+  documentStatus: row?.documentStatus ?? {
+    orderReceived: false,
+    deliverySent: false,
+    invoiceSent: false,
+  },
+  items:
+    row?.items.map((item) => ({
+      id: item.id,
+      productCode: item.productCode,
+      productName: item.productName,
+      materials: item.materials,
+      orderQuantity: String(item.orderQuantity),
+      unitPrice: String(item.unitPrice),
+      palletCount: String(item.palletCount ?? 0),
+      totalWeight: String(item.totalWeight ?? 0),
+      stockQuantity: item.stockQuantity === null ? "0" : String(item.stockQuantity),
+      weight: item.weight,
+      length: item.length,
+      speed: item.speed,
+      shipments: toShipmentForms(item, row.deliveryDate),
+    })) ?? [],
+});
+
+const getShipmentTotal = (shipments: ShipmentForm[]) =>
+  shipments.reduce((sum, shipment) => {
+    const quantity = Number(shipment.shippedQuantity);
+    if (Number.isNaN(quantity)) {
+      return sum;
+    }
+    return sum + quantity;
+  }, 0);
 
 export default function EditSalesModal({
   open,
@@ -137,43 +241,7 @@ export default function EditSalesModal({
   isIssuing = false,
 }: EditSalesModalProps) {
   const { tx } = useLanguage();
-  const getInitialForm = (row: SalesRow | null) => ({
-    orderNo: row?.orderNo ?? "",
-    orderDate: row?.orderDate ?? "",
-    deliveryDate: row?.deliveryDate ?? "",
-    customerName: row?.customerName ?? "",
-    customerRegion: row?.customerRegion ?? "",
-    currency: row?.currency ?? "",
-    note: row?.note ?? "",
-    status: row?.status ?? {
-      shipped: false,
-      delivered: false,
-      paid: false,
-    },
-    documentStatus: row?.documentStatus ?? {
-      orderReceived: false,
-      deliverySent: false,
-      invoiceSent: false,
-    },
-    items:
-      row?.items.map((item) => ({
-        id: item.id,
-        productCode: item.productCode,
-        productName: item.productName,
-        materials: item.materials,
-        orderQuantity: String(item.orderQuantity),
-        unitPrice: String(item.unitPrice),
-        palletCount: String(item.palletCount ?? 0),
-        totalWeight: String(item.totalWeight ?? 0),
-        stockQuantity: item.stockQuantity === null ? "0" : String(item.stockQuantity),
-        shippedQuantity: String(item.shippedQuantity),
-        weight: item.weight,
-        length: item.length,
-        speed: item.speed,
-      })) ?? [],
-  });
-
-  const [form, setForm] = useState(() => getInitialForm(sales));
+  const [form, setForm] = useState<SalesFormState>(() => getInitialForm(sales));
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
   const [itemsError, setItemsError] = useState("");
@@ -184,7 +252,7 @@ export default function EditSalesModal({
     onClose();
   };
 
-  const handleChange = (key: keyof typeof form, value: string) => {
+  const handleChange = (key: keyof SalesFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key in emptyErrors) {
       setErrors((prev) => ({ ...prev, [key as ErrorKey]: "" }));
@@ -223,8 +291,8 @@ export default function EditSalesModal({
 
   const handleLineChange = (
     id: number,
-    key: "orderQuantity" | "unitPrice" | "palletCount" | "totalWeight" | "stockQuantity" | "shippedQuantity",
-    value: string
+    key: "orderQuantity" | "unitPrice" | "palletCount" | "totalWeight" | "stockQuantity",
+    value: string,
   ) => {
     if (value.trim().startsWith("-")) {
       return;
@@ -236,6 +304,87 @@ export default function EditSalesModal({
     setLineErrors((prev) => ({
       ...prev,
       [id]: { ...prev[id], [key]: "" },
+    }));
+  };
+
+  const handleAddShipment = (itemId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (item.id !== itemId) {
+          return item;
+        }
+        const nextShipmentId = item.shipments.length
+          ? Math.max(...item.shipments.map((shipment) => shipment.id)) + 1
+          : 1;
+        return {
+          ...item,
+          shipments: [...item.shipments, createEmptyShipment(nextShipmentId, prev.orderDate)],
+        };
+      }),
+    }));
+  };
+
+  const handleRemoveShipment = (itemId: number, shipmentId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === itemId
+          ? { ...item, shipments: item.shipments.filter((shipment) => shipment.id !== shipmentId) }
+          : item,
+      ),
+    }));
+    setLineErrors((prev) => {
+      const nextLine = { ...prev[itemId] };
+      if (nextLine.shipments) {
+        const nextShipments = { ...nextLine.shipments };
+        delete nextShipments[shipmentId];
+        nextLine.shipments = nextShipments;
+      }
+      return {
+        ...prev,
+        [itemId]: nextLine,
+      };
+    });
+  };
+
+  const handleShipmentChange = (
+    itemId: number,
+    shipmentId: number,
+    key: "deliveryDate" | "shippedQuantity",
+    value: string,
+  ) => {
+    if (key === "shippedQuantity" && value.trim().startsWith("-")) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              shipments: item.shipments.map((shipment) =>
+                shipment.id === shipmentId ? { ...shipment, [key]: value } : shipment,
+              ),
+            }
+          : item,
+      ),
+    }));
+
+    setLineErrors((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        shipmentTotal: "",
+        shipments: {
+          ...(prev[itemId]?.shipments ?? {}),
+          [shipmentId]: {
+            ...(prev[itemId]?.shipments?.[shipmentId] ?? {}),
+            [key]: "",
+          },
+        },
+      },
     }));
   };
 
@@ -256,7 +405,7 @@ export default function EditSalesModal({
               length: selected?.length ?? null,
               speed: selected?.speed ?? null,
             }
-          : item
+          : item,
       ),
     }));
     setLineErrors((prev) => ({
@@ -287,6 +436,7 @@ export default function EditSalesModal({
     if (!form.items.length) {
       return null;
     }
+
     let hasValue = false;
     const total = form.items.reduce((sum, item) => {
       const quantity = Number(item.orderQuantity);
@@ -297,6 +447,7 @@ export default function EditSalesModal({
       hasValue = true;
       return sum + quantity * unitPrice;
     }, 0);
+
     return hasValue ? total : null;
   }, [form.items]);
 
@@ -307,9 +458,27 @@ export default function EditSalesModal({
     return `${form.currency} ${amountFormatter.format(amountValue)}`;
   }, [amountValue, form.currency]);
 
+  const validateHeader = (): boolean => {
+    const nextErrors = { ...emptyErrors };
+    if (!form.orderNo.trim()) {
+      nextErrors.orderNo = "入力してください";
+    }
+    if (!form.orderDate.trim()) {
+      nextErrors.orderDate = "入力してください";
+    }
+    if (!form.customerName.trim()) {
+      nextErrors.customerName = "選択してください";
+    }
+    if (!form.currency.trim()) {
+      nextErrors.currency = "選択してください";
+    }
+    const hasHeaderError = Object.values(nextErrors).some(Boolean);
+    setErrors(nextErrors);
+    return !hasHeaderError;
+  };
+
   const buildNextSales = (): SalesRow | null => {
     setActionError(null);
-    setErrors(emptyErrors);
     setItemsError("");
     setLineErrors({});
 
@@ -317,9 +486,35 @@ export default function EditSalesModal({
       return null;
     }
 
+    const validHeader = validateHeader();
+
+    if (!form.items.length) {
+      setItemsError("製品明細を追加してください。");
+    }
+
+    const paidAmountValue = form.paidAmount.trim();
+    const paidAmount = paidAmountValue ? Number(form.paidAmount) : 0;
+    const nextHeaderErrors: Partial<typeof emptyErrors> = {};
+    if (paidAmountValue && Number.isNaN(paidAmount)) {
+      nextHeaderErrors.paidAmount = "数値で入力してください";
+    } else if (paidAmount < 0) {
+      nextHeaderErrors.paidAmount = "0以上で入力してください";
+    }
+    if (paidAmount > 0 && !form.paidDate.trim()) {
+      nextHeaderErrors.paidDate = "入金日を入力してください";
+    }
+
+    if (Object.keys(nextHeaderErrors).length) {
+      setErrors((prev) => ({ ...prev, ...nextHeaderErrors }));
+    }
+
     const numericErrors: Record<number, LineItemError> = {};
     const parsedItems: SalesLineItem[] = [];
+
     form.items.forEach((item) => {
+      const hasShipmentInput = item.shipments.some(
+        (shipment) => shipment.deliveryDate.trim() || shipment.shippedQuantity.trim(),
+      );
       const hasInput = Boolean(
         item.productCode ||
           item.productName ||
@@ -328,7 +523,7 @@ export default function EditSalesModal({
           item.palletCount.trim() ||
           item.totalWeight.trim() ||
           item.stockQuantity.trim() ||
-          item.shippedQuantity.trim()
+          hasShipmentInput,
       );
       if (!hasInput) {
         return;
@@ -339,15 +534,17 @@ export default function EditSalesModal({
       const palletCountValue = item.palletCount.trim();
       const totalWeightValue = item.totalWeight.trim();
       const stockQuantityValue = item.stockQuantity.trim();
-      const shippedQuantityValue = item.shippedQuantity.trim();
 
       const orderQuantity = orderQuantityValue ? Number(item.orderQuantity) : 0;
       const unitPrice = unitPriceValue ? Number(item.unitPrice) : 0;
       const palletCount = palletCountValue ? Number(item.palletCount) : 0;
       const totalWeight = totalWeightValue ? Number(item.totalWeight) : 0;
       const stockQuantity = stockQuantityValue ? Number(item.stockQuantity) : 0;
-      const shippedQuantity = shippedQuantityValue ? Number(item.shippedQuantity) : 0;
+
       const itemError: LineItemError = {};
+      if (!item.productCode) {
+        itemError.productCode = "製品を選択してください";
+      }
       if (orderQuantityValue && Number.isNaN(orderQuantity)) {
         itemError.orderQuantity = "数値で入力してください";
       }
@@ -362,9 +559,6 @@ export default function EditSalesModal({
       }
       if (stockQuantityValue && Number.isNaN(stockQuantity)) {
         itemError.stockQuantity = "数値で入力してください";
-      }
-      if (shippedQuantityValue && Number.isNaN(shippedQuantity)) {
-        itemError.shippedQuantity = "数値で入力してください";
       }
       if (!itemError.orderQuantity && orderQuantityValue && orderQuantity < 0) {
         itemError.orderQuantity = "0以上で入力してください";
@@ -381,13 +575,57 @@ export default function EditSalesModal({
       if (!itemError.stockQuantity && stockQuantityValue && stockQuantity < 0) {
         itemError.stockQuantity = "0以上で入力してください";
       }
-      if (!itemError.shippedQuantity && shippedQuantityValue && shippedQuantity < 0) {
-        itemError.shippedQuantity = "0以上で入力してください";
+
+      const shipmentErrors: Record<number, ShipmentError> = {};
+      const parsedShipments: SalesShipment[] = [];
+
+      item.shipments.forEach((shipment) => {
+        const hasShipmentValue = shipment.deliveryDate.trim() || shipment.shippedQuantity.trim();
+        if (!hasShipmentValue) {
+          return;
+        }
+
+        const deliveryDate = shipment.deliveryDate.trim();
+        const shippedQuantityValue = shipment.shippedQuantity.trim();
+        const shippedQuantity = shippedQuantityValue ? Number(shipment.shippedQuantity) : 0;
+
+        const shipmentError: ShipmentError = {};
+        if (!deliveryDate) {
+          shipmentError.deliveryDate = "出荷日を入力してください";
+        }
+        if (shippedQuantityValue && Number.isNaN(shippedQuantity)) {
+          shipmentError.shippedQuantity = "数値で入力してください";
+        }
+        if (!shipmentError.shippedQuantity && shippedQuantityValue && shippedQuantity < 0) {
+          shipmentError.shippedQuantity = "0以上で入力してください";
+        }
+
+        if (Object.keys(shipmentError).length) {
+          shipmentErrors[shipment.id] = shipmentError;
+          return;
+        }
+
+        parsedShipments.push({
+          id: shipment.id,
+          deliveryDate,
+          shippedQuantity,
+        });
+      });
+
+      const totalShippedQuantity = parsedShipments.reduce((sum, shipment) => sum + shipment.shippedQuantity, 0);
+      if (totalShippedQuantity > orderQuantity) {
+        itemError.shipmentTotal = "出荷数合計は注数以下で入力してください";
       }
+
+      if (Object.keys(shipmentErrors).length) {
+        itemError.shipments = shipmentErrors;
+      }
+
       if (Object.keys(itemError).length) {
         numericErrors[item.id] = itemError;
         return;
       }
+
       parsedItems.push({
         id: item.id,
         productCode: item.productCode,
@@ -395,29 +633,44 @@ export default function EditSalesModal({
         materials: item.materials,
         stockQuantity,
         orderQuantity,
-        shippedQuantity,
         unitPrice,
         palletCount,
         totalWeight,
         weight: item.weight,
         length: item.length,
         speed: item.speed,
+        shipments: parsedShipments,
       });
     });
 
-    if (Object.keys(numericErrors).length) {
-      setLineErrors(numericErrors);
+    if (!validHeader || !form.items.length || Object.keys(nextHeaderErrors).length || Object.keys(numericErrors).length) {
+      if (Object.keys(numericErrors).length) {
+        setLineErrors(numericErrors);
+      }
       setActionError("入力内容をご確認ください。");
       return null;
     }
 
+    const shippedAmount = parsedItems.reduce(
+      (sum, item) =>
+        sum +
+        item.shipments.reduce((shipmentSum, shipment) => shipmentSum + shipment.shippedQuantity * item.unitPrice, 0),
+      0,
+    );
+    const normalizedPaidAmount = form.status.paid && paidAmount === 0 ? shippedAmount : paidAmount;
+    const primaryDeliveryDate =
+      [...parsedItems.flatMap((item) => item.shipments.map((shipment) => shipment.deliveryDate)).filter(Boolean)]
+        .sort((a, b) => a.localeCompare(b))[0] ?? "";
+
     return {
       ...sales,
-      orderNo: form.orderNo,
+      orderNo: form.orderNo.trim(),
       orderDate: form.orderDate,
       customerName: form.customerName,
       customerRegion: form.customerRegion,
-      deliveryDate: form.deliveryDate,
+      deliveryDate: primaryDeliveryDate,
+      paidAmount: normalizedPaidAmount,
+      paidDate: form.paidDate.trim(),
       currency: form.currency,
       note: form.note,
       items: parsedItems,
@@ -476,9 +729,7 @@ export default function EditSalesModal({
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          PO No.
-        </label>
+        <label className="text-sm font-semibold text-gray-700">PO No.</label>
         <TextField
           size="small"
           placeholder="PO-2025-001"
@@ -491,9 +742,7 @@ export default function EditSalesModal({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            受注日
-          </label>
+          <label className="text-sm font-semibold text-gray-700">受注日</label>
           <TextField
             size="small"
             type="date"
@@ -504,80 +753,86 @@ export default function EditSalesModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">
-            納品予定日
-          </label>
+          <label className="text-sm font-semibold text-gray-700">入金日</label>
           <TextField
             size="small"
             type="date"
-            value={form.deliveryDate}
-            onChange={(event) => handleChange("deliveryDate", event.target.value)}
-            error={Boolean(errors.deliveryDate)}
-            helperText={errors.deliveryDate}
+            value={form.paidDate}
+            onChange={(event) => handleChange("paidDate", event.target.value)}
+            error={Boolean(errors.paidDate)}
+            helperText={errors.paidDate}
           />
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          顧客名
-        </label>
-        <FormControl size="small" error={Boolean(errors.customerName)}>
-          <Select
-            value={form.customerName}
-            onChange={(event) => handleCustomerChange(event.target.value)}
-            displayEmpty
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
-              }
-              const option = customerOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {customerOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-          <FormHelperText>{errors.customerName}</FormHelperText>
-        </FormControl>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">顧客名</label>
+          <FormControl size="small" error={Boolean(errors.customerName)}>
+            <Select
+              value={form.customerName}
+              onChange={(event) => handleCustomerChange(event.target.value)}
+              displayEmpty
+              renderValue={(selected) => {
+                if (!selected) {
+                  return <span className="text-gray-400">選択してください</span>;
+                }
+                const option = customerOptions.find((item) => item.value === selected);
+                return option?.label ?? selected;
+              }}
+            >
+              {customerOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>{errors.customerName}</FormHelperText>
+          </FormControl>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-gray-700">通貨</label>
+          <FormControl size="small" error={Boolean(errors.currency)}>
+            <Select
+              value={form.currency}
+              onChange={(event) => handleChange("currency", event.target.value)}
+              displayEmpty
+              renderValue={(selected) => {
+                if (!selected) {
+                  return <span className="text-gray-400">選択してください</span>;
+                }
+                const option = currencyOptions.find((item) => item.value === selected);
+                return option?.label ?? selected;
+              }}
+            >
+              {currencyOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+            {errors.currency ? <FormHelperText>{errors.currency}</FormHelperText> : null}
+          </FormControl>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">
-          通貨
-        </label>
-        <FormControl size="small" error={Boolean(errors.currency)}>
-          <Select
-            value={form.currency}
-            onChange={(event) => handleChange("currency", event.target.value)}
-            displayEmpty
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
-              }
-              const option = currencyOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {currencyOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-          {errors.currency ? <FormHelperText>{errors.currency}</FormHelperText> : null}
-        </FormControl>
+        <label className="text-sm font-semibold text-gray-700">入金額</label>
+        <TextField
+          size="small"
+          type="number"
+          value={form.paidAmount}
+          onChange={(event) => handleChange("paidAmount", event.target.value)}
+          error={Boolean(errors.paidAmount)}
+          helperText={errors.paidAmount}
+          slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+        />
       </div>
 
       <Divider />
 
       <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold text-gray-700">
-          製品明細
-        </label>
+        <label className="text-sm font-semibold text-gray-700">製品明細</label>
         <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
           製品を追加
         </Button>
@@ -598,6 +853,7 @@ export default function EditSalesModal({
               Boolean(form.currency) &&
               Boolean(selectedOption?.currency) &&
               selectedOption?.currency !== form.currency;
+
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
@@ -613,11 +869,11 @@ export default function EditSalesModal({
                   <div className="flex flex-col gap-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       品目/品番
-                      {showCurrencyMismatch && (
+                      {showCurrencyMismatch ? (
                         <span className="text-xs font-normal text-amber-600">
                           マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
                         </span>
-                      )}
+                      ) : null}
                     </label>
                     <FormControl size="small" error={Boolean(itemError?.productCode)}>
                       <Select
@@ -644,9 +900,7 @@ export default function EditSalesModal({
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        注数
-                      </label>
+                      <label className="text-sm font-semibold text-gray-700">注数</label>
                       <TextField
                         size="small"
                         type="number"
@@ -658,9 +912,7 @@ export default function EditSalesModal({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">
-                        単価
-                      </label>
+                      <label className="text-sm font-semibold text-gray-700">単価</label>
                       <TextField
                         size="small"
                         type="number"
@@ -707,18 +959,82 @@ export default function EditSalesModal({
                         slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">出荷数</label>
-                      <TextField
+                  </div>
+
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-700">出荷明細</div>
+                      <Button
+                        variant="outlined"
                         size="small"
-                        type="number"
-                        value={item.shippedQuantity}
-                        onChange={(event) => handleLineChange(item.id, "shippedQuantity", event.target.value)}
-                        error={Boolean(itemError?.shippedQuantity)}
-                        helperText={itemError?.shippedQuantity}
-                        slotProps={{ htmlInput: { min: 0 } }}
-                      />
+                        startIcon={<Plus size={14} />}
+                        onClick={() => handleAddShipment(item.id)}
+                      >
+                        出荷を追加
+                      </Button>
                     </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      出荷数合計: {amountFormatter.format(getShipmentTotal(item.shipments))} / 注数:{" "}
+                      {amountFormatter.format(Number(item.orderQuantity) || 0)}
+                    </div>
+
+                    {item.shipments.length === 0 ? (
+                      <div className="mt-3 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500">
+                        出荷明細はまだありません
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex flex-col gap-3">
+                        {item.shipments.map((shipment) => {
+                          const shipmentError = itemError?.shipments?.[shipment.id];
+                          return (
+                            <div key={shipment.id} className="rounded-lg border border-gray-200 bg-white p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-semibold text-gray-700">出荷 #{shipment.id}</div>
+                                <Button
+                                  variant="text"
+                                  color="error"
+                                  size="small"
+                                  onClick={() => handleRemoveShipment(item.id, shipment.id)}
+                                >
+                                  削除
+                                </Button>
+                              </div>
+                              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-semibold text-gray-700">出荷日</label>
+                                  <TextField
+                                    size="small"
+                                    type="date"
+                                    value={shipment.deliveryDate}
+                                    onChange={(event) =>
+                                      handleShipmentChange(item.id, shipment.id, "deliveryDate", event.target.value)
+                                    }
+                                    error={Boolean(shipmentError?.deliveryDate)}
+                                    helperText={shipmentError?.deliveryDate}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-semibold text-gray-700">出荷数</label>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={shipment.shippedQuantity}
+                                    onChange={(event) =>
+                                      handleShipmentChange(item.id, shipment.id, "shippedQuantity", event.target.value)
+                                    }
+                                    error={Boolean(shipmentError?.shippedQuantity)}
+                                    helperText={shipmentError?.shippedQuantity}
+                                    slotProps={{ htmlInput: { min: 0 } }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {itemError?.shipmentTotal ? <div className="mt-2 text-sm text-red-500">{itemError.shipmentTotal}</div> : null}
                   </div>
                 </div>
               </div>

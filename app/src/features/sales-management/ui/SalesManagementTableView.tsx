@@ -5,7 +5,7 @@ import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { useLanguage } from "@/lib/i18n/language";
-import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
+import { calculateSalesMetrics, collectDeliveryDates, getPrimaryDeliveryDate } from "@/features/sales-management/salesManagementUtils";
 import { salesDocumentStatusOptions, salesStatusOptions } from "@/features/sales-management/types";
 import type { SalesLineItem, SalesRow } from "@/features/sales-management/types";
 
@@ -59,6 +59,17 @@ const getUnitPriceLabel = (items: SalesLineItem[], currency: string) => {
   return "複数";
 };
 
+const getDeliveryDateLabel = (items: SalesLineItem[], fallbackDate: string) => {
+  const dates = collectDeliveryDates(items, fallbackDate);
+  if (!dates.length) {
+    return "-";
+  }
+  if (dates.length === 1) {
+    return dates[0];
+  }
+  return `${dates[0]} ~ ${dates[dates.length - 1]} (${dates.length}日程)`;
+};
+
 const renderStatusItems = (items: { label: string; active: boolean }[], tx: (text: string) => string) => (
   <div className="flex flex-col gap-1 text-xs text-gray-700">
     {items.map((item) => (
@@ -78,6 +89,7 @@ type SortKey =
   | "orderQuantity"
   | "shippedQuantity"
   | "remainingQuantity"
+  | "unpaidAmount"
   | "unitPrice"
   | "amount"
   | "deliveryDate";
@@ -242,6 +254,16 @@ export default function SalesManagementTableView({
         },
       },
       {
+        key: "unpaidAmount",
+        header: "未入金金額",
+        sortKey: "unpaidAmount",
+        align: "right",
+        render: (row) => {
+          const metrics = calculateSalesMetrics(row.items, row.paidAmount);
+          return <span className="text-sm font-semibold text-amber-700">{formatCurrencyValue(row.currency, metrics.unpaidAmount)}</span>;
+        },
+      },
+      {
         key: "requiredMaterial",
         header: "必要材料量",
         align: "right",
@@ -267,9 +289,9 @@ export default function SalesManagementTableView({
       },
       {
         key: "deliveryDate",
-        header: "納品予定日",
+        header: "出荷日",
         sortKey: "deliveryDate",
-        render: (row) => <span className="text-sm">{row.deliveryDate}</span>,
+        render: (row) => <span className="text-sm">{getDeliveryDateLabel(row.items, row.deliveryDate)}</span>,
       },
       {
         key: "status",
@@ -370,6 +392,10 @@ export default function SalesManagementTableView({
         return row.items[0]?.unitPrice ?? 0;
       case "amount":
         return calculateSalesMetrics(row.items).amount;
+      case "unpaidAmount":
+        return calculateSalesMetrics(row.items, row.paidAmount).unpaidAmount;
+      case "deliveryDate":
+        return getPrimaryDeliveryDate(row.items, row.deliveryDate);
       default:
         return row[key as keyof SalesRow];
     }

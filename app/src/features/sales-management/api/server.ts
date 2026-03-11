@@ -16,8 +16,10 @@ import {
   type SalesDocumentStatus,
   type SalesLineItem,
   type SalesOrderItem,
+  type SalesShipment,
   type SalesStatus,
 } from "../types";
+import { getPrimaryDeliveryDate } from "../salesManagementUtils";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -76,7 +78,51 @@ const normalizeNumber = (value: unknown, fallback = 0): number =>
 const normalizeNullableNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-const normalizeItems = (items: unknown): SalesLineItem[] => {
+const normalizeString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+
+const normalizeShipments = (
+  shipments: unknown,
+  fallbackDeliveryDate = "",
+  legacyShippedQuantity: unknown = 0,
+): SalesShipment[] => {
+  const fallbackDate = normalizeString(fallbackDeliveryDate);
+
+  if (Array.isArray(shipments)) {
+    return shipments.map((shipment, index) => {
+      if (!shipment || typeof shipment !== "object") {
+        return {
+          id: index + 1,
+          deliveryDate: fallbackDate,
+          shippedQuantity: 0,
+        };
+      }
+
+      const record = shipment as Record<string, unknown>;
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        deliveryDate: normalizeString(record.deliveryDate) || fallbackDate,
+        shippedQuantity: normalizeNumber(record.shippedQuantity),
+      };
+    });
+  }
+
+  const legacyDate = fallbackDate;
+  const shippedQuantity = normalizeNumber(legacyShippedQuantity);
+  if (!legacyDate && shippedQuantity <= 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: 1,
+      deliveryDate: legacyDate,
+      shippedQuantity,
+    },
+  ];
+};
+
+const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineItem[] => {
+  const fallbackDate = normalizeString(fallbackDeliveryDate);
   if (!Array.isArray(items)) {
     return [];
   }
@@ -89,30 +135,30 @@ const normalizeItems = (items: unknown): SalesLineItem[] => {
         materials: [],
         stockQuantity: null,
         orderQuantity: 0,
-        shippedQuantity: 0,
         unitPrice: 0,
         palletCount: 0,
         totalWeight: 0,
         weight: null,
         length: null,
         speed: null,
+        shipments: normalizeShipments([], fallbackDate, 0),
       };
     }
     const record = item as Record<string, unknown>;
     return {
       id: typeof record.id === "number" ? record.id : index + 1,
-      productCode: typeof record.productCode === "string" ? record.productCode.trim() : "",
-      productName: typeof record.productName === "string" ? record.productName.trim() : "",
+      productCode: normalizeString(record.productCode),
+      productName: normalizeString(record.productName),
       materials: normalizeMaterials(record.materials),
       stockQuantity: normalizeNullableNumber(record.stockQuantity),
       orderQuantity: normalizeNumber(record.orderQuantity),
-      shippedQuantity: normalizeNumber(record.shippedQuantity),
       unitPrice: normalizeNumber(record.unitPrice),
       palletCount: normalizeNumber(record.palletCount),
       totalWeight: normalizeNumber(record.totalWeight),
       weight: normalizeNullableNumber(record.weight),
       length: normalizeNullableNumber(record.length),
       speed: normalizeNullableNumber(record.speed),
+      shipments: normalizeShipments(record.shipments, normalizeString(record.deliveryDate) || fallbackDate, record.shippedQuantity),
     };
   });
 };
@@ -121,17 +167,26 @@ function buildSalesOrderItem(
   orgId: string,
   base: Partial<SalesOrderItem> & { salesOrderId: string; displayNo: number },
 ): SalesOrderItem {
-  const orderNo = (base.orderNo ?? "").trim();
-  const orderDate = (base.orderDate ?? "").trim();
-  const deliveryDate = (base.deliveryDate ?? "").trim();
-  const customerName = (base.customerName ?? "").trim();
-  const customerRegion = base.customerRegion?.trim() || undefined;
-  const currency = (base.currency ?? "").trim();
-  const note = base.note?.trim() || undefined;
+  const orderNo = normalizeString(base.orderNo);
+  const orderDate = normalizeString(base.orderDate);
+  const legacyDeliveryDate = normalizeString(base.deliveryDate);
+  const customerName = normalizeString(base.customerName);
+  const customerRegion = normalizeString(base.customerRegion) || undefined;
+  const currency = normalizeString(base.currency);
+  const note = normalizeString(base.note) || undefined;
+  const paidDate = normalizeString(base.paidDate);
 
-  const items = normalizeItems(base.items);
+  const items = normalizeItems(base.items, legacyDeliveryDate);
   const status = normalizeStatus(base.status);
   const documentStatus = normalizeDocumentStatus(base.documentStatus);
+  const orderAmount = items.reduce((sum, item) => sum + item.orderQuantity * item.unitPrice, 0);
+  const paidAmount =
+    typeof base.paidAmount === "number" && Number.isFinite(base.paidAmount)
+      ? base.paidAmount
+      : status.paid
+        ? orderAmount
+        : 0;
+  const deliveryDate = getPrimaryDeliveryDate(items, legacyDeliveryDate);
 
   const orderNoLower = orderNo.toLowerCase();
 
@@ -142,6 +197,8 @@ function buildSalesOrderItem(
     orderNo,
     orderDate,
     deliveryDate,
+    paidAmount,
+    paidDate,
     customerName,
     customerRegion,
     currency,
@@ -162,9 +219,9 @@ function buildSalesOrderItem(
     orderNoIndexSk: orderNo ? `${orderNoLower}#${base.salesOrderId}` : undefined,
 
     // スパース運用のため true のものだけ index 属性を付与する
-    ...(status.shipped ? { shippedStatusIndexPk: orgId, shippedStatusIndexSk: orderDate } : {}),
-    ...(status.delivered ? { deliveredStatusIndexPk: orgId, deliveredStatusIndexSk: orderDate } : {}),
-    ...(status.paid ? { paidStatusIndexPk: orgId, paidStatusIndexSk: orderDate } : {}),
+    ...(status.shipped ? { shippedStatusIndexPk: orgId, shippedStatusIndexSk: deliveryDate || orderDate } : {}),
+    ...(status.delivered ? { deliveredStatusIndexPk: orgId, deliveredStatusIndexSk: deliveryDate || orderDate } : {}),
+    ...(status.paid ? { paidStatusIndexPk: orgId, paidStatusIndexSk: paidDate || orderDate } : {}),
   };
 }
 
