@@ -18,6 +18,7 @@ export type InvoicePackingPayload = {
   invoiceDate: string;
   invoiceNo?: string;
   templateType?: InvoicePackingTemplate;
+  currency?: string;
   destinationCountry: string;
   remark?: string;
   consigneeName: string;

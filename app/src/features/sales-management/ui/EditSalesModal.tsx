@@ -135,6 +135,8 @@ const emptyErrors = {
 type ErrorKey = keyof typeof emptyErrors;
 
 const amountFormatter = new Intl.NumberFormat("en-US");
+const lineAmountFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const weightFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
 
 const createEmptyShipment = (id: number, deliveryDate = ""): ShipmentForm => ({
   id,
@@ -226,6 +228,56 @@ const getShipmentTotal = (shipments: ShipmentForm[]) =>
     return sum + quantity;
   }, 0);
 
+const resolveLineUnitWeight = (
+  item: Pick<LineItemForm, "productCode" | "weight">,
+  productOptions: ProductOption[],
+) => {
+  const productWeight = productOptions.find((option) => option.value === item.productCode)?.weight;
+  if (typeof productWeight === "number" && Number.isFinite(productWeight)) {
+    return productWeight;
+  }
+  return typeof item.weight === "number" && Number.isFinite(item.weight) ? item.weight : null;
+};
+
+const calculateLineTotalWeight = (
+  item: Pick<LineItemForm, "productCode" | "weight" | "orderQuantity">,
+  productOptions: ProductOption[],
+) => {
+  const unitWeight = resolveLineUnitWeight(item, productOptions);
+  if (unitWeight === null) {
+    return null;
+  }
+  const orderQuantity = Number(item.orderQuantity);
+  if (!Number.isFinite(orderQuantity)) {
+    return null;
+  }
+  return unitWeight * orderQuantity;
+};
+
+const formatLineTotalWeight = (value: number | null) => {
+  if (value === null || !Number.isFinite(value)) {
+    return "-";
+  }
+  return `${weightFormatter.format(value / 1000)} kg`;
+};
+
+const calculateLineAmount = (item: Pick<LineItemForm, "orderQuantity" | "unitPrice">) => {
+  const orderQuantity = Number(item.orderQuantity);
+  const unitPrice = Number(item.unitPrice);
+  if (!Number.isFinite(orderQuantity) || !Number.isFinite(unitPrice)) {
+    return null;
+  }
+  return orderQuantity * unitPrice;
+};
+
+const formatLineAmount = (value: number | null, currency: string) => {
+  if (value === null || !Number.isFinite(value)) {
+    return "-";
+  }
+  const formatted = lineAmountFormatter.format(value);
+  return currency ? `${currency} ${formatted}` : formatted;
+};
+
 export default function EditSalesModal({
   open,
   sales,
@@ -291,7 +343,7 @@ export default function EditSalesModal({
 
   const handleLineChange = (
     id: number,
-    key: "orderQuantity" | "unitPrice" | "palletCount" | "totalWeight" | "stockQuantity",
+    key: "orderQuantity" | "unitPrice" | "palletCount" | "stockQuantity",
     value: string,
   ) => {
     if (value.trim().startsWith("-")) {
@@ -521,7 +573,6 @@ export default function EditSalesModal({
           item.orderQuantity.trim() ||
           item.unitPrice.trim() ||
           item.palletCount.trim() ||
-          item.totalWeight.trim() ||
           item.stockQuantity.trim() ||
           hasShipmentInput,
       );
@@ -532,14 +583,14 @@ export default function EditSalesModal({
       const orderQuantityValue = item.orderQuantity.trim();
       const unitPriceValue = item.unitPrice.trim();
       const palletCountValue = item.palletCount.trim();
-      const totalWeightValue = item.totalWeight.trim();
       const stockQuantityValue = item.stockQuantity.trim();
 
       const orderQuantity = orderQuantityValue ? Number(item.orderQuantity) : 0;
       const unitPrice = unitPriceValue ? Number(item.unitPrice) : 0;
       const palletCount = palletCountValue ? Number(item.palletCount) : 0;
-      const totalWeight = totalWeightValue ? Number(item.totalWeight) : 0;
       const stockQuantity = stockQuantityValue ? Number(item.stockQuantity) : 0;
+      const unitWeight = resolveLineUnitWeight(item, productOptions);
+      const totalWeight = calculateLineTotalWeight(item, productOptions) ?? 0;
 
       const itemError: LineItemError = {};
       if (!item.productCode) {
@@ -554,9 +605,6 @@ export default function EditSalesModal({
       if (palletCountValue && Number.isNaN(palletCount)) {
         itemError.palletCount = "数値で入力してください";
       }
-      if (totalWeightValue && Number.isNaN(totalWeight)) {
-        itemError.totalWeight = "数値で入力してください";
-      }
       if (stockQuantityValue && Number.isNaN(stockQuantity)) {
         itemError.stockQuantity = "数値で入力してください";
       }
@@ -568,9 +616,6 @@ export default function EditSalesModal({
       }
       if (!itemError.palletCount && palletCountValue && palletCount < 0) {
         itemError.palletCount = "0以上で入力してください";
-      }
-      if (!itemError.totalWeight && totalWeightValue && totalWeight < 0) {
-        itemError.totalWeight = "0以上で入力してください";
       }
       if (!itemError.stockQuantity && stockQuantityValue && stockQuantity < 0) {
         itemError.stockQuantity = "0以上で入力してください";
@@ -636,7 +681,7 @@ export default function EditSalesModal({
         unitPrice,
         palletCount,
         totalWeight,
-        weight: item.weight,
+        weight: unitWeight,
         length: item.length,
         speed: item.speed,
         shipments: parsedShipments,
@@ -848,6 +893,8 @@ export default function EditSalesModal({
           {form.items.map((item, index) => {
             const itemError = lineErrors[item.id];
             const selectedOption = productOptions.find((option) => option.value === item.productCode);
+            const totalWeightLabel = formatLineTotalWeight(calculateLineTotalWeight(item, productOptions));
+            const lineAmountLabel = formatLineAmount(calculateLineAmount(item), form.currency);
             const showCurrencyMismatch =
               Boolean(item.productCode) &&
               Boolean(form.currency) &&
@@ -920,7 +967,7 @@ export default function EditSalesModal({
                         onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
                         error={Boolean(itemError?.unitPrice)}
                         helperText={itemError?.unitPrice}
-                        slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+                        slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -936,16 +983,10 @@ export default function EditSalesModal({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">総重量</label>
-                      <TextField
-                        size="small"
-                        type="number"
-                        value={item.totalWeight}
-                        onChange={(event) => handleLineChange(item.id, "totalWeight", event.target.value)}
-                        error={Boolean(itemError?.totalWeight)}
-                        helperText={itemError?.totalWeight}
-                        slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
-                      />
+                      <label className="text-sm font-semibold text-gray-700">{tx("正味重量")}</label>
+                      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
+                        {totalWeightLabel}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-2">
                       <label className="text-sm font-semibold text-gray-700">在庫数</label>
@@ -958,6 +999,12 @@ export default function EditSalesModal({
                         helperText={itemError?.stockQuantity}
                         slotProps={{ htmlInput: { min: 0 } }}
                       />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-gray-700">{tx("金額")}</label>
+                      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
+                        {lineAmountLabel}
+                      </div>
                     </div>
                   </div>
 

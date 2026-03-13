@@ -16,7 +16,6 @@
       "taxId": "TAX-00001",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#材料",
       "categoryIndexSk": "an phat materials#cli_001",
       "regionIndexPk": "masuda-vinyl-vietnam#VN",
@@ -44,7 +43,6 @@
       "taxId": "TAX-00002",
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#顧客",
       "categoryIndexSk": "global customer inc.#cli_002",
       "regionIndexPk": "masuda-vinyl-vietnam#US",
@@ -74,7 +72,6 @@
       "status": "active",
       "createdAt": "2025-12-10T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#フィルム",
       "categoryIndexSk": "pi-001#mat_001",
       "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
@@ -108,7 +105,6 @@
       "status": "active",
       "createdAt": "2025-12-10T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#インク",
       "categoryIndexSk": "ink-01#mat_002",
       "supplierIndexPk": "masuda-vinyl-vietnam#Hanoi Print Works",
@@ -140,14 +136,16 @@
       "unit": "pcs",
       "currency": "VND",
       "unitPrice": 2500,
-      "weight": 0.012,
+      "weight": 1,
       "length": 200,
       "speed": 25,
       "status": "active",
-      "materials": ["PI-001", "INK-01"],
+      "materials": [
+        "PI-001",
+        "INK-01"
+      ],
       "createdAt": "2025-12-15T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#袋",
       "categoryIndexSk": "pr-100#prd_001",
       "unitIndexPk": "masuda-vinyl-vietnam#pcs",
@@ -163,7 +161,7 @@
       "unitPriceIndexPk": "masuda-vinyl-vietnam",
       "unitPriceIndexSk": 2500,
       "weightIndexPk": "masuda-vinyl-vietnam",
-      "weightIndexSk": 0.012,
+      "weightIndexSk": 1,
       "lengthIndexPk": "masuda-vinyl-vietnam",
       "lengthIndexSk": 200,
       "speedIndexPk": "masuda-vinyl-vietnam",
@@ -181,14 +179,16 @@
       "unit": "pcs",
       "currency": "JPY",
       "unitPrice": 12,
-      "weight": 0.001,
+      "weight": 300,
       "length": 50,
       "speed": 40,
       "status": "active",
-      "materials": ["LBL-01", "ADH-01"],
+      "materials": [
+        "LBL-01",
+        "ADH-01"
+      ],
       "createdAt": "2025-12-15T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#ラベル",
       "categoryIndexSk": "pr-200#prd_002",
       "unitIndexPk": "masuda-vinyl-vietnam#pcs",
@@ -204,7 +204,7 @@
       "unitPriceIndexPk": "masuda-vinyl-vietnam",
       "unitPriceIndexSk": 12,
       "weightIndexPk": "masuda-vinyl-vietnam",
-      "weightIndexSk": 0.001,
+      "weightIndexSk": 300,
       "lengthIndexPk": "masuda-vinyl-vietnam",
       "lengthIndexSk": 50,
       "speedIndexPk": "masuda-vinyl-vietnam",
@@ -222,22 +222,42 @@
       "supplier": "An Phat Materials",
       "currency": "VND",
       "amount": 2550000,
-      "status": { "ordered": true, "delivered": true, "paid": false },
-      "documentStatus": { "orderSent": true, "deliveryReceived": true, "invoiceReceived": false },
+      "status": {
+        "ordered": true,
+        "delivered": true,
+        "paid": false
+      },
+      "documentStatus": {
+        "orderSent": true,
+        "deliveryReceived": true,
+        "invoiceReceived": false
+      },
       "items": [
-        { "id": 1, "itemCode": "PI-001", "itemName": "PE Film 30um", "unit": "m", "quantity": 2000, "unitPrice": 1200 },
-        { "id": 2, "itemCode": "INK-01", "itemName": "Blue Ink", "unit": "kg", "quantity": 15, "unitPrice": 85000 }
+        {
+          "id": 1,
+          "itemCode": "PI-001",
+          "itemName": "PE Film 30um",
+          "unit": "m",
+          "quantity": 2000,
+          "unitPrice": 1200
+        },
+        {
+          "id": 2,
+          "itemCode": "INK-01",
+          "itemName": "Blue Ink",
+          "unit": "kg",
+          "quantity": 15,
+          "unitPrice": 85000
+        }
       ],
       "createdAt": "2025-12-20T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "orderDateIndexPk": "masuda-vinyl-vietnam",
       "orderDateIndexSk": "2025-12-18",
       "deliveryDateIndexPk": "masuda-vinyl-vietnam",
       "deliveryDateIndexSk": "2025-12-25",
       "supplierIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
       "supplierIndexSk": "2025-12-18",
-
       "orderedStatusIndexPk": "masuda-vinyl-vietnam",
       "orderedStatusIndexSk": "2025-12-18",
       "deliveredStatusIndexPk": "masuda-vinyl-vietnam",
@@ -257,19 +277,34 @@
       "supplier": "Binh Duong Resin",
       "currency": "VND",
       "amount": 1800000,
-      "status": { "ordered": true, "delivered": false, "paid": false },
-      "documentStatus": { "orderSent": true, "deliveryReceived": false, "invoiceReceived": false },
-      "items": [{ "id": 1, "itemCode": "PI-001", "itemName": "PE Film 30um", "unit": "m", "quantity": 1500, "unitPrice": 1200 }],
+      "status": {
+        "ordered": true,
+        "delivered": false,
+        "paid": false
+      },
+      "documentStatus": {
+        "orderSent": true,
+        "deliveryReceived": false,
+        "invoiceReceived": false
+      },
+      "items": [
+        {
+          "id": 1,
+          "itemCode": "PI-001",
+          "itemName": "PE Film 30um",
+          "unit": "m",
+          "quantity": 1500,
+          "unitPrice": 1200
+        }
+      ],
       "createdAt": "2025-12-20T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "orderDateIndexPk": "masuda-vinyl-vietnam",
       "orderDateIndexSk": "2025-12-22",
       "deliveryDateIndexPk": "masuda-vinyl-vietnam",
       "deliveryDateIndexSk": "2026-01-05",
       "supplierIndexPk": "masuda-vinyl-vietnam#Binh Duong Resin",
       "supplierIndexSk": "2025-12-22",
-
       "orderedStatusIndexPk": "masuda-vinyl-vietnam",
       "orderedStatusIndexSk": "2025-12-22",
       "orderSentIndexPk": "masuda-vinyl-vietnam",
@@ -288,7 +323,11 @@
       "customerName": "Global Customer Inc.",
       "currency": "VND",
       "amount": 2500000,
-      "status": { "shipped": true, "delivered": false, "paid": false },
+      "status": {
+        "shipped": true,
+        "delivered": false,
+        "paid": false
+      },
       "items": [
         {
           "id": 1,
@@ -305,7 +344,6 @@
       ],
       "createdAt": "2025-12-21T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "orderDateIndexPk": "masuda-vinyl-vietnam",
       "orderDateIndexSk": "2025-12-19",
       "deliveryDateIndexPk": "masuda-vinyl-vietnam",
@@ -314,7 +352,6 @@
       "customerIndexSk": "2025-12-19",
       "orderNoIndexPk": "masuda-vinyl-vietnam",
       "orderNoIndexSk": "so-2025-0098#so_001",
-
       "shippedStatusIndexPk": "masuda-vinyl-vietnam",
       "shippedStatusIndexSk": "2025-12-19"
     }
@@ -334,7 +371,6 @@
       "paymentDay": 5,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#家賃",
       "categoryIndexSk": "factory rent#pdef_001",
       "fixedCostIndexPk": "masuda-vinyl-vietnam#fixed",
@@ -362,7 +398,6 @@
       "paymentDay": 15,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "categoryIndexPk": "masuda-vinyl-vietnam#光熱費",
       "categoryIndexSk": "electricity#pdef_002",
       "fixedCostIndexPk": "masuda-vinyl-vietnam#variable",
@@ -393,7 +428,6 @@
       "isFixedCost": true,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "paymentDateIndexPk": "masuda-vinyl-vietnam#2025-12",
       "paymentDateIndexSk": "2025-12-05",
       "monthCategoryIndexPk": "masuda-vinyl-vietnam#2025-12#家賃",
@@ -426,7 +460,6 @@
       "isFixedCost": false,
       "createdAt": "2025-12-01T00:00:00Z",
       "updatedAt": "2026-01-01T00:00:00Z",
-
       "paymentDateIndexPk": "masuda-vinyl-vietnam#2026-01",
       "paymentDateIndexSk": "2026-01-20",
       "monthCategoryIndexPk": "masuda-vinyl-vietnam#2026-01#外注費",
@@ -444,12 +477,36 @@
     }
   ],
   "sequences": [
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "CLIENT", "current": 2 },
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "MATERIAL", "current": 2 },
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "PRODUCT", "current": 2 },
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "PO", "current": 2 },
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "SO", "current": 1 },
-    { "orgId": "masuda-vinyl-vietnam", "sequenceName": "PAY", "current": 2 }
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "CLIENT",
+      "current": 2
+    },
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "MATERIAL",
+      "current": 2
+    },
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "PRODUCT",
+      "current": 2
+    },
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "PO",
+      "current": 2
+    },
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "SO",
+      "current": 1
+    },
+    {
+      "orgId": "masuda-vinyl-vietnam",
+      "sequenceName": "PAY",
+      "current": 2
+    }
   ],
   "settings": [
     {

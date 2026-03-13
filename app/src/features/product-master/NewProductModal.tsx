@@ -330,7 +330,7 @@ export default function NewProductModal({
             onChange={(event) => handleNumberChange("unitPrice", event.target.value)}
             error={Boolean(errors.unitPrice)}
             helperText={errors.unitPrice}
-            slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
+            slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
           />
         </div>
         <div className="flex flex-col gap-2">

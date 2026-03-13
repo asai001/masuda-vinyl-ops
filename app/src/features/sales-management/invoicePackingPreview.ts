@@ -1,4 +1,4 @@
-﻿import type { InvoicePackingPayload } from "./invoicePackingList";
+import type { InvoicePackingPayload } from "./invoicePackingList";
 
 const shipperInfo = {
   name: "MASUDA VINYL VIETNAM CO.,LTD",
@@ -39,7 +39,7 @@ const formatHqInvoiceDateLabel = (value: string) => {
     return value;
   }
   const [, day, month, year] = match;
-  return `${Number(day)}/${Number(month)}/${year}`;
+  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
 };
 
 const shouldUseHqTwentySheet = (items: InvoicePackingPayload["items"]) => items.length >= HQ_TWENTY_SHEET_ITEM_THRESHOLD;
@@ -57,8 +57,16 @@ const calculateHqGrossWeight = (item: InvoicePackingItem) => {
   const quantity = toFiniteNumber(item.quantity);
   const palletCount = toFiniteNumber(item.palletCount);
   const unitWeight = toFiniteNumber(item.weight);
-  return unitWeight * quantity + palletCount * 20;
+  return unitWeight * quantity / 1000 + palletCount * 20;
 };
+
+const calculateClientNetWeight = (item: InvoicePackingItem) => {
+  const totalWeight = toFiniteNumber(item.totalWeight);
+  return totalWeight / 1000;
+};
+
+const calculateClientGrossWeight = (item: InvoicePackingItem) =>
+  calculateClientNetWeight(item) + toFiniteNumber(item.palletCount) * 20;
 
 const formatNumber = (value: number, digits = 2) => {
   if (!Number.isFinite(value)) {
@@ -112,6 +120,16 @@ const formatBoxesCount = (quantity: number, packaging: number | null | undefined
     return "";
   }
   return formatNumber(boxesCount, 0);
+};
+
+const formatClientInvoiceAmount = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const hqConsigneeInfo = {
@@ -414,8 +432,8 @@ const renderInvoiceRows = (items: InvoicePackingPayload["items"]) => {
           <td class="text-center"></td>
           <td class="text-center">${safeText(item.unit)}</td>
           <td class="text-right">${formatQuantity(item.quantity)}</td>
-          <td class="text-right">${formatNumber(item.unitPrice)}</td>
-          <td class="text-right">${formatNumber(amount)}</td>
+          <td class="text-right">${formatClientInvoiceAmount(item.unitPrice)}</td>
+          <td class="text-right">${formatClientInvoiceAmount(amount)}</td>
         </tr>
       `;
     })
@@ -763,7 +781,7 @@ const renderHqInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page hq-page">
         <div class="title hq-title">INVOICE</div>
-        <div class="meta-top hq-meta-top"><span>インボイス作成日（Date): ${invoiceDate}</span></div>
+        <div class="meta-top hq-meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderHqTopSection(invoiceNo)}
 
@@ -843,7 +861,7 @@ const renderHqPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page hq-page">
         <div class="title hq-title">PACKING LIST</div>
-        <div class="meta-top hq-meta-top"><span>Date: ${invoiceDate}</span></div>
+        <div class="meta-top hq-meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderHqTopSection(invoiceNo)}
 
@@ -950,7 +968,7 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page">
         <div class="title">INVOICE</div>
-        <div class="meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
+        <div class="meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderSharedTopSection(payload, invoiceNo, destination)}
 
@@ -980,7 +998,7 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
             ${renderInvoiceRows(items)}
             <tr>
               <td colspan="7" class="text-center"><strong>合計 (Total)</strong></td>
-              <td class="text-right"><strong>${formatNumber(totalAmount)}</strong></td>
+              <td class="text-right"><strong>${formatClientInvoiceAmount(totalAmount)}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -1021,8 +1039,8 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
         `;
       }
       const boxesCount = formatBoxesCount(item.quantity, item.packaging);
-      const netWeight = formatWeightKg(0);
-      const grossWeight = formatWeightKg(item.totalWeight);
+      const netWeight = formatWeightKg(calculateClientNetWeight(item));
+      const grossWeight = formatWeightKg(calculateClientGrossWeight(item));
       return `
         <tr>
           <td class="text-center">${index + 1}</td>
@@ -1054,10 +1072,8 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
   const totalQuantity = items.reduce((sum, item) => sum + (Number.isFinite(item.quantity) ? item.quantity : 0), 0);
   const totalBoxes = items.reduce((sum, item) => sum + calculateBoxesCount(item.quantity, item.packaging), 0);
   const totalPallets = items.reduce((sum, item) => sum + (Number.isFinite(item.palletCount) ? item.palletCount : 0), 0);
-  const totalGrossWeight = items.reduce(
-    (sum, item) => sum + (Number.isFinite(item.totalWeight) ? item.totalWeight : 0),
-    0,
-  );
+  const totalNetWeight = items.reduce((sum, item) => sum + calculateClientNetWeight(item), 0);
+  const totalGrossWeight = items.reduce((sum, item) => sum + calculateClientGrossWeight(item), 0);
   const estimatedCbm = totalPallets * 1.6683;
 
   return `<!DOCTYPE html>
@@ -1069,7 +1085,7 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
     <body>
       <div class="page">
         <div class="title">PACKING LIST</div>
-        <div class="meta-top"><span>Date: ${invoiceDate}</span></div>
+        <div class="meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderSharedTopSection(payload, invoiceNo, destination)}
 
@@ -1109,7 +1125,7 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
               <td></td>
               <td class="packing-total-value">${formatNumber(totalBoxes, 0)} Boxs</td>
               <td class="packing-total-value">${formatNumber(totalPallets, 0)} Pallets</td>
-              <td class="packing-total-value">${formatWeightKg(0)}</td>
+              <td class="packing-total-value">${formatWeightKg(totalNetWeight)}</td>
               <td class="packing-total-value">${formatWeightKg(totalGrossWeight)}</td>
             </tr>
             <tr>

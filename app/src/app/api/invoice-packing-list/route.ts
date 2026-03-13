@@ -3,10 +3,7 @@ import JSZip from "jszip";
 import XlsxPopulate from "xlsx-populate";
 import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
-import {
-  InvoicePackingPayload,
-  type InvoicePackingTemplate,
-} from "@/features/sales-management/invoicePackingList";
+import { InvoicePackingPayload, type InvoicePackingTemplate } from "@/features/sales-management/invoicePackingList";
 
 export const runtime = "nodejs";
 
@@ -51,8 +48,8 @@ const formatHqInvoiceDateLabel = (value: string) => {
   if (!parsed) {
     return value;
   }
-  const day = String(Number(parsed.day));
-  const month = String(Number(parsed.month));
+  const day = parsed.day.padStart(2, "0");
+  const month = parsed.month.padStart(2, "0");
   return `${day}/${month}/${parsed.year}`;
 };
 
@@ -122,8 +119,17 @@ const toPackingFormat = (unitLabel: string) => {
   return `0 "${safe}"`;
 };
 
-const toFiniteNumber = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? value : 0;
+const toFiniteNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const gramsToKg = (value: number) => value / 1000;
+
+const calculateClientNetWeight = (item: InvoicePackingPayload["items"][number]) => {
+  const totalWeight = toFiniteNumber(item.totalWeight);
+  return gramsToKg(totalWeight);
+};
+
+const calculateClientGrossWeight = (item: InvoicePackingPayload["items"][number]) =>
+  calculateClientNetWeight(item) + toFiniteNumber(item.palletCount) * 20;
 
 export async function POST(request: Request) {
   const action = "invoice-packing-list.generate";
@@ -261,7 +267,7 @@ export async function POST(request: Request) {
 
         sheet.cell(`B${row}`).value(item.partNo);
         sheet.cell(`D${row}`).value(item.partName);
-        sheet.cell(`E${row}`).value(item.poNo);
+        sheet.cell(`E${row}`).value("");
         sheet.cell(`F${row}`).value(item.unit);
         sheet.cell(`G${row}`).value(quantity);
         sheet.cell(`H${row}`).value(unitPrice);
@@ -311,7 +317,7 @@ export async function POST(request: Request) {
         packingSheet.cell(`J${row}`).value(palletCount);
 
         if (description) {
-          const grossWeight = unitWeight * quantity + palletCount * 20;
+          const grossWeight = gramsToKg(unitWeight * quantity) + palletCount * 20;
           (packingSheet.cell(`K${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
           packingSheet.cell(`K${row}`).value(grossWeight);
         } else {
@@ -332,6 +338,7 @@ export async function POST(request: Request) {
         packingSheet.cell(`I${row}`).value(null);
 
         packingSheet.cell(`K${row}`).value("");
+        packingSheet.cell(`L${row}`).value("");
         packingSheet.cell(`M${row}`).value("");
       }
 
@@ -339,7 +346,8 @@ export async function POST(request: Request) {
       items.slice(0, maxRows).forEach((item, index) => {
         const row = clientPackingStartRow + index;
         const palletCount = toFiniteNumber(item.palletCount);
-        const totalWeight = toFiniteNumber(item.totalWeight);
+        const netWeight = calculateClientNetWeight(item);
+        const grossWeight = calculateClientGrossWeight(item);
         const packingLabel = item.unit ? `${item.unit}/box` : "/box";
         const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
 
@@ -354,7 +362,8 @@ export async function POST(request: Request) {
         }
 
         packingSheet.cell(`K${row}`).value(palletCount);
-        packingSheet.cell(`M${row}`).value(totalWeight);
+        packingSheet.cell(`L${row}`).value(netWeight);
+        packingSheet.cell(`M${row}`).value(grossWeight);
       });
     }
 

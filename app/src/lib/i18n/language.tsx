@@ -149,6 +149,7 @@ const phraseMessages: Record<string, string> = {
   ["成形時間"]: "Thời gian tạo hình",
   ["使用材料"]: "Nguyên vật liệu sử dụng",
   ["重量"]: "Trọng lượng",
+  ["正味重量"]: "Net Weight",
   ["長さ"]: "Chiều dài",
   ["分速"]: "Tốc độ/phút",
   ["梱包数"]: "Số lượng đóng gói",

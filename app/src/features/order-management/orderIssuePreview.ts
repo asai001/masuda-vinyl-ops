@@ -143,7 +143,7 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; }
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; }
         .vn { font-family: "NotoSerif", "NotoSerifJP", serif; }
-        .page { width: min(210mm, calc(100vw - 16px)); min-height: 297mm; margin: 8px auto; background: #ffffff; padding: 10mm 8mm; }
+        .page { width: 580px; min-height: 297mm; margin: 8px auto; background: #ffffff; padding: 10mm 8mm; }
         .title { text-align: center; margin-top: 3mm; line-height: 1.2; }
         .title-main { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
         .title-sub { font-size: 14px; font-weight: 400; letter-spacing: 0.8px; }

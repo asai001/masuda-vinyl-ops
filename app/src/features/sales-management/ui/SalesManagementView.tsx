@@ -599,6 +599,8 @@ export default function SalesManagementView() {
       const weight =
         (typeof item.weight === "number" && Number.isFinite(item.weight) ? item.weight : null) ??
         (typeof product?.weight === "number" && Number.isFinite(product.weight) ? product.weight : null);
+      const totalWeight =
+        weight !== null ? weight * item.orderQuantity : Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
       return {
         partNo: item.productCode,
         partName: item.productName,
@@ -608,7 +610,7 @@ export default function SalesManagementView() {
         unitPrice: item.unitPrice * safeUsdRate,
         weight,
         palletCount: item.palletCount,
-        totalWeight: item.totalWeight,
+        totalWeight,
         packaging: product?.packaging ?? null,
       };
     });
@@ -617,6 +619,7 @@ export default function SalesManagementView() {
       invoiceDate: formatInvoiceDate(),
       invoiceNo: row.orderNo,
       templateType,
+      currency: row.currency,
       destinationCountry,
       remark: row.note ?? "",
       consigneeName: row.customerName,
