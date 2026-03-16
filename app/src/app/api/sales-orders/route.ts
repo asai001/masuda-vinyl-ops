@@ -8,6 +8,7 @@ import {
   type NewSalesOrderInput,
   type SalesDocumentStatusKey,
   type SalesLineItem,
+  type SalesOrderShipment,
   type SalesStatusKey,
   type UpdateSalesOrderInput,
 } from "@/features/sales-management/types";
@@ -49,6 +50,32 @@ const isSalesShipment = (value: unknown): boolean => {
 
 const isOptionalSalesShipments = (value: unknown): boolean =>
   value === undefined || (Array.isArray(value) && value.every(isSalesShipment));
+
+const isSalesShipmentAllocation = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return isFiniteNumber(record.id) && isFiniteNumber(record.lineItemId) && isFiniteNumber(record.shippedQuantity);
+};
+
+const isSalesOrderShipment = (value: unknown): value is SalesOrderShipment => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    isFiniteNumber(record.id) &&
+    isNonEmptyString(record.deliveryDate) &&
+    isOptionalString(record.paidDate) &&
+    isFiniteNumber(record.paidAmount) &&
+    Array.isArray(record.items) &&
+    record.items.every(isSalesShipmentAllocation)
+  );
+};
+
+const isOptionalSalesOrderShipments = (value: unknown): boolean =>
+  value === undefined || (Array.isArray(value) && value.every(isSalesOrderShipment));
 
 const isSalesLineItem = (value: unknown): value is SalesLineItem => {
   if (!value || typeof value !== "object") {
@@ -93,6 +120,7 @@ function isNewSalesOrderInput(value: unknown): value is NewSalesOrderInput {
     isNonEmptyString(record.currency) &&
     isOptionalString(record.note) &&
     isSalesLineItems(record.items) &&
+    isOptionalSalesOrderShipments(record.shipments) &&
     isSalesStatus(record.status) &&
     isDocumentStatus(record.documentStatus)
   );

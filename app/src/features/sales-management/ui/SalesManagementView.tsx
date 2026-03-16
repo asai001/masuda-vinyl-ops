@@ -20,9 +20,10 @@ import SalesManagementTableView from "@/features/sales-management/ui/SalesManage
 import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
 import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
 import {
+  buildPaidAmountEntries,
   buildShippedAmountEntries,
-  calculateSalesMetrics,
   collectDeliveryDates,
+  getSalesOrderMetrics,
 } from "@/features/sales-management/salesManagementUtils";
 import {
   createSalesOrder,
@@ -291,7 +292,9 @@ export default function SalesManagementView() {
       { key: "unitPrice", label: "単価", type: "range" },
       { key: "amount", label: "金額", type: "range" },
       { key: "paidAmount", label: "入金額", type: "range" },
-      { key: "unpaidAmount", label: "未入金金額", type: "range" },
+      { key: "orderBalance", label: "受注残高", type: "range" },
+      { key: "receivableBalance", label: "売掛残高", type: "range" },
+      { key: "unshippedAmount", label: "未出荷残高", type: "range" },
       { key: "requiredMaterial", label: "必要材料量", type: "range" },
       { key: "moldingTime", label: "成形時間", type: "range" },
       { key: "deliveryDate", label: "出荷日", type: "date-range" },
@@ -339,7 +342,8 @@ export default function SalesManagementView() {
     };
 
     return rows.filter((row) => {
-      const metrics = calculateSalesMetrics(row.items, row.paidAmount);
+      const metrics = getSalesOrderMetrics(row);
+      const paidEntries = buildPaidAmountEntries(row.shipments, row.paidAmount, row.paidDate);
       return Object.entries(groupedFilters).every(([key, values]) => {
         if (!values.length) {
           return true;
@@ -376,9 +380,13 @@ export default function SalesManagementView() {
           case "amount":
             return values.some((value) => matchesNumberRange(metrics.amount, value));
           case "paidAmount":
-            return values.some((value) => matchesNumberRange(row.paidAmount, value));
-          case "unpaidAmount":
-            return values.some((value) => matchesNumberRange(metrics.unpaidAmount, value));
+            return values.some((value) => matchesNumberRange(metrics.paidAmount, value));
+          case "orderBalance":
+            return values.some((value) => matchesNumberRange(metrics.orderBalance, value));
+          case "receivableBalance":
+            return values.some((value) => matchesNumberRange(metrics.receivableBalance, value));
+          case "unshippedAmount":
+            return values.some((value) => matchesNumberRange(metrics.unshippedAmount, value));
           case "requiredMaterial":
             return values.some((value) => matchesNumberRange(metrics.requiredMaterial, value));
           case "moldingTime":
@@ -388,7 +396,7 @@ export default function SalesManagementView() {
               collectDeliveryDates(row.items, row.deliveryDate).some((deliveryDate) => matchesDateRange(deliveryDate, value)),
             );
           case "paidDate":
-            return values.some((value) => matchesDateRange(row.paidDate, value));
+            return values.some((value) => paidEntries.some((entry) => matchesDateRange(entry.date, value)));
           case "status":
             return values.some((value) => row.status[value.value as SalesStatusKey]);
           case "documentStatus":
@@ -415,9 +423,8 @@ export default function SalesManagementView() {
         }
       });
 
-      if (row.paidAmount > 0 && isWithinRange(row.paidDate, monthRange.startDate, monthRange.endDate)) {
-        paymentCount += 1;
-      }
+      const paidEntries = buildPaidAmountEntries(row.shipments, row.paidAmount, row.paidDate);
+      paymentCount += paidEntries.filter((entry) => isWithinRange(entry.date, monthRange.startDate, monthRange.endDate)).length;
     });
     return { totalUsd, paymentCount };
   }, [exchangeRates, monthRange.endDate, monthRange.startDate, rows]);

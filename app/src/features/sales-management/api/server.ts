@@ -15,11 +15,18 @@ import {
   salesStatusOptions,
   type SalesDocumentStatus,
   type SalesLineItem,
+  type SalesOrderShipment,
   type SalesOrderItem,
   type SalesShipment,
   type SalesStatus,
 } from "../types";
-import { getPrimaryDeliveryDate } from "../salesManagementUtils";
+import {
+  applyOrderShipmentsToLineItems,
+  buildOrderShipmentsFromLineItems,
+  getSalesOrderPaidAmount,
+  getSalesOrderPaidDate,
+  getPrimaryDeliveryDate,
+} from "../salesManagementUtils";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -121,6 +128,29 @@ const normalizeShipments = (
   ];
 };
 
+const normalizeShipmentAllocations = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const lineItemId = normalizeNumber(record.lineItemId);
+      if (lineItemId <= 0) {
+        return null;
+      }
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        lineItemId,
+        shippedQuantity: normalizeNumber(record.shippedQuantity),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+};
+
 const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineItem[] => {
   const fallbackDate = normalizeString(fallbackDeliveryDate);
   if (!Array.isArray(items)) {
@@ -163,6 +193,56 @@ const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineIte
   });
 };
 
+const normalizeOrderShipments = (
+  shipments: unknown,
+  items: SalesLineItem[],
+  fallbackDeliveryDate = "",
+  legacyPaidAmount: unknown = 0,
+  legacyPaidDate: unknown = "",
+): SalesOrderShipment[] => {
+  if (Array.isArray(shipments)) {
+    const normalized = shipments.map((shipment, index) => {
+      if (!shipment || typeof shipment !== "object") {
+        return {
+          id: index + 1,
+          deliveryDate: normalizeString(fallbackDeliveryDate),
+          paidDate: "",
+          paidAmount: 0,
+          items: [],
+        };
+      }
+
+      const record = shipment as Record<string, unknown>;
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        deliveryDate: normalizeString(record.deliveryDate) || normalizeString(fallbackDeliveryDate),
+        paidDate: normalizeString(record.paidDate),
+        paidAmount: normalizeNumber(record.paidAmount),
+        items: normalizeShipmentAllocations(record.items),
+      };
+    });
+
+    const shipmentPaidAmount = normalized.reduce((sum, shipment) => sum + shipment.paidAmount, 0);
+    const fallbackPaidAmount = normalizeNumber(legacyPaidAmount);
+    const fallbackPaidDate = normalizeString(legacyPaidDate);
+    if (shipmentPaidAmount <= 0 && normalized.length > 0 && (fallbackPaidAmount > 0 || fallbackPaidDate)) {
+      normalized[0] = {
+        ...normalized[0],
+        paidAmount: fallbackPaidAmount,
+        paidDate: fallbackPaidDate,
+      };
+    }
+    return normalized;
+  }
+
+  return buildOrderShipmentsFromLineItems(
+    items,
+    normalizeString(fallbackDeliveryDate),
+    normalizeNumber(legacyPaidAmount),
+    normalizeString(legacyPaidDate),
+  );
+};
+
 function buildSalesOrderItem(
   orgId: string,
   base: Partial<SalesOrderItem> & { salesOrderId: string; displayNo: number },
@@ -176,16 +256,19 @@ function buildSalesOrderItem(
   const note = normalizeString(base.note) || undefined;
   const paidDate = normalizeString(base.paidDate);
 
-  const items = normalizeItems(base.items, legacyDeliveryDate);
+  const normalizedItems = normalizeItems(base.items, legacyDeliveryDate);
+  const shipments = normalizeOrderShipments(
+    base.shipments,
+    normalizedItems,
+    legacyDeliveryDate,
+    base.paidAmount,
+    paidDate,
+  );
+  const items = applyOrderShipmentsToLineItems(normalizedItems, shipments);
   const status = normalizeStatus(base.status);
   const documentStatus = normalizeDocumentStatus(base.documentStatus);
-  const orderAmount = items.reduce((sum, item) => sum + item.orderQuantity * item.unitPrice, 0);
-  const paidAmount =
-    typeof base.paidAmount === "number" && Number.isFinite(base.paidAmount)
-      ? base.paidAmount
-      : status.paid
-        ? orderAmount
-        : 0;
+  const paidAmount = getSalesOrderPaidAmount(shipments, base.paidAmount);
+  const normalizedPaidDate = getSalesOrderPaidDate(shipments, paidDate);
   const deliveryDate = getPrimaryDeliveryDate(items, legacyDeliveryDate);
 
   const orderNoLower = orderNo.toLowerCase();
@@ -198,12 +281,13 @@ function buildSalesOrderItem(
     orderDate,
     deliveryDate,
     paidAmount,
-    paidDate,
+    paidDate: normalizedPaidDate,
     customerName,
     customerRegion,
     currency,
     note,
     items,
+    shipments,
     status,
     documentStatus,
     createdAt: base.createdAt,

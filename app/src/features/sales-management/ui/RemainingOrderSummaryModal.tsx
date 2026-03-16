@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from "@mui/material";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
-import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
+import { getSalesOrderMetrics } from "@/features/sales-management/salesManagementUtils";
 import type { SalesRow } from "@/features/sales-management/types";
 import { useLanguage } from "@/lib/i18n/language";
 
@@ -93,7 +93,7 @@ export default function RemainingOrderSummaryModal({ open, rows, onClose }: Rema
       if (!isWithinRange(row.orderDate, startDate, endDate)) {
         return;
       }
-      const metrics = calculateSalesMetrics(row.items);
+      const metrics = getSalesOrderMetrics(row);
       if (metrics.remainingQuantity === 0) {
         return;
       }

@@ -1,11 +1,18 @@
 import { getIdTokenJwt } from "@/lib/auth/cognito";
-import { getPrimaryDeliveryDate } from "@/features/sales-management/salesManagementUtils";
+import {
+  applyOrderShipmentsToLineItems,
+  buildOrderShipmentsFromLineItems,
+  getSalesOrderPaidAmount,
+  getSalesOrderPaidDate,
+  getPrimaryDeliveryDate,
+} from "@/features/sales-management/salesManagementUtils";
 import {
   salesDocumentStatusOptions,
   salesStatusOptions,
   type NewSalesOrderInput,
   type SalesDocumentStatus,
   type SalesLineItem,
+  type SalesOrderShipment,
   type SalesOrderItem,
   type SalesRow,
   type SalesShipment,
@@ -100,6 +107,29 @@ const normalizeShipments = (
   ];
 };
 
+const normalizeShipmentAllocations = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const lineItemId = normalizeNumber(record.lineItemId);
+      if (lineItemId <= 0) {
+        return null;
+      }
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        lineItemId,
+        shippedQuantity: normalizeNumber(record.shippedQuantity),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+};
+
 const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineItem[] => {
   const fallbackDate = normalizeString(fallbackDeliveryDate);
   if (!Array.isArray(items)) {
@@ -142,17 +172,70 @@ const normalizeItems = (items: unknown, fallbackDeliveryDate = ""): SalesLineIte
   });
 };
 
+const normalizeOrderShipments = (
+  shipments: unknown,
+  items: SalesLineItem[],
+  fallbackDeliveryDate = "",
+  legacyPaidAmount: unknown = 0,
+  legacyPaidDate: unknown = "",
+): SalesOrderShipment[] => {
+  if (Array.isArray(shipments)) {
+    const normalized = shipments.map((shipment, index) => {
+      if (!shipment || typeof shipment !== "object") {
+        return {
+          id: index + 1,
+          deliveryDate: normalizeString(fallbackDeliveryDate),
+          paidDate: "",
+          paidAmount: 0,
+          items: [],
+        };
+      }
+
+      const record = shipment as Record<string, unknown>;
+      return {
+        id: typeof record.id === "number" ? record.id : index + 1,
+        deliveryDate: normalizeString(record.deliveryDate) || normalizeString(fallbackDeliveryDate),
+        paidDate: normalizeString(record.paidDate),
+        paidAmount: normalizeNumber(record.paidAmount),
+        items: normalizeShipmentAllocations(record.items),
+      };
+    });
+
+    const shipmentPaidAmount = normalized.reduce((sum, shipment) => sum + shipment.paidAmount, 0);
+    const fallbackPaidAmount = normalizeNumber(legacyPaidAmount);
+    const fallbackPaidDate = normalizeString(legacyPaidDate);
+    if (shipmentPaidAmount <= 0 && normalized.length > 0 && (fallbackPaidAmount > 0 || fallbackPaidDate)) {
+      normalized[0] = {
+        ...normalized[0],
+        paidAmount: fallbackPaidAmount,
+        paidDate: fallbackPaidDate,
+      };
+    }
+    return normalized;
+  }
+
+  return buildOrderShipmentsFromLineItems(
+    items,
+    normalizeString(fallbackDeliveryDate),
+    normalizeNumber(legacyPaidAmount),
+    normalizeString(legacyPaidDate),
+  );
+};
+
 function toRow(item: SalesOrderItem): SalesRow {
   const status = normalizeStatus(item.status);
   const fallbackDeliveryDate = normalizeString(item.deliveryDate);
-  const items = normalizeItems(item.items, fallbackDeliveryDate);
-  const orderAmount = items.reduce((sum, line) => sum + line.orderQuantity * line.unitPrice, 0);
-  const paidAmount =
-    typeof item.paidAmount === "number" && Number.isFinite(item.paidAmount)
-      ? item.paidAmount
-      : status.paid
-        ? orderAmount
-        : 0;
+  const normalizedItems = normalizeItems(item.items, fallbackDeliveryDate);
+  const shipments = normalizeOrderShipments(
+    item.shipments,
+    normalizedItems,
+    fallbackDeliveryDate,
+    item.paidAmount,
+    item.paidDate,
+  );
+  const items = applyOrderShipmentsToLineItems(normalizedItems, shipments);
+  const paidAmount = getSalesOrderPaidAmount(shipments, item.paidAmount);
+  const paidDate = getSalesOrderPaidDate(shipments, item.paidDate);
   const id = Number(item.displayNo ?? 0);
   return {
     id,
@@ -163,10 +246,11 @@ function toRow(item: SalesOrderItem): SalesRow {
     customerRegion: normalizeString(item.customerRegion),
     deliveryDate: fallbackDeliveryDate || getPrimaryDeliveryDate(items),
     paidAmount,
-    paidDate: normalizeString(item.paidDate),
+    paidDate: paidDate || (status.paid ? normalizeString(item.paidDate) : ""),
     currency: normalizeString(item.currency),
     note: normalizeString(item.note),
     items,
+    shipments,
     status,
     documentStatus: normalizeDocumentStatus(item.documentStatus),
   };
@@ -207,6 +291,7 @@ const toUpdatePayload = (row: SalesRow): UpdateSalesOrderInput => ({
   currency: row.currency,
   note: row.note,
   items: row.items,
+  shipments: row.shipments,
   status: row.status,
   documentStatus: row.documentStatus,
 });

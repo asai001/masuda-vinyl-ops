@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -16,83 +16,32 @@ import {
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import { useLanguage } from "@/lib/i18n/language";
-import type {
-  NewSalesOrderInput,
-  SalesDocumentStatus,
-  SalesDocumentStatusKey,
-  SalesLineItem,
-  SalesShipment,
-  SalesStatus,
-  SalesStatusKey,
-} from "@/features/sales-management/types";
-
-type Option = {
-  value: string;
-  label: string;
-};
-
-type ProductOption = Option & {
-  name: string;
-  materials: string[];
-  unitPrice: number;
-  currency: string;
-  weight: number | null;
-  length: number | null;
-  speed: number | null;
-};
-
-type CustomerOption = Option & {
-  region: string;
-  currency: string;
-};
-
-type StatusOption = {
-  value: SalesStatusKey;
-  label: string;
-};
-
-type DocumentOption = {
-  value: SalesDocumentStatusKey;
-  label: string;
-};
-
-type ShipmentForm = {
-  id: number;
-  deliveryDate: string;
-  shippedQuantity: string;
-};
-
-type ShipmentError = {
-  deliveryDate?: string;
-  shippedQuantity?: string;
-};
-
-type LineItemForm = {
-  id: number;
-  productCode: string;
-  productName: string;
-  materials: string[];
-  orderQuantity: string;
-  unitPrice: string;
-  palletCount: string;
-  totalWeight: string;
-  stockQuantity: string;
-  weight: number | null;
-  length: number | null;
-  speed: number | null;
-  shipments: ShipmentForm[];
-};
-
-type LineItemError = {
-  productCode?: string;
-  orderQuantity?: string;
-  unitPrice?: string;
-  palletCount?: string;
-  totalWeight?: string;
-  stockQuantity?: string;
-  shipments?: Record<number, ShipmentError>;
-  shipmentTotal?: string;
-};
+import type { NewSalesOrderInput, SalesDocumentStatusKey, SalesStatusKey } from "@/features/sales-management/types";
+import {
+  amountFormatter,
+  buildSalesOrderDraft,
+  buildShipmentDisplayRows,
+  createEmptyItem,
+  createEmptyShipment,
+  emptyErrors,
+  formatLineAmount,
+  formatLineTotalWeight,
+  getInitialCreateForm,
+  getSalesOrderFormSummary,
+  getShipmentLineCumulativeTotal,
+  calculateLineAmount,
+  calculateLineTotalWeight,
+  type CustomerOption,
+  type DocumentOption,
+  type ErrorKey,
+  type LineItemError,
+  type Option,
+  type ProductOption,
+  type SalesFormState,
+  type ShipmentError,
+  type StatusOption,
+  syncShipmentLinesWithItems,
+} from "@/features/sales-management/ui/salesOrderFormShared";
 
 type NewSalesModalProps = {
   open: boolean;
@@ -105,145 +54,7 @@ type NewSalesModalProps = {
   onSave: (order: NewSalesOrderInput) => void;
 };
 
-type SalesFormState = {
-  orderNo: string;
-  orderDate: string;
-  customerName: string;
-  customerRegion: string;
-  currency: string;
-  paidAmount: string;
-  paidDate: string;
-  note: string;
-  status: SalesStatus;
-  documentStatus: SalesDocumentStatus;
-  items: LineItemForm[];
-};
-
-const emptyErrors = {
-  orderNo: "",
-  orderDate: "",
-  customerName: "",
-  currency: "",
-  paidAmount: "",
-  paidDate: "",
-};
-
-type ErrorKey = keyof typeof emptyErrors;
-
-const amountFormatter = new Intl.NumberFormat("en-US");
-const lineAmountFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
-const weightFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 });
-
-const getTodayString = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const createEmptyShipment = (id: number, deliveryDate = ""): ShipmentForm => ({
-  id,
-  deliveryDate,
-  shippedQuantity: "0",
-});
-
-const createEmptyItem = (id: number): LineItemForm => ({
-  id,
-  productCode: "",
-  productName: "",
-  materials: [],
-  orderQuantity: "0",
-  unitPrice: "0",
-  palletCount: "0",
-  totalWeight: "0",
-  stockQuantity: "0",
-  weight: null,
-  length: null,
-  speed: null,
-  shipments: [],
-});
-
-const getInitialForm = (): SalesFormState => ({
-  orderNo: "",
-  orderDate: getTodayString(),
-  customerName: "",
-  customerRegion: "",
-  currency: "",
-  paidAmount: "0",
-  paidDate: "",
-  note: "",
-  status: {
-    shipped: false,
-    delivered: false,
-    paid: false,
-  },
-  documentStatus: {
-    orderReceived: false,
-    deliverySent: false,
-    invoiceSent: false,
-  },
-  items: [],
-});
-
-const getShipmentTotal = (shipments: ShipmentForm[]) =>
-  shipments.reduce((sum, shipment) => {
-    const quantity = Number(shipment.shippedQuantity);
-    if (Number.isNaN(quantity)) {
-      return sum;
-    }
-    return sum + quantity;
-  }, 0);
-
-const resolveLineUnitWeight = (
-  item: Pick<LineItemForm, "productCode" | "weight">,
-  productOptions: ProductOption[],
-) => {
-  const productWeight = productOptions.find((option) => option.value === item.productCode)?.weight;
-  if (typeof productWeight === "number" && Number.isFinite(productWeight)) {
-    return productWeight;
-  }
-  return typeof item.weight === "number" && Number.isFinite(item.weight) ? item.weight : null;
-};
-
-const calculateLineTotalWeight = (
-  item: Pick<LineItemForm, "productCode" | "weight" | "orderQuantity">,
-  productOptions: ProductOption[],
-) => {
-  const unitWeight = resolveLineUnitWeight(item, productOptions);
-  if (unitWeight === null) {
-    return null;
-  }
-  const orderQuantity = Number(item.orderQuantity);
-  if (!Number.isFinite(orderQuantity)) {
-    return null;
-  }
-  return unitWeight * orderQuantity;
-};
-
-const formatLineTotalWeight = (value: number | null) => {
-  if (value === null || !Number.isFinite(value)) {
-    return "-";
-  }
-  return `${weightFormatter.format(value / 1000)} kg`;
-};
-
-const calculateLineAmount = (item: Pick<LineItemForm, "orderQuantity" | "unitPrice">) => {
-  const orderQuantity = Number(item.orderQuantity);
-  const unitPrice = Number(item.unitPrice);
-  if (!Number.isFinite(orderQuantity) || !Number.isFinite(unitPrice)) {
-    return null;
-  }
-  return orderQuantity * unitPrice;
-};
-
-const formatLineAmount = (value: number | null, currency: string) => {
-  if (value === null || !Number.isFinite(value)) {
-    return "-";
-  }
-  const formatted = lineAmountFormatter.format(value);
-  return currency ? `${currency} ${formatted}` : formatted;
-};
+const formatDateLabel = (value: string) => value || "-";
 
 export default function NewSalesModal({
   open,
@@ -256,16 +67,18 @@ export default function NewSalesModal({
   onSave,
 }: NewSalesModalProps) {
   const { tx } = useLanguage();
-  const [form, setForm] = useState<SalesFormState>(getInitialForm);
+  const [form, setForm] = useState<SalesFormState>(getInitialCreateForm);
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
+  const [shipmentErrors, setShipmentErrors] = useState<Record<number, ShipmentError>>({});
   const [itemsError, setItemsError] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setForm(getInitialForm());
+    setForm(getInitialCreateForm());
     setErrors(emptyErrors);
     setLineErrors({});
+    setShipmentErrors({});
     setItemsError("");
     setActionError(null);
   };
@@ -275,7 +88,7 @@ export default function NewSalesModal({
     onClose();
   };
 
-  const handleChange = (key: keyof SalesFormState, value: string) => {
+  const handleChange = (key: keyof Pick<SalesFormState, "orderNo" | "orderDate" | "currency" | "note">, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key in emptyErrors) {
       setErrors((prev) => ({ ...prev, [key as ErrorKey]: "" }));
@@ -299,15 +112,38 @@ export default function NewSalesModal({
 
   const handleAddItem = () => {
     const nextId = form.items.length ? Math.max(...form.items.map((item) => item.id)) + 1 : 1;
-    setForm((prev) => ({ ...prev, items: [...prev.items, createEmptyItem(nextId)] }));
+    setForm((prev) => {
+      const items = [...prev.items, createEmptyItem(nextId)];
+      return {
+        ...prev,
+        items,
+        shipments: syncShipmentLinesWithItems(prev.shipments, items),
+      };
+    });
     setItemsError("");
   };
 
   const handleRemoveItem = (id: number) => {
-    setForm((prev) => ({ ...prev, items: prev.items.filter((item) => item.id !== id) }));
+    setForm((prev) => {
+      const items = prev.items.filter((item) => item.id !== id);
+      return {
+        ...prev,
+        items,
+        shipments: syncShipmentLinesWithItems(prev.shipments, items),
+      };
+    });
     setLineErrors((prev) => {
       const next = { ...prev };
       delete next[id];
+      return next;
+    });
+    setShipmentErrors((prev) => {
+      const next = { ...prev };
+      Object.values(next).forEach((shipmentError) => {
+        if (shipmentError.items) {
+          delete shipmentError.items[id];
+        }
+      });
       return next;
     });
   };
@@ -327,87 +163,6 @@ export default function NewSalesModal({
     setLineErrors((prev) => ({
       ...prev,
       [id]: { ...prev[id], [key]: "" },
-    }));
-  };
-
-  const handleAddShipment = (itemId: number) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) => {
-        if (item.id !== itemId) {
-          return item;
-        }
-        const nextShipmentId = item.shipments.length
-          ? Math.max(...item.shipments.map((shipment) => shipment.id)) + 1
-          : 1;
-        return {
-          ...item,
-          shipments: [...item.shipments, createEmptyShipment(nextShipmentId, prev.orderDate)],
-        };
-      }),
-    }));
-  };
-
-  const handleRemoveShipment = (itemId: number, shipmentId: number) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.id === itemId
-          ? { ...item, shipments: item.shipments.filter((shipment) => shipment.id !== shipmentId) }
-          : item,
-      ),
-    }));
-    setLineErrors((prev) => {
-      const nextLine = { ...prev[itemId] };
-      if (nextLine.shipments) {
-        const nextShipments = { ...nextLine.shipments };
-        delete nextShipments[shipmentId];
-        nextLine.shipments = nextShipments;
-      }
-      return {
-        ...prev,
-        [itemId]: nextLine,
-      };
-    });
-  };
-
-  const handleShipmentChange = (
-    itemId: number,
-    shipmentId: number,
-    key: "deliveryDate" | "shippedQuantity",
-    value: string,
-  ) => {
-    if (key === "shippedQuantity" && value.trim().startsWith("-")) {
-      return;
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              shipments: item.shipments.map((shipment) =>
-                shipment.id === shipmentId ? { ...shipment, [key]: value } : shipment,
-              ),
-            }
-          : item,
-      ),
-    }));
-
-    setLineErrors((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        shipmentTotal: "",
-        shipments: {
-          ...(prev[itemId]?.shipments ?? {}),
-          [shipmentId]: {
-            ...(prev[itemId]?.shipments?.[shipmentId] ?? {}),
-            [key]: "",
-          },
-        },
-      },
     }));
   };
 
@@ -441,6 +196,86 @@ export default function NewSalesModal({
     }));
   };
 
+  const handleAddShipment = () => {
+    setForm((prev) => {
+      const nextId = prev.shipments.length ? Math.max(...prev.shipments.map((shipment) => shipment.id)) + 1 : 1;
+      return {
+        ...prev,
+        shipments: [...prev.shipments, createEmptyShipment(nextId, prev.items)],
+      };
+    });
+  };
+
+  const handleRemoveShipment = (shipmentId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      shipments: prev.shipments.filter((shipment) => shipment.id !== shipmentId),
+    }));
+    setShipmentErrors((prev) => {
+      const next = { ...prev };
+      delete next[shipmentId];
+      return next;
+    });
+  };
+
+  const handleShipmentChange = (shipmentId: number, key: "deliveryDate" | "paidDate" | "paidAmount", value: string) => {
+    if (key === "paidAmount" && value.trim().startsWith("-")) {
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      shipments: prev.shipments.map((shipment) =>
+        shipment.id === shipmentId ? { ...shipment, [key]: value } : shipment,
+      ),
+    }));
+    setShipmentErrors((prev) => ({
+      ...prev,
+      [shipmentId]: {
+        ...prev[shipmentId],
+        [key]: "",
+      },
+    }));
+  };
+
+  const handleShipmentLineChange = (shipmentId: number, lineItemId: number, value: string) => {
+    if (value.trim().startsWith("-")) {
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      shipments: prev.shipments.map((shipment) =>
+        shipment.id === shipmentId
+          ? {
+              ...shipment,
+              items: shipment.items.map((entry) =>
+                entry.lineItemId === lineItemId ? { ...entry, shippedQuantity: value } : entry,
+              ),
+            }
+          : shipment,
+      ),
+    }));
+    setShipmentErrors((prev) => ({
+      ...prev,
+      [shipmentId]: {
+        ...prev[shipmentId],
+        items: {
+          ...(prev[shipmentId]?.items ?? {}),
+          [lineItemId]: {
+            ...(prev[shipmentId]?.items?.[lineItemId] ?? {}),
+            shippedQuantity: "",
+          },
+        },
+      },
+    }));
+    setLineErrors((prev) => ({
+      ...prev,
+      [lineItemId]: {
+        ...prev[lineItemId],
+        shipmentTotal: "",
+      },
+    }));
+  };
+
   const toggleStatus = (key: SalesStatusKey) => {
     setForm((prev) => ({
       ...prev,
@@ -455,239 +290,31 @@ export default function NewSalesModal({
     }));
   };
 
-  const amountValue = useMemo(() => {
-    if (!form.items.length) {
-      return null;
-    }
-
-    let hasValue = false;
-    const total = form.items.reduce((sum, item) => {
-      const quantity = Number(item.orderQuantity);
-      const unitPrice = Number(item.unitPrice);
-      if (!item.orderQuantity || !item.unitPrice || Number.isNaN(quantity) || Number.isNaN(unitPrice)) {
-        return sum;
-      }
-      hasValue = true;
-      return sum + quantity * unitPrice;
-    }, 0);
-
-    return hasValue ? total : null;
-  }, [form.items]);
-
-  const amountLabel = useMemo(() => {
-    if (amountValue === null || !form.currency) {
-      return "-";
-    }
-    return `${form.currency} ${amountFormatter.format(amountValue)}`;
-  }, [amountValue, form.currency]);
-
-  const validateHeader = (): boolean => {
-    const nextErrors = { ...emptyErrors };
-    if (!form.orderNo.trim()) {
-      nextErrors.orderNo = "入力してください";
-    }
-    if (!form.orderDate.trim()) {
-      nextErrors.orderDate = "入力してください";
-    }
-    if (!form.customerName.trim()) {
-      nextErrors.customerName = "選択してください";
-    }
-    if (!form.currency.trim()) {
-      nextErrors.currency = "選択してください";
-    }
-    const hasHeaderError = Object.values(nextErrors).some(Boolean);
-    setErrors(nextErrors);
-    return !hasHeaderError;
-  };
+  const summary = useMemo(() => getSalesOrderFormSummary(form), [form]);
+  const totalAmountLabel = useMemo(() => formatLineAmount(summary.orderAmount, form.currency), [form.currency, summary.orderAmount]);
+  const totalPaidAmountLabel = useMemo(() => formatLineAmount(summary.paidAmount, form.currency), [form.currency, summary.paidAmount]);
+  const orderBalanceLabel = useMemo(() => formatLineAmount(summary.orderBalance, form.currency), [form.currency, summary.orderBalance]);
+  const receivableBalanceLabel = useMemo(
+    () => formatLineAmount(summary.receivableBalance, form.currency),
+    [form.currency, summary.receivableBalance],
+  );
+  const unshippedAmountLabel = useMemo(
+    () => formatLineAmount(summary.unshippedAmount, form.currency),
+    [form.currency, summary.unshippedAmount],
+  );
 
   const handleSave = () => {
-    setActionError(null);
-    setItemsError("");
-    setLineErrors({});
-
-    const validHeader = validateHeader();
-
-    if (!form.items.length) {
-      setItemsError("製品明細を追加してください。");
-    }
-
-    const paidAmountValue = form.paidAmount.trim();
-    const paidAmount = paidAmountValue ? Number(form.paidAmount) : 0;
-    const nextHeaderErrors: Partial<typeof emptyErrors> = {};
-    if (paidAmountValue && Number.isNaN(paidAmount)) {
-      nextHeaderErrors.paidAmount = "数値で入力してください";
-    } else if (paidAmount < 0) {
-      nextHeaderErrors.paidAmount = "0以上で入力してください";
-    }
-    if (paidAmount > 0 && !form.paidDate.trim()) {
-      nextHeaderErrors.paidDate = "入金日を入力してください";
-    }
-
-    if (Object.keys(nextHeaderErrors).length) {
-      setErrors((prev) => ({ ...prev, ...nextHeaderErrors }));
-    }
-
-    const numericErrors: Record<number, LineItemError> = {};
-    const parsedItems: SalesLineItem[] = [];
-
-    form.items.forEach((item) => {
-      const hasShipmentInput = item.shipments.some(
-        (shipment) => shipment.deliveryDate.trim() || shipment.shippedQuantity.trim(),
-      );
-      const hasInput = Boolean(
-        item.productCode ||
-          item.productName ||
-          item.orderQuantity.trim() ||
-          item.unitPrice.trim() ||
-          item.palletCount.trim() ||
-          item.stockQuantity.trim() ||
-          hasShipmentInput,
-      );
-      if (!hasInput) {
-        return;
-      }
-
-      const orderQuantityValue = item.orderQuantity.trim();
-      const unitPriceValue = item.unitPrice.trim();
-      const palletCountValue = item.palletCount.trim();
-      const stockQuantityValue = item.stockQuantity.trim();
-
-      const orderQuantity = orderQuantityValue ? Number(item.orderQuantity) : 0;
-      const unitPrice = unitPriceValue ? Number(item.unitPrice) : 0;
-      const palletCount = palletCountValue ? Number(item.palletCount) : 0;
-      const stockQuantity = stockQuantityValue ? Number(item.stockQuantity) : 0;
-      const unitWeight = resolveLineUnitWeight(item, productOptions);
-      const totalWeight = calculateLineTotalWeight(item, productOptions) ?? 0;
-
-      const itemError: LineItemError = {};
-      if (!item.productCode) {
-        itemError.productCode = "製品を選択してください";
-      }
-      if (orderQuantityValue && Number.isNaN(orderQuantity)) {
-        itemError.orderQuantity = "数値で入力してください";
-      }
-      if (unitPriceValue && Number.isNaN(unitPrice)) {
-        itemError.unitPrice = "数値で入力してください";
-      }
-      if (palletCountValue && Number.isNaN(palletCount)) {
-        itemError.palletCount = "数値で入力してください";
-      }
-      if (stockQuantityValue && Number.isNaN(stockQuantity)) {
-        itemError.stockQuantity = "数値で入力してください";
-      }
-      if (!itemError.orderQuantity && orderQuantityValue && orderQuantity < 0) {
-        itemError.orderQuantity = "0以上で入力してください";
-      }
-      if (!itemError.unitPrice && unitPriceValue && unitPrice < 0) {
-        itemError.unitPrice = "0以上で入力してください";
-      }
-      if (!itemError.palletCount && palletCountValue && palletCount < 0) {
-        itemError.palletCount = "0以上で入力してください";
-      }
-      if (!itemError.stockQuantity && stockQuantityValue && stockQuantity < 0) {
-        itemError.stockQuantity = "0以上で入力してください";
-      }
-
-      const shipmentErrors: Record<number, ShipmentError> = {};
-      const parsedShipments: SalesShipment[] = [];
-
-      item.shipments.forEach((shipment) => {
-        const hasShipmentValue = shipment.deliveryDate.trim() || shipment.shippedQuantity.trim();
-        if (!hasShipmentValue) {
-          return;
-        }
-
-        const deliveryDate = shipment.deliveryDate.trim();
-        const shippedQuantityValue = shipment.shippedQuantity.trim();
-        const shippedQuantity = shippedQuantityValue ? Number(shipment.shippedQuantity) : 0;
-
-        const shipmentError: ShipmentError = {};
-        if (!deliveryDate) {
-          shipmentError.deliveryDate = "出荷日を入力してください";
-        }
-        if (shippedQuantityValue && Number.isNaN(shippedQuantity)) {
-          shipmentError.shippedQuantity = "数値で入力してください";
-        }
-        if (!shipmentError.shippedQuantity && shippedQuantityValue && shippedQuantity < 0) {
-          shipmentError.shippedQuantity = "0以上で入力してください";
-        }
-
-        if (Object.keys(shipmentError).length) {
-          shipmentErrors[shipment.id] = shipmentError;
-          return;
-        }
-
-        parsedShipments.push({
-          id: shipment.id,
-          deliveryDate,
-          shippedQuantity,
-        });
-      });
-
-      const totalShippedQuantity = parsedShipments.reduce((sum, shipment) => sum + shipment.shippedQuantity, 0);
-      if (totalShippedQuantity > orderQuantity) {
-        itemError.shipmentTotal = "出荷数合計は注数以下で入力してください";
-      }
-
-      if (Object.keys(shipmentErrors).length) {
-        itemError.shipments = shipmentErrors;
-      }
-
-      if (Object.keys(itemError).length) {
-        numericErrors[item.id] = itemError;
-        return;
-      }
-
-      parsedItems.push({
-        id: item.id,
-        productCode: item.productCode,
-        productName: item.productName,
-        materials: item.materials,
-        stockQuantity,
-        orderQuantity,
-        unitPrice,
-        palletCount,
-        totalWeight,
-        weight: unitWeight,
-        length: item.length,
-        speed: item.speed,
-        shipments: parsedShipments,
-      });
-    });
-
-    if (!validHeader || !form.items.length || Object.keys(nextHeaderErrors).length || Object.keys(numericErrors).length) {
-      if (Object.keys(numericErrors).length) {
-        setLineErrors(numericErrors);
-      }
-      setActionError("入力内容をご確認ください。");
+    const result = buildSalesOrderDraft(form, productOptions);
+    if (!result.ok) {
+      setErrors((prev) => ({ ...prev, ...result.headerErrors }));
+      setLineErrors(result.lineErrors);
+      setShipmentErrors(result.shipmentErrors);
+      setItemsError(result.itemsError);
+      setActionError(result.actionError);
       return;
     }
 
-    const shippedAmount = parsedItems.reduce(
-      (sum, item) =>
-        sum +
-        item.shipments.reduce((shipmentSum, shipment) => shipmentSum + shipment.shippedQuantity * item.unitPrice, 0),
-      0,
-    );
-    const normalizedPaidAmount = form.status.paid && paidAmount === 0 ? shippedAmount : paidAmount;
-    const primaryDeliveryDate =
-      [...parsedItems.flatMap((item) => item.shipments.map((shipment) => shipment.deliveryDate)).filter(Boolean)]
-        .sort((a, b) => a.localeCompare(b))[0] ?? "";
-
-    onSave({
-      orderNo: form.orderNo.trim(),
-      orderDate: form.orderDate,
-      customerName: form.customerName,
-      customerRegion: form.customerRegion,
-      deliveryDate: primaryDeliveryDate,
-      paidAmount: normalizedPaidAmount,
-      paidDate: form.paidDate.trim(),
-      currency: form.currency,
-      note: form.note,
-      items: parsedItems,
-      status: form.status,
-      documentStatus: form.documentStatus,
-    });
+    onSave(result.value);
     resetForm();
   };
 
@@ -696,6 +323,10 @@ export default function NewSalesModal({
       open={open}
       title="新規受注"
       onClose={handleClose}
+      paperSx={{
+        width: { xs: "calc(100vw - 32px)", lg: 920 },
+        maxWidth: { xs: "calc(100vw - 32px)", lg: 920 },
+      }}
       actions={
         <div className="flex w-full items-center gap-2">
           {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
@@ -736,14 +367,9 @@ export default function NewSalesModal({
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">入金日</label>
-          <TextField
-            size="small"
-            type="date"
-            value={form.paidDate}
-            onChange={(event) => handleChange("paidDate", event.target.value)}
-            error={Boolean(errors.paidDate)}
-            helperText={errors.paidDate}
-          />
+          <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
+            {formatDateLabel(summary.latestPaidDate)}
+          </div>
         </div>
       </div>
 
@@ -800,15 +426,9 @@ export default function NewSalesModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">入金額</label>
-        <TextField
-          size="small"
-          type="number"
-          value={form.paidAmount}
-          onChange={(event) => handleChange("paidAmount", event.target.value)}
-          error={Boolean(errors.paidAmount)}
-          helperText={errors.paidAmount}
-          slotProps={{ htmlInput: { min: 0, step: "0.1" } }}
-        />
+        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
+          {totalPaidAmountLabel}
+        </div>
       </div>
 
       <Divider />
@@ -837,6 +457,10 @@ export default function NewSalesModal({
               Boolean(form.currency) &&
               Boolean(selectedOption?.currency) &&
               selectedOption?.currency !== form.currency;
+            const shippedTotal = form.shipments.reduce((sum, shipment) => {
+              const entry = shipment.items.find((shipmentItem) => shipmentItem.lineItemId === item.id);
+              return sum + Number(entry?.shippedQuantity ?? 0);
+            }, 0);
 
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
@@ -945,80 +569,152 @@ export default function NewSalesModal({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-gray-700">出荷明細</div>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Plus size={14} />}
-                        onClick={() => handleAddShipment(item.id)}
-                      >
-                        出荷を追加
-                      </Button>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      出荷数合計: {amountFormatter.format(getShipmentTotal(item.shipments))} / 注数:{" "}
-                      {amountFormatter.format(Number(item.orderQuantity) || 0)}
-                    </div>
+                  <div className="text-xs text-gray-500">
+                    出荷数合計: {amountFormatter.format(shippedTotal)} / 注数: {amountFormatter.format(Number(item.orderQuantity) || 0)}
+                  </div>
+                  {itemError?.shipmentTotal ? <div className="text-sm text-red-500">{itemError.shipmentTotal}</div> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-                    {item.shipments.length === 0 ? (
-                      <div className="mt-3 rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500">
-                        出荷明細はまだありません
-                      </div>
+      <Divider />
+
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold text-gray-700">出荷明細</label>
+        <Button variant="outlined" size="small" startIcon={<Plus size={16} />} onClick={handleAddShipment}>
+          出荷を追加
+        </Button>
+      </div>
+
+      {form.shipments.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+          出荷明細はまだありません
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {form.shipments.map((shipment, index) => {
+            const shipmentError = shipmentErrors[shipment.id];
+            const shipmentAmountLabel = formatLineAmount(
+              buildShipmentDisplayRows(shipment, form.items).reduce((sum, row) => sum + row.amount, 0),
+              form.currency,
+            );
+            const shipmentReceivableLabel = formatLineAmount(
+              Math.max(
+                buildShipmentDisplayRows(shipment, form.items).reduce((sum, row) => sum + row.amount, 0) - Number(shipment.paidAmount || 0),
+                0,
+              ),
+              form.currency,
+            );
+
+            return (
+              <div key={shipment.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-700">出荷 #{index + 1}</div>
+                  <Button variant="text" color="error" size="small" onClick={() => handleRemoveShipment(shipment.id)}>
+                    削除
+                  </Button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">出荷日</label>
+                    <TextField
+                      size="small"
+                      type="date"
+                      value={shipment.deliveryDate}
+                      onChange={(event) => handleShipmentChange(shipment.id, "deliveryDate", event.target.value)}
+                      error={Boolean(shipmentError?.deliveryDate)}
+                      helperText={shipmentError?.deliveryDate}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">入金日</label>
+                    <TextField
+                      size="small"
+                      type="date"
+                      value={shipment.paidDate}
+                      onChange={(event) => handleShipmentChange(shipment.id, "paidDate", event.target.value)}
+                      error={Boolean(shipmentError?.paidDate)}
+                      helperText={shipmentError?.paidDate}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">入金額</label>
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={shipment.paidAmount}
+                      onChange={(event) => handleShipmentChange(shipment.id, "paidAmount", event.target.value)}
+                      error={Boolean(shipmentError?.paidAmount)}
+                      helperText={shipmentError?.paidAmount}
+                      slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-white bg-white px-3 py-2 text-sm">
+                    <div className="text-xs text-gray-500">出荷金額</div>
+                    <div className="font-semibold text-gray-900">{shipmentAmountLabel}</div>
+                  </div>
+                  <div className="rounded-lg border border-white bg-white px-3 py-2 text-sm">
+                    <div className="text-xs text-gray-500">売掛残高</div>
+                    <div className="font-semibold text-amber-700">{shipmentReceivableLabel}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                  <div className="text-sm font-semibold text-gray-700">出荷製品</div>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {form.items.length === 0 ? (
+                      <div className="text-sm text-gray-500">先に製品明細を追加してください</div>
                     ) : (
-                      <div className="mt-3 flex flex-col gap-3">
-                        {item.shipments.map((shipment) => {
-                          const shipmentError = itemError?.shipments?.[shipment.id];
-                          return (
-                            <div key={shipment.id} className="rounded-lg border border-gray-200 bg-white p-3">
-                              <div className="flex items-center justify-between">
-                                <div className="text-sm font-semibold text-gray-700">出荷 #{shipment.id}</div>
-                                <Button
-                                  variant="text"
-                                  color="error"
-                                  size="small"
-                                  onClick={() => handleRemoveShipment(item.id, shipment.id)}
-                                >
-                                  削除
-                                </Button>
-                              </div>
-                              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="flex flex-col gap-2">
-                                  <label className="text-sm font-semibold text-gray-700">出荷日</label>
-                                  <TextField
-                                    size="small"
-                                    type="date"
-                                    value={shipment.deliveryDate}
-                                    onChange={(event) =>
-                                      handleShipmentChange(item.id, shipment.id, "deliveryDate", event.target.value)
-                                    }
-                                    error={Boolean(shipmentError?.deliveryDate)}
-                                    helperText={shipmentError?.deliveryDate}
-                                  />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                  <label className="text-sm font-semibold text-gray-700">出荷数</label>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={shipment.shippedQuantity}
-                                    onChange={(event) =>
-                                      handleShipmentChange(item.id, shipment.id, "shippedQuantity", event.target.value)
-                                    }
-                                    error={Boolean(shipmentError?.shippedQuantity)}
-                                    helperText={shipmentError?.shippedQuantity}
-                                    slotProps={{ htmlInput: { min: 0 } }}
-                                  />
-                                </div>
+                      form.items.map((item) => {
+                        const entry = shipment.items.find((shipmentItem) => shipmentItem.lineItemId === item.id);
+                        const lineError = shipmentError?.items?.[item.id];
+                        const cumulativeShippedQuantity = getShipmentLineCumulativeTotal(
+                          form.shipments,
+                          shipment.id,
+                          item.id,
+                        );
+                        const lineAmountLabel = formatLineAmount(
+                          (Number(entry?.shippedQuantity ?? 0) || 0) * (Number(item.unitPrice) || 0),
+                          form.currency,
+                        );
+                        return (
+                          <div key={`${shipment.id}-${item.id}`} className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_180px_180px] md:items-end">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-sm font-semibold text-gray-700">{item.productCode || "-"} {item.productName}</div>
+                              <div className="text-xs text-gray-500">
+                                出荷数合計/注数: {amountFormatter.format(cumulativeShippedQuantity)}/
+                                {amountFormatter.format(Number(item.orderQuantity) || 0)}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-semibold text-gray-700">出荷数</label>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={entry?.shippedQuantity ?? "0"}
+                                onChange={(event) => handleShipmentLineChange(shipment.id, item.id, event.target.value)}
+                                error={Boolean(lineError?.shippedQuantity)}
+                                helperText={lineError?.shippedQuantity}
+                                slotProps={{ htmlInput: { min: 0 } }}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-sm font-semibold text-gray-700">金額</label>
+                              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
+                                {lineAmountLabel}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
-
-                    {itemError?.shipmentTotal ? <div className="mt-2 text-sm text-red-500">{itemError.shipmentTotal}</div> : null}
                   </div>
                 </div>
               </div>
@@ -1027,9 +723,33 @@ export default function NewSalesModal({
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-        <span>合計金額</span>
-        <span>{amountLabel}</span>
+      <div className="grid grid-cols-1 gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm md:grid-cols-2 xl:grid-cols-6">
+        <div>
+          <div className="text-xs text-blue-700">合計金額</div>
+          <div className="font-semibold text-blue-900">{totalAmountLabel}</div>
+        </div>
+        <div>
+          <div className="text-xs text-blue-700">入金総額</div>
+          <div className="font-semibold text-blue-900">{totalPaidAmountLabel}</div>
+        </div>
+        <div>
+          <div className="text-xs text-blue-700">受注残高</div>
+          <div className="font-semibold text-blue-900">{orderBalanceLabel}</div>
+        </div>
+        <div>
+          <div className="text-xs text-blue-700">売掛残高</div>
+          <div className="font-semibold text-amber-700">{receivableBalanceLabel}</div>
+        </div>
+        <div>
+          <div className="text-xs text-blue-700">未出荷残高</div>
+          <div className="font-semibold text-blue-900">{unshippedAmountLabel}</div>
+        </div>
+        <div>
+          <div className="text-xs text-blue-700">出荷済み数量 / 注数量</div>
+          <div className="font-semibold text-blue-900">
+            {amountFormatter.format(summary.shippedQuantity)} / {amountFormatter.format(summary.orderQuantity)}
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

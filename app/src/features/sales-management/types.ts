@@ -22,6 +22,20 @@ export type SalesShipment = {
   shippedQuantity: number;
 };
 
+export type SalesShipmentAllocation = {
+  id: number;
+  lineItemId: number;
+  shippedQuantity: number;
+};
+
+export type SalesOrderShipment = {
+  id: number;
+  deliveryDate: string;
+  paidDate: string;
+  paidAmount: number;
+  items: SalesShipmentAllocation[];
+};
+
 export type SalesLineItem = {
   id: number;
   productCode: string;
@@ -53,6 +67,7 @@ export type SalesRow = {
   currency: string;
   note: string;
   items: SalesLineItem[];
+  shipments: SalesOrderShipment[];
   status: SalesStatus;
   documentStatus: SalesDocumentStatus;
 };
@@ -74,6 +89,7 @@ export type SalesOrderItem = {
   currency: string;
   note?: string;
   items: SalesLineItem[];
+  shipments?: SalesOrderShipment[];
   status?: SalesStatus;
   documentStatus?: SalesDocumentStatus;
   createdAt?: string;

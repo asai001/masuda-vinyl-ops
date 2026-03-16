@@ -5,7 +5,11 @@ import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { useLanguage } from "@/lib/i18n/language";
-import { calculateSalesMetrics, collectDeliveryDates, getPrimaryDeliveryDate } from "@/features/sales-management/salesManagementUtils";
+import {
+  collectDeliveryDates,
+  getPrimaryDeliveryDate,
+  getSalesOrderMetrics,
+} from "@/features/sales-management/salesManagementUtils";
 import { salesDocumentStatusOptions, salesStatusOptions } from "@/features/sales-management/types";
 import type { SalesLineItem, SalesRow } from "@/features/sales-management/types";
 
@@ -89,7 +93,9 @@ type SortKey =
   | "orderQuantity"
   | "shippedQuantity"
   | "remainingQuantity"
-  | "unpaidAmount"
+  | "orderBalance"
+  | "receivableBalance"
+  | "unshippedAmount"
   | "unitPrice"
   | "amount"
   | "deliveryDate";
@@ -212,7 +218,7 @@ export default function SalesManagementTableView({
         sortKey: "orderQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm">{amountFormatter.format(metrics.orderQuantity)}</span>;
         },
       },
@@ -222,7 +228,7 @@ export default function SalesManagementTableView({
         sortKey: "shippedQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm">{amountFormatter.format(metrics.shippedQuantity)}</span>;
         },
       },
@@ -232,7 +238,7 @@ export default function SalesManagementTableView({
         sortKey: "remainingQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm font-semibold">{amountFormatter.format(metrics.remainingQuantity)}</span>;
         },
       },
@@ -249,18 +255,42 @@ export default function SalesManagementTableView({
         sortKey: "amount",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.amount)}</span>;
         },
       },
       {
-        key: "unpaidAmount",
-        header: "未入金金額",
-        sortKey: "unpaidAmount",
+        key: "orderBalance",
+        header: "受注残高",
+        sortKey: "orderBalance",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items, row.paidAmount);
-          return <span className="text-sm font-semibold text-amber-700">{formatCurrencyValue(row.currency, metrics.unpaidAmount)}</span>;
+          const metrics = getSalesOrderMetrics(row);
+          return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.orderBalance)}</span>;
+        },
+      },
+      {
+        key: "receivableBalance",
+        header: "売掛残高",
+        sortKey: "receivableBalance",
+        align: "right",
+        render: (row) => {
+          const metrics = getSalesOrderMetrics(row);
+          return (
+            <span className="text-sm font-semibold text-amber-700">
+              {formatCurrencyValue(row.currency, metrics.receivableBalance)}
+            </span>
+          );
+        },
+      },
+      {
+        key: "unshippedAmount",
+        header: "未出荷残高",
+        sortKey: "unshippedAmount",
+        align: "right",
+        render: (row) => {
+          const metrics = getSalesOrderMetrics(row);
+          return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.unshippedAmount)}</span>;
         },
       },
       {
@@ -268,7 +298,7 @@ export default function SalesManagementTableView({
         header: "必要材料量",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           if (metrics.requiredMaterial === null) {
             return <span className="text-sm text-gray-400">-</span>;
           }
@@ -280,7 +310,7 @@ export default function SalesManagementTableView({
         header: "成形時間",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           if (metrics.moldingTime === null) {
             return <span className="text-sm text-gray-400">-</span>;
           }
@@ -383,17 +413,21 @@ export default function SalesManagementTableView({
       case "productCode":
         return row.items[0]?.productCode ?? "";
       case "orderQuantity":
-        return calculateSalesMetrics(row.items).orderQuantity;
+        return getSalesOrderMetrics(row).orderQuantity;
       case "shippedQuantity":
-        return calculateSalesMetrics(row.items).shippedQuantity;
+        return getSalesOrderMetrics(row).shippedQuantity;
       case "remainingQuantity":
-        return calculateSalesMetrics(row.items).remainingQuantity;
+        return getSalesOrderMetrics(row).remainingQuantity;
       case "unitPrice":
         return row.items[0]?.unitPrice ?? 0;
       case "amount":
-        return calculateSalesMetrics(row.items).amount;
-      case "unpaidAmount":
-        return calculateSalesMetrics(row.items, row.paidAmount).unpaidAmount;
+        return getSalesOrderMetrics(row).amount;
+      case "orderBalance":
+        return getSalesOrderMetrics(row).orderBalance;
+      case "receivableBalance":
+        return getSalesOrderMetrics(row).receivableBalance;
+      case "unshippedAmount":
+        return getSalesOrderMetrics(row).unshippedAmount;
       case "deliveryDate":
         return getPrimaryDeliveryDate(row.items, row.deliveryDate);
       default:
