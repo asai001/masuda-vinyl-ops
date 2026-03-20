@@ -10,15 +10,9 @@ import LoadingModal from "@/components/LoadingModal";
 import useMasterCrud from "@/hooks/useMasterCrud";
 import DeleteSalesDialog from "@/features/sales-management/ui/DeleteSalesDialog";
 import EditSalesModal from "@/features/sales-management/ui/EditSalesModal";
-import {
-  InvoicePackingPayload,
-  type InvoicePackingTemplate,
-} from "@/features/sales-management/invoicePackingList";
 import NewSalesModal from "@/features/sales-management/ui/NewSalesModal";
 import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
 import SalesManagementTableView from "@/features/sales-management/ui/SalesManagementTableView";
-import InvoicePackingTemplateDialog from "@/features/sales-management/ui/InvoicePackingTemplateDialog";
-import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
 import {
   buildPaidAmountEntries,
   buildShippedAmountEntries,
@@ -82,19 +76,10 @@ export default function SalesManagementView() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
-  const [issuingRowId, setIssuingRowId] = useState<number | null>(null);
-  const [issueTarget, setIssueTarget] = useState<SalesRow | null>(null);
-  const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
-  const [issueDialogKey, setIssueDialogKey] = useState(0);
-  const [isIssuePreviewOpen, setIsIssuePreviewOpen] = useState(false);
-  const [issuePreviewPayload, setIssuePreviewPayload] = useState<InvoicePackingPayload | null>(null);
-  const [issuePreviewRow, setIssuePreviewRow] = useState<SalesRow | null>(null);
-  const [isIssuePreviewLoading, setIsIssuePreviewLoading] = useState(false);
 
   const [mutating, setMutating] = useState(false);
   const [mutateError, setMutateError] = useState<string | null>(null);
   const [mutatingAction, setMutatingAction] = useState<"create" | "edit" | "delete" | null>(null);
-  const [issueError, setIssueError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -485,257 +470,6 @@ export default function SalesManagementView() {
     openDelete(row);
   };
 
-  const countryLabelMap: Record<string, string> = {
-    日本: "JAPAN",
-    ベトナム: "VIETNAM",
-    タイ: "THAILAND",
-    インドネシア: "INDONESIA",
-  };
-
-  const formatInvoiceDate = () => {
-    const date = new Date();
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  const sanitizeFileName = (value: string) => {
-    const trimmed = value.trim();
-    const sanitized = trimmed.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "");
-    return sanitized || "invoice";
-  };
-
-  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
-
-  type SaveFilePickerHandle = {
-    createWritable: () => Promise<{
-      write: (data: Blob) => Promise<void>;
-      close: () => Promise<void>;
-    }>;
-  };
-
-  const pickSaveFileHandle = async (fileName: string): Promise<SaveFilePickerHandle | "cancelled" | null> => {
-    const picker = (
-      window as Window & {
-        showSaveFilePicker?: (options?: {
-          suggestedName?: string;
-          types?: Array<{
-            description?: string;
-            accept: Record<string, string[]>;
-          }>;
-          excludeAcceptAllOption?: boolean;
-        }) => Promise<SaveFilePickerHandle>;
-      }
-    ).showSaveFilePicker;
-    if (!picker) {
-      return null;
-    }
-    try {
-      return await picker({
-        suggestedName: fileName,
-        types: [
-          {
-            description: "Excel (.xlsx)",
-            accept: {
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
-            },
-          },
-        ],
-      });
-    } catch (error) {
-      if (isAbortError(error)) {
-        return "cancelled";
-      }
-      throw error;
-    }
-  };
-
-  const saveBlobToPickedFile = async (
-    blob: Blob,
-    handle: SaveFilePickerHandle,
-  ): Promise<"saved" | "cancelled"> => {
-    try {
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return "saved";
-    } catch (error) {
-      if (isAbortError(error)) {
-        return "cancelled";
-      }
-      throw error;
-    }
-  };
-
-  const openIssueDialog = (row: SalesRow) => {
-    if (issuingRowId !== null) {
-      return;
-    }
-    setIssueError(null);
-    setIssueTarget(row);
-    setIsIssueDialogOpen(true);
-    setIssueDialogKey((prev) => prev + 1);
-  };
-
-  const closeIssueDialog = () => {
-    setIsIssueDialogOpen(false);
-    setIssueTarget(null);
-  };
-
-  const buildInvoicePackingPayload = async (
-    row: SalesRow,
-    templateType: InvoicePackingTemplate,
-  ): Promise<InvoicePackingPayload> => {
-    const customerInfo = clientRows.find((item) => item.name === row.customerName);
-    const region = customerInfo?.region ?? row.customerRegion ?? "";
-    const destinationCountry =
-      templateType === "hq" ? "JAPAN" : (countryLabelMap[region] ?? region);
-    let rateSnapshot = DEFAULT_EXCHANGE_RATES;
-    try {
-      rateSnapshot = await fetchExchangeRates();
-    } catch (error) {
-      console.error("Failed to load exchange rates", error);
-    }
-    const safeRates = normalizeExchangeRates(rateSnapshot);
-    const currency = row.currency?.toUpperCase();
-    const usdRate = currency === "JPY" ? 1 / safeRates.jpyPerUsd : currency === "VND" ? 1 / safeRates.vndPerUsd : 1;
-    const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
-    const items = row.items.map((item) => {
-      const product = productRows.find((productRow) => productRow.code === item.productCode);
-      const weight =
-        (typeof item.weight === "number" && Number.isFinite(item.weight) ? item.weight : null) ??
-        (typeof product?.weight === "number" && Number.isFinite(product.weight) ? product.weight : null);
-      const totalWeight =
-        weight !== null ? weight * item.orderQuantity : Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
-      return {
-        partNo: item.productCode,
-        partName: item.productName,
-        poNo: row.orderNo,
-        unit: product?.unit ?? "",
-        quantity: item.orderQuantity,
-        unitPrice: item.unitPrice * safeUsdRate,
-        weight,
-        palletCount: item.palletCount,
-        totalWeight,
-        packaging: product?.packaging ?? null,
-      };
-    });
-    return {
-      orderNo: row.orderNo,
-      invoiceDate: formatInvoiceDate(),
-      invoiceNo: row.orderNo,
-      templateType,
-      currency: row.currency,
-      destinationCountry,
-      remark: row.note ?? "",
-      consigneeName: row.customerName,
-      consigneeAddress: customerInfo?.address ?? "",
-      consigneeTel: customerInfo?.phone ?? "",
-      consigneeTaxId: customerInfo?.taxId ?? "",
-      items,
-    };
-  };
-
-  const downloadInvoicePackingList = async (
-    payload: InvoicePackingPayload,
-    saveFileHandle: SaveFilePickerHandle | null,
-  ): Promise<"saved" | "cancelled"> => {
-    const response = await fetch("/api/invoice-packing-list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
-    }
-    const blob = await response.blob();
-    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
-    if (saveFileHandle) {
-      return saveBlobToPickedFile(blob, saveFileHandle);
-    }
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
-    return "saved";
-  };
-
-  const openIssuePreview = async (row: SalesRow, templateType: InvoicePackingTemplate) => {
-    setIssueError(null);
-    setIssuePreviewRow(row);
-    setIssuePreviewPayload(null);
-    setIsIssuePreviewOpen(true);
-    setIsIssuePreviewLoading(true);
-    try {
-      const payload = await buildInvoicePackingPayload(row, templateType);
-      setIssuePreviewPayload(payload);
-    } catch (error) {
-      console.error("Failed to build invoice preview", error);
-      setIssueError("プレビューの生成に失敗しました。");
-      setIsIssuePreviewOpen(false);
-      setIssuePreviewRow(null);
-      setIssuePreviewPayload(null);
-    } finally {
-      setIsIssuePreviewLoading(false);
-    }
-  };
-
-  const closeIssuePreview = () => {
-    setIsIssuePreviewOpen(false);
-    setIssuePreviewPayload(null);
-    setIssuePreviewRow(null);
-    setIsIssuePreviewLoading(false);
-  };
-
-  const handleIssuePreview = async () => {
-    if (!issuePreviewRow || !issuePreviewPayload || issuingRowId !== null) {
-      return;
-    }
-    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(issuePreviewPayload.orderNo)}.xlsx`;
-    let saveFileHandle: SaveFilePickerHandle | null = null;
-    try {
-      const picked = await pickSaveFileHandle(fileName);
-      if (picked === "cancelled") {
-        return;
-      }
-      saveFileHandle = picked;
-    } catch (error) {
-      console.error("Failed to open save dialog", error);
-      const msg = "保存先の選択に失敗しました";
-      setIssueError(msg);
-      return;
-    }
-    setIssuingRowId(issuePreviewRow.id);
-    setIssueError(null);
-    try {
-      const result = await downloadInvoicePackingList(issuePreviewPayload, saveFileHandle);
-      if (result === "saved") {
-        closeIssuePreview();
-      }
-    } catch (error) {
-      console.error("Failed to download invoice packing list", error);
-      const msg = "Excelファイルの発行に失敗しました";
-      setIssueError(msg);
-    } finally {
-      setIssuingRowId(null);
-    }
-  };
-
-  const handleIssueRequest = (row: SalesRow) => {
-    openIssueDialog(row);
-  };
-
-  const handleIssueTemplateSelect = (templateType: InvoicePackingTemplate) => {
-    const target = issueTarget;
-    closeIssueDialog();
-    if (target) {
-      void openIssuePreview(target, templateType);
-    }
-  };
-
   const openSummary = () => {
     setSummaryKey((prev) => prev + 1);
     setIsSummaryOpen(true);
@@ -781,15 +515,24 @@ export default function SalesManagementView() {
         onCreate={openCreate}
         createLabel="新規受注"
         rightActions={
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<Package size={16} />}
-            onClick={openSummary}
-            className="whitespace-nowrap"
-          >
-            {tx("残注数確認")}
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => router.push("/shipment-management")}
+              className="whitespace-nowrap"
+            >
+              出荷管理へ
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<Package size={16} />}
+              onClick={openSummary}
+              className="whitespace-nowrap"
+            >
+              {tx("残注数確認")}
+            </Button>
+          </>
         }
       />
       {loadError && (
@@ -807,17 +550,8 @@ export default function SalesManagementView() {
           操作に失敗しました。（{mutateError}）
         </div>
       )}
-      {issueError && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{issueError}</div>
-      )}
       {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}
-      <SalesManagementTableView
-        rows={filteredRows}
-        onRowClick={openEdit}
-        onDelete={openDelete}
-        onIssue={handleIssueRequest}
-        issuingRowId={issuingRowId}
-      />
+      <SalesManagementTableView rows={filteredRows} onRowClick={openEdit} onDelete={openDelete} />
       <NewSalesModal
         open={isCreateOpen}
         onClose={closeCreate}
@@ -835,28 +569,11 @@ export default function SalesManagementView() {
         onClose={closeEdit}
         onSave={handleEdit}
         onDelete={handleEditDelete}
-        onIssue={handleIssueRequest}
-        isIssuing={Boolean(editingRow && issuingRowId === editingRow.id)}
         productOptions={productOptions}
         customerOptions={customerOptions}
         currencyOptions={currencyOptions}
         statusOptions={statusOptions}
         documentOptions={documentOptions}
-      />
-      <InvoicePackingTemplateDialog
-        key={`issue-dialog-${issueDialogKey}`}
-        open={isIssueDialogOpen}
-        sales={issueTarget}
-        onClose={closeIssueDialog}
-        onSelect={handleIssueTemplateSelect}
-      />
-      <InvoicePackingPreviewModal
-        open={isIssuePreviewOpen}
-        payload={issuePreviewPayload}
-        loading={isIssuePreviewLoading}
-        issuing={Boolean(issuePreviewRow && issuingRowId === issuePreviewRow.id)}
-        onClose={closeIssuePreview}
-        onIssue={handleIssuePreview}
       />
       <DeleteSalesDialog
         open={Boolean(deletingRow)}

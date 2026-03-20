@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Blocks,
   TrendingUp,
+  Truck,
   CreditCard,
   DollarSign,
   Settings,
@@ -30,6 +31,7 @@ const menuItems = [
   { labelKey: "nav.orderManagement", icon: ShoppingCart, path: "/order-management" },
   { labelKey: "nav.productMaster", icon: Package, path: "/product-master" },
   { labelKey: "nav.salesManagement", icon: TrendingUp, path: "/sales-management" },
+  { labelKey: "nav.shipmentManagement", icon: Truck, path: "/shipment-management" },
   { labelKey: "nav.paymentMaster", icon: CreditCard, path: "/payment-master" },
   { labelKey: "nav.paymentManagement", icon: DollarSign, path: "/payment-management" },
 ] as const satisfies ReadonlyArray<{

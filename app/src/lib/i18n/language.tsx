@@ -19,6 +19,7 @@ const keyedMessages = {
   "nav.orderManagement": { ja: "発注管理", vi: "Quản lý đặt hàng" },
   "nav.productMaster": { ja: "製品マスタ", vi: "Danh mục sản phẩm" },
   "nav.salesManagement": { ja: "受注管理", vi: "Quản lý đơn bán" },
+  "nav.shipmentManagement": { ja: "出荷管理", vi: "Quản lý xuất hàng" },
   "nav.paymentMaster": { ja: "支払いマスタ", vi: "Danh mục thanh toán" },
   "nav.paymentManagement": { ja: "支払い管理", vi: "Quản lý thanh toán" },
   "nav.settings": { ja: "各種設定", vi: "Cài đặt" },

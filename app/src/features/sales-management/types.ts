@@ -72,8 +72,24 @@ export type SalesRow = {
   documentStatus: SalesDocumentStatus;
 };
 
-export type NewSalesOrderInput = Omit<SalesRow, "id" | "salesOrderId">;
-export type UpdateSalesOrderInput = Omit<SalesRow, "id">;
+export type SalesOrderUpsertInput = {
+  orderNo: string;
+  orderDate: string;
+  customerName: string;
+  customerRegion: string;
+  currency: string;
+  note: string;
+  items: SalesLineItem[];
+  status: SalesStatus;
+  documentStatus: SalesDocumentStatus;
+  deliveryDate?: string;
+  paidAmount?: number;
+  paidDate?: string;
+  shipments?: SalesOrderShipment[];
+};
+
+export type NewSalesOrderInput = SalesOrderUpsertInput;
+export type UpdateSalesOrderInput = SalesOrderUpsertInput & { salesOrderId: string };
 
 export type SalesOrderItem = {
   orgId: string;

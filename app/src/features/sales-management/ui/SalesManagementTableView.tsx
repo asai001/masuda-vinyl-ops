@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
+import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { useLanguage } from "@/lib/i18n/language";
@@ -104,16 +104,12 @@ type SalesManagementTableViewProps = {
   rows: SalesRow[];
   onRowClick?: (row: SalesRow) => void;
   onDelete?: (row: SalesRow) => void;
-  onIssue?: (row: SalesRow) => void;
-  issuingRowId?: number | null;
 };
 
 export default function SalesManagementTableView({
   rows,
   onRowClick,
   onDelete,
-  onIssue,
-  issuingRowId,
 }: SalesManagementTableViewProps) {
   const { tx } = useLanguage();
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
@@ -348,33 +344,6 @@ export default function SalesManagementTableView({
           ),
       },
       {
-        key: "download",
-        header: (
-          <div className="flex flex-col leading-tight">
-            <span>インボイス</span>
-            <span>パッキングリスト</span>
-          </div>
-        ),
-        align: "center",
-        render: (row) => {
-          const isIssuing = issuingRowId === row.id;
-          return (
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={isIssuing}
-              startIcon={isIssuing ? <CircularProgress size={16} /> : null}
-              onClick={(event) => {
-                event.stopPropagation();
-                onIssue?.(row);
-              }}
-            >
-              {isIssuing ? tx("発行中...") : tx("発行")}
-            </Button>
-          );
-        },
-      },
-      {
         key: "delete",
         header: <span>削除</span>,
         align: "center",
@@ -395,7 +364,7 @@ export default function SalesManagementTableView({
           ),
       },
     ],
-    [issuingRowId, onDelete, onIssue, tx],
+    [onDelete, tx],
   );
 
   const handleSort = (key: string) => {

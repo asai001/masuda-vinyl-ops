@@ -1,5 +1,6 @@
 ﻿import { applyOrderShipmentsToLineItems } from "@/features/sales-management/salesManagementUtils";
 import type {
+  NewSalesOrderInput,
   SalesDocumentStatus,
   SalesDocumentStatusKey,
   SalesLineItem,
@@ -111,7 +112,7 @@ export const emptyErrors = {
 
 export type ErrorKey = keyof typeof emptyErrors;
 
-export type SalesOrderDraft = Omit<SalesRow, "id" | "salesOrderId">;
+export type SalesOrderDraft = NewSalesOrderInput;
 
 export type SalesOrderFormBuildSuccess = {
   ok: true;
@@ -328,21 +329,6 @@ export const getInitialEditForm = (row: SalesRow | null): SalesFormState => {
     speed: item.speed,
   }));
 
-  const shipments: ShipmentForm[] = (row.shipments ?? []).map((shipment, shipmentIndex) => {
-    const existingByLineId = new Map(shipment.items.map((entry) => [entry.lineItemId, entry]));
-    return {
-      id: shipment.id || shipmentIndex + 1,
-      deliveryDate: shipment.deliveryDate,
-      paidDate: shipment.paidDate,
-      paidAmount: String(shipment.paidAmount ?? 0),
-      items: items.map((item, itemIndex) => ({
-        id: existingByLineId.get(item.id)?.id ?? itemIndex + 1,
-        lineItemId: item.id,
-        shippedQuantity: String(existingByLineId.get(item.id)?.shippedQuantity ?? 0),
-      })),
-    };
-  });
-
   return {
     orderNo: row.orderNo,
     orderDate: row.orderDate,
@@ -353,7 +339,7 @@ export const getInitialEditForm = (row: SalesRow | null): SalesFormState => {
     status: row.status,
     documentStatus: row.documentStatus,
     items,
-    shipments,
+    shipments: [],
   };
 };
 
@@ -563,20 +549,6 @@ export const buildSalesOrderDraft = (
     };
   }
 
-  const itemsWithShipments = applyOrderShipmentsToLineItems(parsedItems, parsedShipments);
-  const totalPaidAmount = parsedShipments.reduce((sum, shipment) => sum + shipment.paidAmount, 0);
-  const latestPaidDate =
-    parsedShipments
-      .map((shipment) => shipment.paidDate)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b))
-      .at(-1) ?? "";
-  const primaryDeliveryDate =
-    parsedShipments
-      .filter((shipment) => shipment.items.length > 0)
-      .map((shipment) => shipment.deliveryDate)
-      .sort((a, b) => a.localeCompare(b))[0] ?? "";
-
   return {
     ok: true,
     value: {
@@ -584,13 +556,9 @@ export const buildSalesOrderDraft = (
       orderDate: form.orderDate,
       customerName: form.customerName,
       customerRegion: form.customerRegion,
-      deliveryDate: primaryDeliveryDate,
-      paidAmount: totalPaidAmount,
-      paidDate: latestPaidDate,
       currency: form.currency,
       note: form.note,
-      items: itemsWithShipments,
-      shipments: parsedShipments,
+      items: applyOrderShipmentsToLineItems(parsedItems, []),
       status: form.status,
       documentStatus: form.documentStatus,
     },

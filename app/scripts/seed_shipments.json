@@ -1,0 +1,310 @@
+[
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_001",
+    "displayNo": 1,
+    "shipmentNo": "SH-0001",
+    "deliveryDate": "2025-08-10",
+    "note": "Initial partial shipment for SO-202508-001.",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "USD",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_001",
+        "lineItemId": 1,
+        "shippedQuantity": 20
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_001",
+        "lineItemId": 2,
+        "shippedQuantity": 25
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_001",
+        "lineItemId": 3,
+        "shippedQuantity": 30
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-08-10#sh_seed_001",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2025-08-10#sh_seed_001"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_002",
+    "displayNo": 2,
+    "shipmentNo": "SH-0002",
+    "deliveryDate": "2025-08-22",
+    "note": "Combined USD shipment across August orders.",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "USD",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_001",
+        "lineItemId": 4,
+        "shippedQuantity": 40
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_007",
+        "lineItemId": 1,
+        "shippedQuantity": 50
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_007",
+        "lineItemId": 2,
+        "shippedQuantity": 60
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-08-22#sh_seed_002",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2025-08-22#sh_seed_002"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_003",
+    "displayNo": 3,
+    "shipmentNo": "SH-0003",
+    "deliveryDate": "2025-08-18",
+    "paidDate": "2025-08-29",
+    "paidAmount": 180000,
+    "note": "JPY export shipment with partial payment.",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "JPY",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_003",
+        "lineItemId": 1,
+        "shippedQuantity": 80
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_003",
+        "lineItemId": 2,
+        "shippedQuantity": 90
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_003",
+        "lineItemId": 3,
+        "shippedQuantity": 100
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-08-18#sh_seed_003",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2025-08-18#sh_seed_003"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_004",
+    "displayNo": 4,
+    "shipmentNo": "SH-0004",
+    "deliveryDate": "2025-08-31",
+    "note": "Combined USD shipment for late-August US orders.",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "USD",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_004",
+        "lineItemId": 1,
+        "shippedQuantity": 45
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_004",
+        "lineItemId": 2,
+        "shippedQuantity": 50
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_010",
+        "lineItemId": 1,
+        "shippedQuantity": 60
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-08-31#sh_seed_004",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2025-08-31#sh_seed_004"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_005",
+    "displayNo": 5,
+    "shipmentNo": "SH-0005",
+    "deliveryDate": "2025-09-11",
+    "paidDate": "2025-09-20",
+    "paidAmount": 250000,
+    "note": "Combined JPY shipment across September orders.",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "JPY",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_012",
+        "lineItemId": 1,
+        "shippedQuantity": 120
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_012",
+        "lineItemId": 2,
+        "shippedQuantity": 140
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_018",
+        "lineItemId": 3,
+        "shippedQuantity": 50
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-09-11#sh_seed_005",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2025-09-11#sh_seed_005"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_006",
+    "displayNo": 6,
+    "shipmentNo": "SH-0006",
+    "deliveryDate": "2025-09-14",
+    "note": "Follow-up USD shipment for mid-September orders.",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "USD",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_013",
+        "lineItemId": 1,
+        "shippedQuantity": 70
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_013",
+        "lineItemId": 2,
+        "shippedQuantity": 80
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_019",
+        "lineItemId": 2,
+        "shippedQuantity": 20
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-09-14#sh_seed_006",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2025-09-14#sh_seed_006"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_007",
+    "displayNo": 7,
+    "shipmentNo": "SH-0007",
+    "deliveryDate": "2025-09-22",
+    "note": "Large JPY shipment for remaining An Phat orders.",
+    "customerName": "An Phat Materials",
+    "customerRegion": "VN",
+    "currency": "JPY",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_009",
+        "lineItemId": 1,
+        "shippedQuantity": 150
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_015",
+        "lineItemId": 6,
+        "shippedQuantity": 40
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_015",
+        "lineItemId": 7,
+        "shippedQuantity": 50
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-09-22#sh_seed_007",
+    "customerIndexPk": "masuda-vinyl-vietnam#An Phat Materials",
+    "customerIndexSk": "2025-09-22#sh_seed_007"
+  },
+  {
+    "orgId": "masuda-vinyl-vietnam",
+    "shipmentId": "sh_seed_008",
+    "displayNo": 8,
+    "shipmentNo": "SH-0008",
+    "deliveryDate": "2025-09-26",
+    "paidDate": "2025-10-05",
+    "paidAmount": 500,
+    "note": "Small follow-up shipment with partial payment.",
+    "customerName": "Global Customer Inc.",
+    "customerRegion": "US",
+    "currency": "USD",
+    "allocations": [
+      {
+        "id": 1,
+        "salesOrderId": "so_seed_016",
+        "lineItemId": 5,
+        "shippedQuantity": 20
+      },
+      {
+        "id": 2,
+        "salesOrderId": "so_seed_016",
+        "lineItemId": 6,
+        "shippedQuantity": 25
+      },
+      {
+        "id": 3,
+        "salesOrderId": "so_seed_016",
+        "lineItemId": 7,
+        "shippedQuantity": 30
+      },
+      {
+        "id": 4,
+        "salesOrderId": "so_seed_004",
+        "lineItemId": 3,
+        "shippedQuantity": 35
+      }
+    ],
+    "createdAt": "2026-02-05T12:00:00Z",
+    "updatedAt": "2026-02-05T12:00:00Z",
+    "deliveryDateIndexPk": "masuda-vinyl-vietnam",
+    "deliveryDateIndexSk": "2025-09-26#sh_seed_008",
+    "customerIndexPk": "masuda-vinyl-vietnam#Global Customer Inc.",
+    "customerIndexSk": "2025-09-26#sh_seed_008"
+  }
+]

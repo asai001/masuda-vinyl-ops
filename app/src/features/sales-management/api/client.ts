@@ -19,6 +19,9 @@ import {
   type SalesStatus,
   type UpdateSalesOrderInput,
 } from "../types";
+import { fetchShipmentRows } from "@/features/shipment-management/api/client";
+import type { ShipmentRow } from "@/features/shipment-management/types";
+import { mergeShipmentRowsIntoSalesRows } from "@/features/shipment-management/shipmentUtils";
 
 async function authFetch(input: RequestInfo, init: RequestInit = {}) {
   const token = await getIdTokenJwt();
@@ -256,13 +259,20 @@ function toRow(item: SalesOrderItem): SalesRow {
   };
 }
 
-export async function fetchSalesOrderRows(): Promise<SalesRow[]> {
+export async function fetchSalesOrderRows(options?: { shipmentRows?: ShipmentRow[] }): Promise<SalesRow[]> {
   const res = await authFetch("/api/sales-orders", { method: "GET" });
   if (!res.ok) {
     throw new Error("Failed to fetch sales orders");
   }
   const items = (await res.json()) as SalesOrderItem[];
-  const rows = items.map(toRow);
+  const baseRows = items.map(toRow);
+  const shipmentRows =
+    options?.shipmentRows ??
+    (await fetchShipmentRows().catch((error) => {
+      console.error("Failed to fetch shipments for sales rows", error);
+      return [];
+    }));
+  const rows = mergeShipmentRowsIntoSalesRows(baseRows, shipmentRows);
   rows.sort((a, b) => (a.id || Number.MAX_SAFE_INTEGER) - (b.id || Number.MAX_SAFE_INTEGER));
   return rows;
 }
@@ -285,13 +295,9 @@ const toUpdatePayload = (row: SalesRow): UpdateSalesOrderInput => ({
   orderDate: row.orderDate,
   customerName: row.customerName,
   customerRegion: row.customerRegion,
-  deliveryDate: row.deliveryDate,
-  paidAmount: row.paidAmount,
-  paidDate: row.paidDate,
   currency: row.currency,
   note: row.note,
   items: row.items,
-  shipments: row.shipments,
   status: row.status,
   documentStatus: row.documentStatus,
 });

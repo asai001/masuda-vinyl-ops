@@ -6,7 +6,7 @@ import { useLanguage } from "@/lib/i18n/language";
 
 export type SummaryCard = {
   label: string;
-  value: number;
+  value: React.ReactNode;
   tone: "primary" | "success" | "muted" | "warning";
   icon?: React.ReactNode;
 };
