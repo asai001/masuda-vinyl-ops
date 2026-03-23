@@ -58,6 +58,9 @@ const sanitizeFileName = (value: string) => {
   return sanitized || "shipment";
 };
 
+const getInvoicePackingPreviewPoNo = (payload: InvoicePackingPayload) =>
+  payload.invoiceNo?.trim() || payload.items.find((item) => item.poNo.trim())?.poNo || payload.orderNo;
+
 const formatInvoiceDate = () => {
   const date = new Date();
   const day = String(date.getDate()).padStart(2, "0");
@@ -431,7 +434,11 @@ export default function ShipmentManagementView() {
       currency === "JPY" ? 1 / safeRates.jpyPerUsd : currency === "VND" ? 1 / safeRates.vndPerUsd : 1;
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
 
-    const items = resolveShipmentAllocations(shipment, salesRows).map((allocation) => {
+    const allocations = resolveShipmentAllocations(shipment, salesRows);
+    const defaultInvoiceNo =
+      shipment.invoiceNo.trim() || allocations.find((allocation) => allocation.orderNo.trim())?.orderNo || shipment.shipmentNo;
+
+    const items = allocations.map((allocation) => {
       const product = productRows.find((row) => row.code === allocation.productCode);
       const weight =
         (typeof allocation.weight === "number" && Number.isFinite(allocation.weight) ? allocation.weight : null) ??
@@ -458,7 +465,7 @@ export default function ShipmentManagementView() {
     return {
       orderNo: shipment.shipmentNo,
       invoiceDate: formatInvoiceDate(),
-      invoiceNo: shipment.shipmentNo,
+      invoiceNo: defaultInvoiceNo,
       templateType,
       currency: shipment.currency,
       destinationCountry,
@@ -484,7 +491,7 @@ export default function ShipmentManagementView() {
       throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
     }
     const blob = await response.blob();
-    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(payload.orderNo)}.xlsx`;
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(getInvoicePackingPreviewPoNo(payload))}.xlsx`;
     if (saveFileHandle) {
       return saveBlobToPickedFile(blob, saveFileHandle);
     }
@@ -524,12 +531,22 @@ export default function ShipmentManagementView() {
     setIsIssuePreviewLoading(false);
   };
 
+  const buildShipmentInvoiceUpdateInput = (shipment: ShipmentRow, invoiceNo: string): UpdateShipmentInput => ({
+    shipmentId: shipment.shipmentId,
+    deliveryDate: shipment.deliveryDate,
+    invoiceNo,
+    paidDate: shipment.paidDate,
+    paidAmount: shipment.paidAmount,
+    note: shipment.note,
+    allocations: shipment.allocations,
+  });
+
   const handleIssuePreview = async () => {
     if (!issuePreviewShipment || !issuePreviewPayload || issuingShipmentId) {
       return;
     }
 
-    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(issuePreviewPayload.orderNo)}.xlsx`;
+    const fileName = `インボイス-パッキングリスト-${sanitizeFileName(getInvoicePackingPreviewPoNo(issuePreviewPayload))}.xlsx`;
     let saveFileHandle: SaveFilePickerHandle | null = null;
     try {
       const picked = await pickSaveFileHandle(fileName);
@@ -548,11 +565,21 @@ export default function ShipmentManagementView() {
     try {
       const result = await downloadInvoicePackingList(issuePreviewPayload, saveFileHandle);
       if (result === "saved") {
+        await updateShipment(buildShipmentInvoiceUpdateInput(issuePreviewShipment, issuePreviewPayload.invoiceNo ?? ""));
+        await reload();
         closeIssuePreview();
       }
     } catch (error) {
-      console.error("Failed to download invoice packing list", error);
+      console.error("Failed to issue shipment invoice packing list", error);
+      if (error instanceof Error && error.message.startsWith("Failed to update shipment:")) {
+        setIssueError("Excelは発行できましたが、Invoice No. の保存に失敗しました");
+      } else {
+        setIssueError("Excelファイルの発行に失敗しました");
+      }
+      /* Legacy fallback kept commented out because of existing encoding noise in this file. */
+      /*
       setIssueError("Excelファイルの発行に失敗しました");
+      */
     } finally {
       setIssuingShipmentId(null);
     }
@@ -669,6 +696,9 @@ export default function ShipmentManagementView() {
         payload={issuePreviewPayload}
         loading={isIssuePreviewLoading}
         issuing={Boolean(issuePreviewShipment && issuingShipmentId === issuePreviewShipment.shipmentId)}
+        onInvoiceNoChange={(invoiceNo) =>
+          setIssuePreviewPayload((current) => (current ? { ...current, invoiceNo } : current))
+        }
         onClose={closeIssuePreview}
         onIssue={handleIssuePreview}
       />

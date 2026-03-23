@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, CircularProgress, Tab, Tabs } from "@mui/material";
+import { Button, CircularProgress, Tab, Tabs, TextField } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { InvoicePackingPayload } from "@/features/sales-management/invoicePackingList";
 import {
@@ -16,6 +16,7 @@ type InvoicePackingPreviewModalProps = {
   payload: InvoicePackingPayload | null;
   loading?: boolean;
   issuing?: boolean;
+  onInvoiceNoChange: (invoiceNo: string) => void;
   onClose: () => void;
   onIssue: () => void;
 };
@@ -25,6 +26,7 @@ export default function InvoicePackingPreviewModal({
   payload,
   loading = false,
   issuing = false,
+  onInvoiceNoChange,
   onClose,
   onIssue,
 }: InvoicePackingPreviewModalProps) {
@@ -67,6 +69,13 @@ export default function InvoicePackingPreviewModal({
       }
     >
       <div className="flex flex-col gap-3 min-h-0 flex-1">
+        <TextField
+          label="Invoice No."
+          size="small"
+          value={payload?.invoiceNo ?? ""}
+          onChange={(event) => onInvoiceNoChange(event.target.value)}
+          disabled={!payload || loading || issuing}
+        />
         <Tabs
           value={tab}
           onChange={(_, value) => setTab(value as PreviewTab)}

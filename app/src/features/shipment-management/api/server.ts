@@ -181,6 +181,7 @@ function buildShipmentItem(
   }
 
   const shipmentNo = normalizeString(base.shipmentNo) || buildShipmentNo(base.displayNo);
+  const invoiceNo = normalizeString(base.invoiceNo) || undefined;
   const note = normalizeString(base.note) || undefined;
 
   return {
@@ -188,6 +189,7 @@ function buildShipmentItem(
     shipmentId: base.shipmentId,
     displayNo: base.displayNo,
     shipmentNo,
+    invoiceNo,
     deliveryDate,
     paidDate: paidDate || undefined,
     paidAmount,

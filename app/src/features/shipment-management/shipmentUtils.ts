@@ -54,6 +54,7 @@ export const toShipmentRow = (item: ShipmentItem): ShipmentRow => {
     id,
     shipmentId: normalizeString(item.shipmentId),
     shipmentNo,
+    invoiceNo: normalizeString(item.invoiceNo),
     deliveryDate: normalizeString(item.deliveryDate),
     paidDate: normalizeString(item.paidDate),
     paidAmount: normalizeNumber(item.paidAmount),

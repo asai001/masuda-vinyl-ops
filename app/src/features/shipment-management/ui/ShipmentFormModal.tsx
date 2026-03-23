@@ -459,6 +459,7 @@ export default function ShipmentFormModal({
       id: shipment?.id ?? 0,
       shipmentId: shipment?.shipmentId ?? "",
       shipmentNo: shipment?.shipmentNo ?? "",
+      invoiceNo: shipment?.invoiceNo ?? "",
       deliveryDate: form.deliveryDate,
       paidDate: form.paidDate.trim(),
       paidAmount: Number.isFinite(paidAmount) ? paidAmount : 0,

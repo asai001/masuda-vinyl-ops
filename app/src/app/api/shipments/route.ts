@@ -35,6 +35,7 @@ function isNewShipmentInput(value: unknown): value is NewShipmentInput {
   const record = value as Record<string, unknown>;
   return (
     isIsoDate(record.deliveryDate) &&
+    isOptionalString(record.invoiceNo) &&
     isOptionalString(record.paidDate) &&
     (record.paidDate === undefined || record.paidDate === "" || isIsoDate(record.paidDate)) &&
     (record.paidAmount === undefined || isFiniteNumber(record.paidAmount)) &&

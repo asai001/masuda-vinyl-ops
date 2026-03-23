@@ -10,6 +10,7 @@ export type ShipmentItem = {
   shipmentId: string;
   displayNo?: number;
   shipmentNo?: string;
+  invoiceNo?: string;
   deliveryDate: string;
   paidDate?: string;
   paidAmount?: number;
@@ -31,6 +32,7 @@ export type ShipmentRow = {
   id: number;
   shipmentId: string;
   shipmentNo: string;
+  invoiceNo: string;
   deliveryDate: string;
   paidDate: string;
   paidAmount: number;
@@ -43,6 +45,7 @@ export type ShipmentRow = {
 
 export type NewShipmentInput = {
   deliveryDate: string;
+  invoiceNo?: string;
   paidDate?: string;
   paidAmount?: number;
   note?: string;
