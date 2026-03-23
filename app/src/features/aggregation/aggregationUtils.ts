@@ -17,15 +17,38 @@ export const normalizeExchangeRates = (rates?: ExchangeRates): ExchangeRates => 
   updatedAt: rates?.updatedAt,
 });
 
+const parseDateParts = (value: string) => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!year || month < 1 || month > 12 || day < 1) {
+    return null;
+  }
+  return { year, month, day };
+};
+
+export const normalizeDateInputValue = (value: string) => {
+  const parts = parseDateParts(value);
+  if (!parts) {
+    return value;
+  }
+  const lastDayOfMonth = new Date(parts.year, parts.month, 0).getDate();
+  const normalizedDay = Math.min(parts.day, lastDayOfMonth);
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(normalizedDay).padStart(2, "0")}`;
+};
+
 export const parseDateInput = (value: string): Date | null => {
-  if (!value) {
+  const normalizedValue = normalizeDateInputValue(value);
+  const parts = parseDateParts(normalizedValue);
+  if (!parts) {
     return null;
   }
-  const [year, month, day] = value.split("-").map((item) => Number(item));
-  if (!year || !month || !day) {
-    return null;
-  }
-  return new Date(year, month - 1, day);
+  return new Date(parts.year, parts.month - 1, parts.day);
 };
 
 export const formatDateInput = (date: Date) => {

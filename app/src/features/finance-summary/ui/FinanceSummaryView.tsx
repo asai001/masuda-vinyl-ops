@@ -15,6 +15,7 @@ import {
   getCurrentMonthRange,
   getPeriodGroup,
   isWithinRange,
+  normalizeDateInputValue,
   normalizeExchangeRates,
   parseDateInput,
   type GroupUnit,
@@ -588,16 +589,18 @@ export default function FinanceSummaryView() {
   const categoryExpenseSlices = useMemo(() => buildPieChartSlices(categorySummaryRows, (row) => row.category, (row) => row.amount, otherLabel), [categorySummaryRows, otherLabel]);
 
   const handleStartDateChange = (value: string) => {
-    setStartDate(value);
-    if (endDate && value && value > endDate) {
-      setEndDate(value);
+    const normalizedValue = normalizeDateInputValue(value);
+    setStartDate(normalizedValue);
+    if (endDate && normalizedValue && normalizedValue > endDate) {
+      setEndDate(normalizedValue);
     }
   };
 
   const handleEndDateChange = (value: string) => {
-    setEndDate(value);
-    if (startDate && value && value < startDate) {
-      setStartDate(value);
+    const normalizedValue = normalizeDateInputValue(value);
+    setEndDate(normalizedValue);
+    if (startDate && normalizedValue && normalizedValue < startDate) {
+      setStartDate(normalizedValue);
     }
   };
 
