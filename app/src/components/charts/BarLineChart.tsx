@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 type TrendPoint = {
   label: string;
@@ -28,10 +28,17 @@ export default function BarLineChart({
 }: BarLineChartProps) {
   const width = 600;
   const padding = { top: 24, right: 24, bottom: 48, left: 48 };
+  const minValue = Math.min(...data.map((item) => item.value), 0);
   const maxValue = Math.max(...data.map((item) => item.value), 0);
-  const safeMax = maxValue === 0 ? 1 : maxValue;
+  const valueRange = maxValue - minValue;
+  const safeRange = valueRange === 0 ? 1 : valueRange;
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
+  const getY = useCallback(
+    (value: number) => padding.top + ((maxValue - value) / safeRange) * chartHeight,
+    [chartHeight, maxValue, padding.top, safeRange],
+  );
+  const zeroY = getY(0);
 
   const points = useMemo(() => {
     if (!data.length) {
@@ -40,11 +47,12 @@ export default function BarLineChart({
     const step = chartWidth / data.length;
     return data.map((item, index) => {
       const x = padding.left + step * index + step / 2;
-      const barHeight = (item.value / safeMax) * chartHeight;
-      const y = padding.top + (chartHeight - barHeight);
-      return { ...item, x, y, barHeight };
+      const y = getY(item.value);
+      const barY = Math.min(y, zeroY);
+      const barHeight = Math.abs(zeroY - y);
+      return { ...item, x, y, barY, barHeight };
     });
-  }, [chartHeight, chartWidth, data, padding.left, padding.top, safeMax]);
+  }, [chartWidth, data, getY, padding.left, zeroY]);
 
   const path = useMemo(() => {
     if (!points.length) {
@@ -54,48 +62,38 @@ export default function BarLineChart({
   }, [points]);
 
   const yTicks = 4;
-  const yTickValues = Array.from({ length: yTicks + 1 }, (_, idx) => (safeMax / yTicks) * idx);
-
+  const yTickValues = Array.from({ length: yTicks + 1 }, (_, index) => maxValue - (safeRange / yTicks) * index);
   const labelStep = data.length > 12 ? 2 : 1;
 
   if (!data.length) {
-    return (
-      <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">データなし</div>
-    );
+    return <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">データがありません。</div>;
   }
 
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
       <rect x={0} y={0} width={width} height={height} fill="white" />
+
       {yTickValues.map((value, index) => {
-        const y = padding.top + chartHeight - (value / safeMax) * chartHeight;
+        const y = getY(value);
         return (
           <g key={`grid-${index}`}>
             <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#e5e7eb" strokeWidth={1} />
-            <text
-              x={padding.left - 8}
-              y={y + 4}
-              textAnchor="end"
-              className="fill-gray-400 text-xs"
-            >
+            <text x={padding.left - 8} y={y + 4} textAnchor="end" className="fill-gray-400 text-xs">
               {formatNumber(value)}
             </text>
           </g>
         );
       })}
 
+      {minValue < 0 && maxValue > 0 ? (
+        <line x1={padding.left} y1={zeroY} x2={width - padding.right} y2={zeroY} stroke="#9ca3af" strokeWidth={1.5} />
+      ) : null}
+
       {points.map((point, index) => {
         const barWidth = Math.max(chartWidth / data.length - 12, 4);
         return (
           <g key={`bar-${index}`}>
-            <rect
-              x={point.x - barWidth / 2}
-              y={point.y}
-              width={barWidth}
-              height={point.barHeight}
-              fill={barColor}
-              rx={4}
-            >
+            <rect x={point.x - barWidth / 2} y={point.barY} width={barWidth} height={point.barHeight} fill={barColor} rx={4}>
               <title>
                 {point.label}: {formatNumber(point.value)}
               </title>

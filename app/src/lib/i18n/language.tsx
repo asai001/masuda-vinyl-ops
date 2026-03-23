@@ -31,6 +31,8 @@ const keyedMessages = {
   "dashboard.orderList": { ja: "発注一覧", vi: "Danh sách đặt hàng" },
   "dashboard.salesList": { ja: "受注一覧", vi: "Danh sách đơn bán" },
   "dashboard.paymentList": { ja: "支払い一覧", vi: "Danh sách thanh toán" },
+  "nav.financeSummary": { ja: "収支集計", vi: "Tổng hợp thu chi" },
+  "page.financeSummary": { ja: "収支集計", vi: "Tổng hợp thu chi" },
 } as const;
 
 export type TranslationKey = keyof typeof keyedMessages;

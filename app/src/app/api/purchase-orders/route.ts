@@ -10,77 +10,83 @@ import {
   documentStatusOptions,
   orderStatusOptions,
   type DocumentStatusKey,
-  type NewPurchaseOrderInput,
   type OrderLineItem,
   type OrderStatusKey,
-  type UpdatePurchaseOrderInput,
+  type PurchaseOrderItem,
 } from "@/features/order-management/types";
 
 const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 const isOptionalString = (v: unknown): v is string | undefined => v === undefined || typeof v === "string";
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isOptionalFiniteNumber = (v: unknown): v is number | undefined => v === undefined || isFiniteNumber(v);
 
 const orderStatusKeys = orderStatusOptions.map((option) => option.key);
 const documentStatusKeys = documentStatusOptions.map((option) => option.key);
 
-const isOrderStatus = (value: unknown): value is Record<OrderStatusKey, boolean> => {
-  if (!value || typeof value !== "object") {
+const isOrderStatus = (value: unknown): value is Partial<Record<OrderStatusKey, boolean>> => {
+  if (value === undefined) {
+    return true;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return orderStatusKeys.every((key) => typeof record[key] === "boolean");
+  return orderStatusKeys.every((key) => record[key] === undefined || typeof record[key] === "boolean");
 };
 
-const isDocumentStatus = (value: unknown): value is Record<DocumentStatusKey, boolean> => {
-  if (!value || typeof value !== "object") {
+const isDocumentStatus = (value: unknown): value is Partial<Record<DocumentStatusKey, boolean>> => {
+  if (value === undefined) {
+    return true;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return documentStatusKeys.every((key) => typeof record[key] === "boolean");
+  return documentStatusKeys.every((key) => record[key] === undefined || typeof record[key] === "boolean");
 };
 
-const isOrderLineItem = (value: unknown): value is OrderLineItem => {
-  if (!value || typeof value !== "object") {
+const isOrderLineItem = (value: unknown): value is Partial<OrderLineItem> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
   return (
-    isFiniteNumber(record.id) &&
-    isNonEmptyString(record.itemCode) &&
-    isNonEmptyString(record.itemName) &&
-    typeof record.unit === "string" &&
-    isFiniteNumber(record.quantity) &&
-    isFiniteNumber(record.unitPrice)
+    (record.id === undefined || isFiniteNumber(record.id)) &&
+    isOptionalString(record.itemCode) &&
+    isOptionalString(record.itemName) &&
+    isOptionalString(record.unit) &&
+    isOptionalFiniteNumber(record.quantity) &&
+    isOptionalFiniteNumber(record.unitPrice)
   );
 };
 
-const isOrderLineItems = (value: unknown): value is OrderLineItem[] =>
-  Array.isArray(value) && value.length > 0 && value.every(isOrderLineItem);
+const isOrderLineItems = (value: unknown): value is Partial<OrderLineItem>[] =>
+  value === undefined || (Array.isArray(value) && value.every(isOrderLineItem));
 
-function isNewPurchaseOrderInput(value: unknown): value is NewPurchaseOrderInput {
-  if (!value || typeof value !== "object") {
+const isPurchaseOrderPayload = (value: unknown): value is Partial<PurchaseOrderItem> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
   return (
-    isNonEmptyString(record.orderDate) &&
-    isNonEmptyString(record.deliveryDate) &&
-    isNonEmptyString(record.supplier) &&
-    isNonEmptyString(record.currency) &&
-    isFiniteNumber(record.amount) &&
+    isOptionalString(record.orderDate) &&
+    isOptionalString(record.deliveryDate) &&
+    isOptionalString(record.supplier) &&
+    isOptionalString(record.currency) &&
+    isOptionalFiniteNumber(record.amount) &&
     isOptionalString(record.note) &&
     isOrderLineItems(record.items) &&
     isOrderStatus(record.status) &&
     isDocumentStatus(record.documentStatus)
   );
-}
+};
 
-function isUpdatePurchaseOrderInput(value: unknown): value is UpdatePurchaseOrderInput {
-  if (!value || typeof value !== "object") {
+function isUpdatePurchaseOrderInput(value: unknown): value is Partial<PurchaseOrderItem> & { purchaseOrderId: string } {
+  if (!isPurchaseOrderPayload(value)) {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return isNonEmptyString(record.purchaseOrderId) && isNewPurchaseOrderInput(record);
+  return isNonEmptyString(record.purchaseOrderId);
 }
 
 const resource = "purchase-orders";
@@ -166,7 +172,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!isNewPurchaseOrderInput(bodyUnknown)) {
+  if (!isPurchaseOrderPayload(bodyUnknown)) {
     await writeAuditLog({
       req,
       orgId,
