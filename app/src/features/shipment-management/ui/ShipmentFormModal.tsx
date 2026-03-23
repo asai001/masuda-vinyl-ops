@@ -74,6 +74,14 @@ const buildAllocationKey = (salesOrderId: string, lineItemId: number) => `${sale
 
 const createTargetOrderId = (index: number) => `target-order-${index}`;
 
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const buildInitialTargetOrders = (shipment: ShipmentRow | null): ShipmentTargetOrderSelection[] =>
   Array.from(
     new Set(
@@ -87,7 +95,7 @@ const buildInitialTargetOrders = (shipment: ShipmentRow | null): ShipmentTargetO
   }));
 
 const getInitialForm = (shipment: ShipmentRow | null): ShipmentFormState => ({
-  deliveryDate: shipment?.deliveryDate ?? "",
+  deliveryDate: shipment?.deliveryDate ?? getTodayDateString(),
   paidDate: shipment?.paidDate ?? "",
   paidAmount: shipment ? String(shipment.paidAmount ?? 0) : "0",
   note: shipment?.note ?? "",
@@ -410,7 +418,14 @@ export default function ShipmentFormModal({
       }
     });
 
-    const allocations = selectedLines.flatMap(({ line, quantity }, index) => {
+    const allocationLines = selectedOrderEntries.flatMap((entry) => entry.order?.lines ?? []);
+    const allocations = allocationLines.flatMap((line, index) => {
+      const rawValue = form.allocations[line.key] ?? "0";
+      const quantity = rawValue.trim() ? Number(rawValue) : 0;
+      if (!Number.isFinite(quantity) || quantity < 0) {
+        nextErrors.allocationMap[line.key] = "0以上の数値で入力してください";
+        return [];
+      }
       if (quantity > line.remainingQuantity) {
         nextErrors.allocationMap[line.key] = "残数を超えています";
         return [];
@@ -425,16 +440,11 @@ export default function ShipmentFormModal({
       ];
     });
 
-    if (!allocations.length) {
-      nextErrors.allocations = "出荷対象受注の品目ごとに出荷数を入力してください";
-    }
-
     const hasErrors =
       Boolean(nextErrors.deliveryDate) ||
       Boolean(nextErrors.paidDate) ||
       Boolean(nextErrors.paidAmount) ||
       Boolean(nextErrors.targetOrders) ||
-      Boolean(nextErrors.allocations) ||
       Object.values(nextErrors.targetOrderMap).some(Boolean) ||
       Object.values(nextErrors.allocationMap).some(Boolean);
 
@@ -710,7 +720,7 @@ export default function ShipmentFormModal({
                   {order ? (
                     <div className="mt-4 flex flex-col gap-3">
                       {order.lines.map((line) => {
-                        const quantityValue = form.allocations[line.key] ?? "";
+                        const quantityValue = form.allocations[line.key] ?? (shipment ? "" : "0");
                         const quantity = Number(quantityValue);
                         const lineAmount = Number.isFinite(quantity) ? quantity * line.unitPrice : 0;
 

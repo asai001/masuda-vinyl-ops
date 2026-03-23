@@ -64,7 +64,7 @@ const normalizeAllocations = (value: unknown): ShipmentAllocation[] => {
       const salesOrderId = normalizeString(record.salesOrderId);
       const lineItemId = normalizeNumber(record.lineItemId);
       const shippedQuantity = normalizeNumber(record.shippedQuantity);
-      if (!salesOrderId || lineItemId <= 0 || shippedQuantity <= 0) {
+      if (!salesOrderId || lineItemId <= 0 || shippedQuantity < 0) {
         return null;
       }
       return {

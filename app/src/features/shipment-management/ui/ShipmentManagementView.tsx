@@ -435,10 +435,11 @@ export default function ShipmentManagementView() {
     const safeUsdRate = Number.isFinite(usdRate) && usdRate > 0 ? usdRate : 1;
 
     const allocations = resolveShipmentAllocations(shipment, salesRows);
+    const invoiceAllocations = allocations.filter((allocation) => allocation.shippedQuantity > 0);
     const defaultInvoiceNo =
       shipment.invoiceNo.trim() || allocations.find((allocation) => allocation.orderNo.trim())?.orderNo || shipment.shipmentNo;
 
-    const items = allocations.map((allocation) => {
+    const items = invoiceAllocations.map((allocation) => {
       const product = productRows.find((row) => row.code === allocation.productCode);
       const weight =
         (typeof allocation.weight === "number" && Number.isFinite(allocation.weight) ? allocation.weight : null) ??

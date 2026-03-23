@@ -429,7 +429,7 @@ const renderInvoiceRows = (items: InvoicePackingPayload["items"]) => {
           <td class="text-center">${index + 1}</td>
           <td>${safeText(item.partNo)}</td>
           <td>${safeText(item.partName)}</td>
-          <td class="text-center"></td>
+          <td class="text-center">${safeText(item.poNo)}</td>
           <td class="text-center">${safeText(item.unit)}</td>
           <td class="text-right">${formatQuantity(item.quantity)}</td>
           <td class="text-right">${formatClientInvoiceAmount(item.unitPrice)}</td>
@@ -705,7 +705,7 @@ const renderHqInvoiceRows = (items: InvoicePackingPayload["items"], rowCount: nu
         <tr>
           <td class="hq-center">${safeText(marks)}</td>
           <td class="hq-desc">${safeText(item.partName || item.partNo)}</td>
-          <td class="hq-center"></td>
+          <td class="hq-center">${safeText(item.poNo)}</td>
           <td class="hq-center">${safeText(item.unit)}</td>
           <td class="hq-right">${formatQuantity(quantity)}</td>
           <td class="hq-right hq-money-cell"><div class="hq-money-wrap">${renderCurrencyAmount(unitPriceText)}</div></td>
@@ -747,7 +747,7 @@ const renderHqPackingRows = (items: InvoicePackingPayload["items"], rowCount: nu
         <tr>
           <td class="hq-center">${safeText(marks)}</td>
           <td class="hq-desc">${safeText(item.partName || item.partNo)}</td>
-          <td class="hq-center"></td>
+          <td class="hq-center">${safeText(item.poNo)}</td>
           <td class="hq-center">${safeText(item.unit)}</td>
           <td class="hq-right">${formatQuantity(quantity)}</td>
           <td class="hq-center">${formatPackaging(item.packaging, item.unit)}</td>
@@ -1046,7 +1046,7 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
           <td class="text-center">${index + 1}</td>
           <td>${safeText(item.partNo)}</td>
           <td>${safeText(item.partName)}</td>
-          <td class="text-center"></td>
+          <td class="text-center">${safeText(item.poNo)}</td>
           <td class="text-center">${safeText(item.unit)}</td>
           <td class="text-center">${formatQuantity(item.quantity)}</td>
           <td class="text-center">${formatPackaging(item.packaging, item.unit)}</td>

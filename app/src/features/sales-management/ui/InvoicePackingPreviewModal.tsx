@@ -48,7 +48,7 @@ export default function InvoicePackingPreviewModal({
       open={open}
       title="インボイス・パッキングリスト プレビュー"
       onClose={handleClose}
-      paperSx={{ width: "70vw", maxWidth: "70vw", height: "95vh", maxHeight: "95vh" }}
+      paperSx={{ maxWidth: "70vw", height: "95vh", maxHeight: "95vh" }}
       contentSx={{ overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}
       actions={
         <div className="flex w-full items-center gap-2">

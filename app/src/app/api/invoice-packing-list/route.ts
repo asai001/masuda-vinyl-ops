@@ -244,6 +244,7 @@ export async function POST(request: Request) {
 
         sheet.cell(`A${row}`).value(totalItems ? `${index + 1}/${totalItems}` : "");
         sheet.cell(`B${row}`).value(description);
+        sheet.cell(`D${row}`).value(item.poNo);
         sheet.cell(`E${row}`).value(item.unit);
         sheet.cell(`F${row}`).value(quantity);
         sheet.cell(`G${row}`).value(unitPrice);
@@ -267,7 +268,7 @@ export async function POST(request: Request) {
 
         sheet.cell(`B${row}`).value(item.partNo);
         sheet.cell(`D${row}`).value(item.partName);
-        sheet.cell(`E${row}`).value("");
+        sheet.cell(`E${row}`).value(item.poNo);
         sheet.cell(`F${row}`).value(item.unit);
         sheet.cell(`G${row}`).value(quantity);
         sheet.cell(`H${row}`).value(unitPrice);
@@ -279,6 +280,7 @@ export async function POST(request: Request) {
       const hqPackingEnd = useHqTwentySheet ? hqPacking20EndRow : hqPackingEndRow;
 
       for (let row = hqPackingStartRow; row <= hqPackingEnd; row += 1) {
+        packingSheet.cell(`D${row}`).value("");
         (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`G${row}`).value(null);
         (packingSheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
@@ -304,6 +306,7 @@ export async function POST(request: Request) {
 
         const packingLabel = item.unit ? `${item.unit}/box` : "/box";
         const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
+        packingSheet.cell(`D${row}`).value(item.poNo);
         if (packingValue !== null) {
           (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
           packingSheet.cell(`G${row}`).value(packingValue);
@@ -327,6 +330,7 @@ export async function POST(request: Request) {
       });
     } else {
       for (let row = clientPackingStartRow; row <= clientPackingEndRow; row += 1) {
+        packingSheet.cell(`E${row}`).value("");
         (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`H${row}`).value(null);
         (packingSheet.cell(`H${row}`) as unknown as { style: (name: string, value: string) => void }).style(
@@ -351,6 +355,7 @@ export async function POST(request: Request) {
         const packingLabel = item.unit ? `${item.unit}/box` : "/box";
         const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
 
+        packingSheet.cell(`E${row}`).value(item.poNo);
         if (packingValue !== null) {
           (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
           packingSheet.cell(`H${row}`).value(packingValue);

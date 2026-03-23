@@ -132,19 +132,21 @@ export const buildShipmentCandidateLines = (
       allocation.shippedQuantity,
     ]),
   );
+  const currentAllocationKeys = new Set((editingShipment?.allocations ?? []).map((allocation) => `${allocation.salesOrderId}:${allocation.lineItemId}`));
 
   return salesRows.flatMap((row) =>
     row.items.flatMap((item) => {
-      const currentQuantity = currentAllocationMap.get(`${row.salesOrderId}:${item.id}`) ?? 0;
+      const allocationKey = `${row.salesOrderId}:${item.id}`;
+      const currentQuantity = currentAllocationMap.get(allocationKey) ?? 0;
       const shippedQuantity = Math.max(getItemShippedQuantity(item) - currentQuantity, 0);
       const remainingQuantity = Math.max(item.orderQuantity - shippedQuantity, 0);
-      if (remainingQuantity <= 0 && currentQuantity <= 0) {
+      if (remainingQuantity <= 0 && !currentAllocationKeys.has(allocationKey)) {
         return [];
       }
 
       return [
         {
-          key: `${row.salesOrderId}:${item.id}`,
+          key: allocationKey,
           salesOrderId: row.salesOrderId,
           orderNo: row.orderNo,
           customerName: row.customerName,
