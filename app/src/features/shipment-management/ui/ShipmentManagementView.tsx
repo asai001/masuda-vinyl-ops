@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
-import { CreditCard, Package, ReceiptText } from "lucide-react";
+import { CreditCard, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ToolBar, { type FilterDefinition, type FilterRow } from "@/components/ToolBar";
 import SummaryCards, { type SummaryCard } from "@/components/SummaryCards";
@@ -14,6 +14,7 @@ import type { ProductRow } from "@/features/product-master/types";
 import { fetchProductRows } from "@/features/product-master/api/client";
 import {
   DEFAULT_EXCHANGE_RATES,
+  convertToUsd,
   formatCurrencyValue,
   formatNumberValue,
   normalizeExchangeRates,
@@ -23,7 +24,9 @@ import {
   type InvoicePackingTemplate,
 } from "@/features/sales-management/invoicePackingList";
 import InvoicePackingPreviewModal from "@/features/sales-management/ui/InvoicePackingPreviewModal";
+import RemainingOrderSummaryModal from "@/features/sales-management/ui/RemainingOrderSummaryModal";
 import { fetchSalesOrderRows } from "@/features/sales-management/api/client";
+import { getSalesOrderMetrics } from "@/features/sales-management/salesManagementUtils";
 import type { SalesRow } from "@/features/sales-management/types";
 import { fetchExchangeRates } from "@/features/settings/api/client";
 import type { ExchangeRates } from "@/features/settings/types";
@@ -36,7 +39,6 @@ import {
 import {
   getShipmentOrderNos,
   getShipmentTotalAmount,
-  getShipmentTotalQuantity,
   resolveShipmentAllocations,
 } from "@/features/shipment-management/shipmentUtils";
 import type { NewShipmentInput, ShipmentRow, UpdateShipmentInput } from "@/features/shipment-management/types";
@@ -44,6 +46,7 @@ import DeleteShipmentDialog from "@/features/shipment-management/ui/DeleteShipme
 import ShipmentFormModal from "@/features/shipment-management/ui/ShipmentFormModal";
 import ShipmentInvoiceTemplateDialog from "@/features/shipment-management/ui/ShipmentInvoiceTemplateDialog";
 import ShipmentManagementTableView from "@/features/shipment-management/ui/ShipmentManagementTableView";
+import RemainingReceivableSummaryModal from "@/features/shipment-management/ui/RemainingReceivableSummaryModal";
 
 const countryLabelMap: Record<string, string> = {
   日本: "JAPAN",
@@ -114,6 +117,10 @@ export default function ShipmentManagementView() {
   const [issuePreviewPayload, setIssuePreviewPayload] = useState<InvoicePackingPayload | null>(null);
   const [issuePreviewShipment, setIssuePreviewShipment] = useState<ShipmentRow | null>(null);
   const [isIssuePreviewLoading, setIsIssuePreviewLoading] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [summaryKey, setSummaryKey] = useState(0);
+  const [isReceivableSummaryOpen, setIsReceivableSummaryOpen] = useState(false);
+  const [receivableSummaryKey, setReceivableSummaryKey] = useState(0);
 
   const reload = async () => {
     const shipmentRows = await fetchShipmentRows();
@@ -232,6 +239,24 @@ export default function ShipmentManagementView() {
     })();
   };
 
+  const openSummary = () => {
+    setSummaryKey((prev) => prev + 1);
+    setIsSummaryOpen(true);
+  };
+
+  const closeSummary = () => {
+    setIsSummaryOpen(false);
+  };
+
+  const openReceivableSummary = () => {
+    setReceivableSummaryKey((prev) => prev + 1);
+    setIsReceivableSummaryOpen(true);
+  };
+
+  const closeReceivableSummary = () => {
+    setIsReceivableSummaryOpen(false);
+  };
+
   const filterDefinitions = useMemo<FilterDefinition[]>(
     () => [
       { key: "shipmentNo", label: "出荷No.", type: "text" },
@@ -306,54 +331,48 @@ export default function ShipmentManagementView() {
     );
   }, [filters, rows, salesRows]);
 
+  const safeExchangeRates = useMemo(() => normalizeExchangeRates(exchangeRates), [exchangeRates]);
+
+  const remainingShipmentQuantityTotal = useMemo(
+    () =>
+      salesRows.reduce((sum, row) => {
+        const metrics = getSalesOrderMetrics(row);
+        return sum + metrics.remainingQuantity;
+      }, 0),
+    [salesRows],
+  );
+
+  const remainingReceivableAmountUsd = useMemo(
+    () =>
+      salesRows.reduce((sum, row) => {
+        const metrics = getSalesOrderMetrics(row);
+        return sum + convertToUsd(metrics.receivableBalance, row.currency, safeExchangeRates);
+      }, 0),
+    [safeExchangeRates, salesRows],
+  );
+
   const summaryAmountUsd = rows.reduce((sum, row) => {
     const shipmentAmount = getShipmentTotalAmount(row, salesRows);
-    const currency = row.currency?.toUpperCase();
-    const safeRates = normalizeExchangeRates(exchangeRates);
-    if (currency === "JPY") {
-      return sum + shipmentAmount / safeRates.jpyPerUsd;
-    }
-    if (currency === "VND") {
-      return sum + shipmentAmount / safeRates.vndPerUsd;
-    }
-    return sum + shipmentAmount;
+    return sum + convertToUsd(shipmentAmount, row.currency, safeExchangeRates);
   }, 0);
 
-  const summaryCards = useMemo<SummaryCard[]>(() => {
-    const paidAmountUsd = rows.reduce((sum, row) => {
-      const currency = row.currency?.toUpperCase();
-      const safeRates = normalizeExchangeRates(exchangeRates);
-      if (currency === "JPY") {
-        return sum + row.paidAmount / safeRates.jpyPerUsd;
-      }
-      if (currency === "VND") {
-        return sum + row.paidAmount / safeRates.vndPerUsd;
-      }
-      return sum + row.paidAmount;
-    }, 0);
-
-    return [
-      { label: "出荷件数", value: rows.length, tone: "primary", icon: <Package size={22} /> },
+  const summaryCards = useMemo<SummaryCard[]>(
+    () => [
       {
-        label: "出荷数合計",
-        value: formatNumberValue(rows.reduce((sum, row) => sum + getShipmentTotalQuantity(row), 0)),
+        label: "残出荷数合計",
+        value: formatNumberValue(remainingShipmentQuantityTotal),
         tone: "warning",
-        icon: <ReceiptText size={22} />,
+        icon: <Package size={22} />,
       },
       {
-        label: "出荷金額合計",
-        value: formatCurrencyValue("USD", summaryAmountUsd),
-        tone: "muted",
-        icon: <ReceiptText size={22} />,
-      },
-      {
-        label: "入金額合計",
-        value: formatCurrencyValue("USD", paidAmountUsd),
+        label: "残入金額合計",
+        value: formatCurrencyValue("USD", remainingReceivableAmountUsd),
         tone: "success",
         icon: <CreditCard size={22} />,
       },
-    ];
-  }, [exchangeRates, rows, summaryAmountUsd]);
+    ],
+    [remainingReceivableAmountUsd, remainingShipmentQuantityTotal],
+  );
 
   const openIssueDialog = (row: ShipmentRow) => {
     if (issuingShipmentId) {
@@ -598,7 +617,7 @@ export default function ShipmentManagementView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <SummaryCards cards={summaryCards} />
+      <SummaryCards cards={summaryCards} lgColumns={4} />
 
       <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -628,9 +647,17 @@ export default function ShipmentManagementView() {
         onCreate={openCreate}
         createLabel="新規出荷"
         rightActions={
-          <Button variant="outlined" onClick={() => router.push("/sales-management")}>
+          <>
+            <Button variant="outlined" onClick={() => router.push("/sales-management")}>
             受注管理へ
-          </Button>
+            </Button>
+            <Button variant="outlined" color="warning" startIcon={<Package size={16} />} onClick={openSummary}>
+              残出荷数確認
+            </Button>
+            <Button variant="outlined" color="success" startIcon={<CreditCard size={16} />} onClick={openReceivableSummary}>
+              残入金額確認
+            </Button>
+          </>
         }
       />
 
@@ -708,6 +735,20 @@ export default function ShipmentManagementView() {
         shipment={deletingRow}
         onClose={closeDelete}
         onConfirm={handleDelete}
+      />
+      <RemainingOrderSummaryModal
+        key={`shipment-summary-${summaryKey}`}
+        open={isSummaryOpen}
+        rows={salesRows}
+        title="顧客別残出荷数サマリー"
+        showDateRange={false}
+        onClose={closeSummary}
+      />
+      <RemainingReceivableSummaryModal
+        key={`shipment-receivable-summary-${receivableSummaryKey}`}
+        open={isReceivableSummaryOpen}
+        rows={salesRows}
+        onClose={closeReceivableSummary}
       />
       <LoadingModal open={mutating} message={savingMessage} />
     </div>
