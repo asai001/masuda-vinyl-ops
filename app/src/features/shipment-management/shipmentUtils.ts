@@ -134,38 +134,37 @@ export const buildShipmentCandidateLines = (
   );
   const currentAllocationKeys = new Set((editingShipment?.allocations ?? []).map((allocation) => `${allocation.salesOrderId}:${allocation.lineItemId}`));
 
-  return salesRows.flatMap((row) =>
-    row.items.flatMap((item) => {
+  return salesRows.flatMap((row) => {
+    const rowLines = row.items.map((item) => {
       const allocationKey = `${row.salesOrderId}:${item.id}`;
       const currentQuantity = currentAllocationMap.get(allocationKey) ?? 0;
       const shippedQuantity = Math.max(getItemShippedQuantity(item) - currentQuantity, 0);
       const remainingQuantity = Math.max(item.orderQuantity - shippedQuantity, 0);
-      if (remainingQuantity <= 0 && !currentAllocationKeys.has(allocationKey)) {
-        return [];
-      }
 
-      return [
-        {
-          key: allocationKey,
-          salesOrderId: row.salesOrderId,
-          orderNo: row.orderNo,
-          customerName: row.customerName,
-          customerRegion: row.customerRegion,
-          currency: row.currency,
-          lineItemId: item.id,
-          productCode: item.productCode,
-          productName: item.productName,
-          orderQuantity: item.orderQuantity,
-          shippedQuantity,
-          remainingQuantity,
-          unitPrice: item.unitPrice,
-          palletCount: item.palletCount,
-          totalWeight: item.totalWeight,
-          weight: item.weight,
-        },
-      ];
-    }),
-  );
+      return {
+        key: allocationKey,
+        salesOrderId: row.salesOrderId,
+        orderNo: row.orderNo,
+        customerName: row.customerName,
+        customerRegion: row.customerRegion,
+        currency: row.currency,
+        lineItemId: item.id,
+        productCode: item.productCode,
+        productName: item.productName,
+        orderQuantity: item.orderQuantity,
+        shippedQuantity,
+        remainingQuantity,
+        unitPrice: item.unitPrice,
+        palletCount: item.palletCount,
+        totalWeight: item.totalWeight,
+        weight: item.weight,
+      };
+    });
+
+    const hasRemainingLine = rowLines.some((line) => line.remainingQuantity > 0);
+
+    return rowLines.filter((line) => hasRemainingLine || currentAllocationKeys.has(line.key));
+  });
 };
 
 export const mergeShipmentRowsIntoSalesRows = (salesRows: SalesRow[], shipmentRows: ShipmentRow[]): SalesRow[] => {

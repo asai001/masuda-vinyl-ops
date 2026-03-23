@@ -34,6 +34,7 @@ import {
   type SalesFormState,
   type StatusOption,
 } from "@/features/sales-management/ui/salesOrderFormShared";
+import { useLanguage } from "@/lib/i18n/language";
 
 type NewSalesModalProps = {
   open: boolean;
@@ -56,6 +57,8 @@ export default function NewSalesModal({
   onClose,
   onSave,
 }: NewSalesModalProps) {
+  const { language, tx } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const [form, setForm] = useState<SalesFormState>(getInitialCreateForm);
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
@@ -206,7 +209,7 @@ export default function NewSalesModal({
   return (
     <Modal
       open={open}
-      title="新規受注"
+      title={tx("新規受注")}
       onClose={handleClose}
       paperSx={{
         width: { xs: "calc(100vw - 32px)", lg: 920 },
@@ -214,20 +217,23 @@ export default function NewSalesModal({
       }}
       actions={
         <div className="flex w-full items-center gap-2">
-          {actionError ? <div className="text-xs text-red-600">{actionError}</div> : null}
+          {actionError ? <div className="text-xs text-red-600">{tx(actionError)}</div> : null}
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outlined" onClick={handleClose}>
-              キャンセル
+              {tx("キャンセル")}
             </Button>
             <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-              保存
+              {tx("保存")}
             </Button>
           </div>
         </div>
       }
     >
       <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        出荷実績とインボイス・パッキングリスト発行は出荷管理画面で行います。
+        {tr(
+          "出荷実績とインボイス・パッキングリスト発行は出荷管理画面で行います。",
+          "Việc ghi nhận xuất hàng và phát hành hóa đơn/Phiếu đóng gói sẽ được thực hiện tại màn hình Quản lý xuất hàng.",
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -238,24 +244,24 @@ export default function NewSalesModal({
           value={form.orderNo}
           onChange={(event) => handleChange("orderNo", event.target.value)}
           error={Boolean(errors.orderNo)}
-          helperText={errors.orderNo}
+          helperText={tx(errors.orderNo)}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">受注日</label>
+          <label className="text-sm font-semibold text-gray-700">{tx("受注日")}</label>
           <TextField
             size="small"
             type="date"
             value={form.orderDate}
             onChange={(event) => handleChange("orderDate", event.target.value)}
             error={Boolean(errors.orderDate)}
-            helperText={errors.orderDate}
+            helperText={tx(errors.orderDate)}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">通貨</label>
+          <label className="text-sm font-semibold text-gray-700">{tx("通貨")}</label>
           <FormControl size="small" error={Boolean(errors.currency)}>
             <Select
               value={form.currency}
@@ -263,7 +269,7 @@ export default function NewSalesModal({
               displayEmpty
               renderValue={(selected) => {
                 if (!selected) {
-                  return <span className="text-gray-400">選択してください</span>;
+                  return <span className="text-gray-400">{tx("選択してください")}</span>;
                 }
                 const option = currencyOptions.find((item) => item.value === selected);
                 return option?.label ?? selected;
@@ -275,13 +281,13 @@ export default function NewSalesModal({
                 </MenuItem>
               ))}
             </Select>
-            {errors.currency ? <FormHelperText>{errors.currency}</FormHelperText> : null}
+            {errors.currency ? <FormHelperText>{tx(errors.currency)}</FormHelperText> : null}
           </FormControl>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">顧客名</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("顧客名")}</label>
         <FormControl size="small" error={Boolean(errors.customerName)}>
           <Select
             value={form.customerName}
@@ -289,7 +295,7 @@ export default function NewSalesModal({
             displayEmpty
             renderValue={(selected) => {
               if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
+                return <span className="text-gray-400">{tx("選択してください")}</span>;
               }
               const option = customerOptions.find((item) => item.value === selected);
               return option?.label ?? selected;
@@ -298,26 +304,26 @@ export default function NewSalesModal({
             {customerOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-          <FormHelperText>{errors.customerName}</FormHelperText>
+                </MenuItem>
+              ))}
+            </Select>
+          <FormHelperText>{tx(errors.customerName)}</FormHelperText>
         </FormControl>
       </div>
 
       <Divider />
 
       <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold text-gray-700">製品明細</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("製品明細")}</label>
         <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddItem}>
-          製品を追加
+          {tx("製品を追加")}
         </Button>
       </div>
-      {itemsError ? <div className="text-sm text-red-500">{itemsError}</div> : null}
+      {itemsError ? <div className="text-sm text-red-500">{tx(itemsError)}</div> : null}
 
       {form.items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-          製品明細を追加してください
+          {tx("製品明細を追加してください")}
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -335,19 +341,23 @@ export default function NewSalesModal({
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-gray-700">製品 #{index + 1}</div>
+                  <div className="text-sm font-semibold text-gray-700">{tx(`製品 #${index + 1}`)}</div>
                   <Button variant="text" color="error" size="small" onClick={() => handleRemoveItem(item.id)}>
-                    削除
+                    {tx("削除")}
                   </Button>
                 </div>
 
                 <div className="mt-3 flex flex-col gap-3">
                   <div className="flex flex-col gap-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      品目/品番
+                      {tr("品目/品番", "Sản phẩm / Mã hàng")}
                       {showCurrencyMismatch ? (
                         <span className="text-xs font-normal text-amber-600">
-                          マスターデータの通貨と一致していません。登録通貨: {selectedOption?.currency}
+                          {tr(
+                            "マスターデータの通貨と一致していません。登録通貨:",
+                            "Không khớp với tiền tệ trong dữ liệu master. Tiền tệ đã đăng ký:",
+                          )}{" "}
+                          {selectedOption?.currency}
                         </span>
                       ) : null}
                     </label>
@@ -358,7 +368,7 @@ export default function NewSalesModal({
                         displayEmpty
                         renderValue={(selected) => {
                           if (!selected) {
-                            return <span className="text-gray-400">製品を選択してください</span>;
+                            return <span className="text-gray-400">{tx("製品を選択してください")}</span>;
                           }
                           const option = productOptions.find((optionItem) => optionItem.value === selected);
                           return option?.label ?? selected;
@@ -370,67 +380,67 @@ export default function NewSalesModal({
                           </MenuItem>
                         ))}
                       </Select>
-                      {itemError?.productCode ? <FormHelperText>{itemError.productCode}</FormHelperText> : null}
+                      {itemError?.productCode ? <FormHelperText>{tx(itemError.productCode)}</FormHelperText> : null}
                     </FormControl>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">注数</label>
+                      <label className="text-sm font-semibold text-gray-700">{tx("注数")}</label>
                       <TextField
                         size="small"
                         type="number"
                         value={item.orderQuantity}
                         onChange={(event) => handleLineChange(item.id, "orderQuantity", event.target.value)}
                         error={Boolean(itemError?.orderQuantity)}
-                        helperText={itemError?.orderQuantity}
+                        helperText={itemError?.orderQuantity ? tx(itemError.orderQuantity) : ""}
                         slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">単価</label>
+                      <label className="text-sm font-semibold text-gray-700">{tx("単価")}</label>
                       <TextField
                         size="small"
                         type="number"
                         value={item.unitPrice}
                         onChange={(event) => handleLineChange(item.id, "unitPrice", event.target.value)}
                         error={Boolean(itemError?.unitPrice)}
-                        helperText={itemError?.unitPrice}
+                        helperText={itemError?.unitPrice ? tx(itemError.unitPrice) : ""}
                         slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">パレット数</label>
+                      <label className="text-sm font-semibold text-gray-700">{tr("パレット数", "Số pallet")}</label>
                       <TextField
                         size="small"
                         type="number"
                         value={item.palletCount}
                         onChange={(event) => handleLineChange(item.id, "palletCount", event.target.value)}
                         error={Boolean(itemError?.palletCount)}
-                        helperText={itemError?.palletCount}
+                        helperText={itemError?.palletCount ? tx(itemError.palletCount) : ""}
                         slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">正味重量</label>
+                      <label className="text-sm font-semibold text-gray-700">{tr("正味重量", "Khối lượng tịnh")}</label>
                       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
                         {totalWeightLabel}
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">在庫数</label>
+                      <label className="text-sm font-semibold text-gray-700">{tx("在庫数")}</label>
                       <TextField
                         size="small"
                         type="number"
                         value={item.stockQuantity}
                         onChange={(event) => handleLineChange(item.id, "stockQuantity", event.target.value)}
                         error={Boolean(itemError?.stockQuantity)}
-                        helperText={itemError?.stockQuantity}
+                        helperText={itemError?.stockQuantity ? tx(itemError.stockQuantity) : ""}
                         slotProps={{ htmlInput: { min: 0 } }}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-gray-700">金額</label>
+                      <label className="text-sm font-semibold text-gray-700">{tx("金額")}</label>
                       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-[9px] text-sm text-gray-700">
                         {lineAmountLabel}
                       </div>
@@ -445,26 +455,26 @@ export default function NewSalesModal({
 
       <div className="grid grid-cols-1 gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm md:grid-cols-3">
         <div>
-          <div className="text-xs text-blue-700">製品数</div>
+          <div className="text-xs text-blue-700">{tr("製品数", "Số sản phẩm")}</div>
           <div className="font-semibold text-blue-900">{form.items.length}</div>
         </div>
         <div>
-          <div className="text-xs text-blue-700">注数量</div>
+          <div className="text-xs text-blue-700">{tr("注数量", "Số lượng đặt")}</div>
           <div className="font-semibold text-blue-900">{orderQuantity}</div>
         </div>
         <div>
-          <div className="text-xs text-blue-700">合計金額</div>
+          <div className="text-xs text-blue-700">{tx("合計金額")}</div>
           <div className="font-semibold text-blue-900">{formatLineAmount(orderAmount, form.currency)}</div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">備考</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("備考")}</label>
         <TextField
           size="small"
           multiline
           minRows={3}
-          placeholder="備考を入力してください"
+          placeholder={tx("備考を入力してください")}
           value={form.note}
           onChange={(event) => handleChange("note", event.target.value)}
         />
@@ -473,13 +483,13 @@ export default function NewSalesModal({
       <Divider />
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">ステータス</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("ステータス")}</label>
         <FormGroup>
           {statusOptions.map((option) => (
             <FormControlLabel
               key={option.value}
               control={<Checkbox checked={form.status[option.value]} onChange={() => toggleStatus(option.value)} />}
-              label={option.label}
+              label={tx(option.label)}
               className="h-8"
             />
           ))}
@@ -489,7 +499,7 @@ export default function NewSalesModal({
       <Divider />
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">請求状況</label>
+        <label className="text-sm font-semibold text-gray-700">{tx("請求状況")}</label>
         <FormGroup>
           {documentOptions.map((option) => (
             <FormControlLabel
@@ -500,7 +510,7 @@ export default function NewSalesModal({
                   onChange={() => toggleDocumentStatus(option.value)}
                 />
               }
-              label={option.label}
+              label={tx(option.label)}
               className="h-8"
             />
           ))}

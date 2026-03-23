@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { CreditCard, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -38,7 +38,6 @@ import {
 } from "@/features/shipment-management/api/client";
 import {
   getShipmentOrderNos,
-  getShipmentTotalAmount,
   resolveShipmentAllocations,
 } from "@/features/shipment-management/shipmentUtils";
 import type { NewShipmentInput, ShipmentRow, UpdateShipmentInput } from "@/features/shipment-management/types";
@@ -47,6 +46,7 @@ import ShipmentFormModal from "@/features/shipment-management/ui/ShipmentFormMod
 import ShipmentInvoiceTemplateDialog from "@/features/shipment-management/ui/ShipmentInvoiceTemplateDialog";
 import ShipmentManagementTableView from "@/features/shipment-management/ui/ShipmentManagementTableView";
 import RemainingReceivableSummaryModal from "@/features/shipment-management/ui/RemainingReceivableSummaryModal";
+import { useLanguage } from "@/lib/i18n/language";
 
 const countryLabelMap: Record<string, string> = {
   日本: "JAPAN",
@@ -83,6 +83,8 @@ type SaveFilePickerHandle = {
 
 export default function ShipmentManagementView() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const {
     rows,
     replaceRows,
@@ -259,11 +261,11 @@ export default function ShipmentManagementView() {
 
   const filterDefinitions = useMemo<FilterDefinition[]>(
     () => [
-      { key: "shipmentNo", label: "出荷No.", type: "text" },
-      { key: "deliveryDate", label: "出荷日", type: "date-range" },
+      { key: "shipmentNo", label: tr("出荷No.", "Số xuất hàng"), type: "text" },
+      { key: "deliveryDate", label: tr("出荷日", "Ngày xuất hàng"), type: "date-range" },
       {
         key: "customerName",
-        label: "顧客名",
+        label: tr("顧客名", "Tên khách hàng"),
         type: "select",
         options: Array.from(new Set(rows.map((row) => row.customerName)))
           .filter(Boolean)
@@ -271,7 +273,7 @@ export default function ShipmentManagementView() {
       },
       {
         key: "currency",
-        label: "通貨",
+        label: tr("通貨", "Tiền tệ"),
         type: "select",
         options: Array.from(new Set(rows.map((row) => row.currency)))
           .filter(Boolean)
@@ -279,7 +281,7 @@ export default function ShipmentManagementView() {
       },
       { key: "orderNo", label: "PO No.", type: "text" },
     ],
-    [rows],
+    [rows, tr],
   );
 
   const filteredRows = useMemo(() => {
@@ -351,27 +353,22 @@ export default function ShipmentManagementView() {
     [safeExchangeRates, salesRows],
   );
 
-  const summaryAmountUsd = rows.reduce((sum, row) => {
-    const shipmentAmount = getShipmentTotalAmount(row, salesRows);
-    return sum + convertToUsd(shipmentAmount, row.currency, safeExchangeRates);
-  }, 0);
-
   const summaryCards = useMemo<SummaryCard[]>(
     () => [
       {
-        label: "残出荷数合計",
+        label: tr("残出荷数合計", "Tổng số lượng chưa xuất"),
         value: formatNumberValue(remainingShipmentQuantityTotal),
         tone: "warning",
         icon: <Package size={22} />,
       },
       {
-        label: "残入金額合計",
+        label: tr("残入金額合計", "Tổng số tiền còn phải thu"),
         value: formatCurrencyValue("USD", remainingReceivableAmountUsd),
         tone: "success",
         icon: <CreditCard size={22} />,
       },
     ],
-    [remainingReceivableAmountUsd, remainingShipmentQuantityTotal],
+    [remainingReceivableAmountUsd, remainingShipmentQuantityTotal, tr],
   );
 
   const openIssueDialog = (row: ShipmentRow) => {
@@ -508,7 +505,7 @@ export default function ShipmentManagementView() {
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      throw new Error(`Excelファイルの発行に失敗しました (${response.status})`);
+      throw new Error(tr(`Excelファイルの発行に失敗しました (${response.status})`, `Không thể phát hành tệp Excel (${response.status})`));
     }
     const blob = await response.blob();
     const fileName = `インボイス-パッキングリスト-${sanitizeFileName(getInvoicePackingPreviewPoNo(payload))}.xlsx`;
@@ -535,7 +532,7 @@ export default function ShipmentManagementView() {
       setIssuePreviewPayload(payload);
     } catch (error) {
       console.error("Failed to build invoice preview", error);
-      setIssueError("プレビューの生成に失敗しました。");
+      setIssueError(tr("プレビューの生成に失敗しました。", "Không thể tạo bản xem trước."));
       setIsIssuePreviewOpen(false);
       setIssuePreviewShipment(null);
       setIssuePreviewPayload(null);
@@ -576,7 +573,7 @@ export default function ShipmentManagementView() {
       saveFileHandle = picked;
     } catch (error) {
       console.error("Failed to open save dialog", error);
-      setIssueError("保存先の選択に失敗しました");
+      setIssueError(tr("保存先の選択に失敗しました", "Không thể chọn nơi lưu"));
       return;
     }
 
@@ -592,9 +589,14 @@ export default function ShipmentManagementView() {
     } catch (error) {
       console.error("Failed to issue shipment invoice packing list", error);
       if (error instanceof Error && error.message.startsWith("Failed to update shipment:")) {
-        setIssueError("Excelは発行できましたが、Invoice No. の保存に失敗しました");
+        setIssueError(
+          tr(
+            "Excelは発行できましたが、Invoice No. の保存に失敗しました",
+            "Đã phát hành Excel nhưng không thể lưu Invoice No.",
+          ),
+        );
       } else {
-        setIssueError("Excelファイルの発行に失敗しました");
+        setIssueError(tr("Excelファイルの発行に失敗しました", "Không thể phát hành tệp Excel"));
       }
       /* Legacy fallback kept commented out because of existing encoding noise in this file. */
       /*
@@ -613,49 +615,28 @@ export default function ShipmentManagementView() {
     }
   };
 
-  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+  const savingMessage = mutatingAction === "delete" ? tr("削除中", "Đang xóa") : tr("保存中", "Đang lưu");
 
   return (
     <div className="flex flex-col gap-6">
       <SummaryCards cards={summaryCards} lgColumns={4} />
-
-      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold text-gray-700">出荷サマリー</div>
-            <div className="text-xs text-gray-500">
-              複数受注を束ねた出荷単位でインボイス・パッキングリストを発行します。
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-6">
-          <div>
-            <div className="text-xs text-gray-500">USD換算出荷金額</div>
-            <div className="text-lg font-bold text-gray-900">{formatCurrencyValue("USD", summaryAmountUsd)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500">出荷件数</div>
-            <div className="text-lg font-bold text-gray-900">{formatNumberValue(rows.length)}</div>
-          </div>
-        </div>
-      </div>
 
       <ToolBar
         filterDefinitions={filterDefinitions}
         filters={filters}
         onFiltersChange={setFilters}
         onCreate={openCreate}
-        createLabel="新規出荷"
+        createLabel={tr("新規出荷", "Tạo xuất hàng")}
         rightActions={
           <>
             <Button variant="outlined" onClick={() => router.push("/sales-management")}>
-            受注管理へ
+              {tr("受注管理へ", "Đến quản lý đơn bán")}
             </Button>
             <Button variant="outlined" color="warning" startIcon={<Package size={16} />} onClick={openSummary}>
-              残出荷数確認
+              {tr("残出荷数確認", "Kiểm tra số lượng chưa xuất")}
             </Button>
             <Button variant="outlined" color="success" startIcon={<CreditCard size={16} />} onClick={openReceivableSummary}>
-              残入金額確認
+              {tr("残入金額確認", "Kiểm tra số tiền còn phải thu")}
             </Button>
           </>
         }
@@ -663,23 +644,24 @@ export default function ShipmentManagementView() {
 
       {loadError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          出荷管理の取得に失敗しました。（{loadError}）
+          {tr("出荷管理の取得に失敗しました。", "Không thể tải dữ liệu quản lý xuất hàng.")}（{loadError}）
         </div>
       ) : null}
       {optionError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          帳票発行用マスタの取得に失敗しました。（{optionError}）
+          {tr("帳票発行用マスタの取得に失敗しました。", "Không thể tải dữ liệu master cho phát hành biểu mẫu.")}（
+          {optionError}）
         </div>
       ) : null}
       {mutateError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          操作に失敗しました。（{mutateError}）
+          {tr("操作に失敗しました。", "Thao tác thất bại.")}（{mutateError}）
         </div>
       ) : null}
       {issueError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{issueError}</div>
       ) : null}
-      {loading ? <div className="text-sm text-gray-500">読み込み中...</div> : null}
+      {loading ? <div className="text-sm text-gray-500">{tr("読み込み中...", "Đang tải...")}</div> : null}
 
       <ShipmentManagementTableView
         rows={filteredRows}
@@ -740,7 +722,7 @@ export default function ShipmentManagementView() {
         key={`shipment-summary-${summaryKey}`}
         open={isSummaryOpen}
         rows={salesRows}
-        title="顧客別残出荷数サマリー"
+        title={tr("顧客別残出荷数サマリー", "Tổng hợp số lượng chưa xuất theo khách hàng")}
         showDateRange={false}
         onClose={closeSummary}
       />

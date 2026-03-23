@@ -64,7 +64,8 @@ export default function RemainingReceivableSummaryModal({
   rows,
   onClose,
 }: RemainingReceivableSummaryModalProps) {
-  const { tx } = useLanguage();
+  const { language } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
 
   const summaryRows = useMemo<SummaryRow[]>(() => {
@@ -132,12 +133,12 @@ export default function RemainingReceivableSummaryModal({
   return (
     <Modal
       open={open}
-      title="顧客別残入金額サマリー"
+      title={tr("顧客別残入金額サマリー", "Tổng hợp số tiền còn phải thu theo khách hàng")}
       onClose={onClose}
       actions={
         <div className="flex w-full items-center justify-end">
           <Button variant="outlined" onClick={onClose}>
-            {tx("閉じる")}
+            {tr("閉じる", "Đóng")}
           </Button>
         </div>
       }
@@ -155,17 +156,17 @@ export default function RemainingReceivableSummaryModal({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={headerCellSx}>顧客名</TableCell>
-                <TableCell sx={headerCellSx}>通貨</TableCell>
+                <TableCell sx={headerCellSx}>{tr("顧客名", "Tên khách hàng")}</TableCell>
+                <TableCell sx={headerCellSx}>{tr("通貨", "Tiền tệ")}</TableCell>
                 <TableCell sx={headerCellSx}>PO No.</TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  出荷済金額
+                  {tr("出荷済金額", "Số tiền đã xuất hàng")}
                 </TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  入金済金額
+                  {tr("入金済金額", "Số tiền đã thu")}
                 </TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  残入金額
+                  {tr("残入金額", "Số tiền còn phải thu")}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -182,7 +183,7 @@ export default function RemainingReceivableSummaryModal({
                             onClick={() => handleToggleGroup(row.groupKey)}
                             className="flex items-center gap-1 rounded px-1 py-1 text-left hover:bg-gray-100"
                             aria-expanded={isExpanded}
-                            aria-label={`${row.customerName} ${row.currency} ${isExpanded ? "collapse" : "expand"}`}
+                            aria-label={`${row.customerName} ${row.currency} ${isExpanded ? tr("折りたたむ", "Thu gọn") : tr("展開", "Mở rộng")}`}
                           >
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             <span>{row.customerName}</span>
@@ -226,7 +227,7 @@ export default function RemainingReceivableSummaryModal({
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} sx={{ ...bodyCellSx, textAlign: "center", color: "#6b7280", py: 3 }}>
-                    {tx("該当する残入金額はありません")}
+                    {tr("該当する残入金額はありません", "Không có số tiền còn phải thu tương ứng")}
                   </TableCell>
                 </TableRow>
               )}

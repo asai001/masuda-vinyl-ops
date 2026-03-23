@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button, CircularProgress, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
@@ -12,6 +12,7 @@ import {
   resolveShipmentAllocations,
 } from "@/features/shipment-management/shipmentUtils";
 import type { ShipmentRow } from "@/features/shipment-management/types";
+import { useLanguage } from "@/lib/i18n/language";
 
 const amountFormatter = new Intl.NumberFormat("en-US");
 
@@ -42,6 +43,8 @@ export default function ShipmentManagementTableView({
   onIssue,
   issuingShipmentId,
 }: ShipmentManagementTableViewProps) {
+  const { language } = useLanguage();
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const [sortKey, setSortKey] = useState<SortKey>("deliveryDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -65,19 +68,19 @@ export default function ShipmentManagementTableView({
     () => [
       {
         key: "shipmentNo",
-        header: "出荷No.",
+        header: tr("出荷No.", "Số xuất hàng"),
         sortKey: "shipmentNo",
         render: (row) => <span className="text-sm font-semibold text-blue-600">{row.shipmentNo}</span>,
       },
       {
         key: "deliveryDate",
-        header: "出荷日",
+        header: tr("出荷日", "Ngày xuất hàng"),
         sortKey: "deliveryDate",
         render: (row) => <span className="text-sm">{row.deliveryDate}</span>,
       },
       {
         key: "customerName",
-        header: "顧客名",
+        header: tr("顧客名", "Tên khách hàng"),
         sortKey: "customerName",
         render: (row) => (
           <div className="flex flex-col text-sm">
@@ -88,7 +91,7 @@ export default function ShipmentManagementTableView({
       },
       {
         key: "orderNos",
-        header: "対象PO No.",
+        header: tr("対象PO No.", "PO No. mục tiêu"),
         sortKey: "orderNo",
         render: (row) => {
           const orderNos = summaryMap.get(row.shipmentId)?.orderNos ?? [];
@@ -100,14 +103,16 @@ export default function ShipmentManagementTableView({
             <div className="flex flex-col text-sm">
               <span>{first}</span>
               {second ? <span>{second}</span> : null}
-              {rest.length ? <span className="text-xs text-gray-500">他{rest.length}件</span> : null}
+              {rest.length ? (
+                <span className="text-xs text-gray-500">{tr(`他${rest.length}件`, `Khác ${rest.length} mục`)}</span>
+              ) : null}
             </div>
           );
         },
       },
       {
         key: "quantity",
-        header: "出荷数",
+        header: tr("出荷数", "Số lượng xuất"),
         sortKey: "quantity",
         align: "right",
         render: (row) => (
@@ -118,13 +123,13 @@ export default function ShipmentManagementTableView({
       },
       {
         key: "lineCount",
-        header: "明細数",
+        header: tr("明細数", "Số chi tiết"),
         align: "right",
         render: (row) => <span className="text-sm">{amountFormatter.format(summaryMap.get(row.shipmentId)?.lineCount ?? 0)}</span>,
       },
       {
         key: "amount",
-        header: "出荷金額",
+        header: tr("出荷金額", "Số tiền xuất hàng"),
         sortKey: "amount",
         align: "right",
         render: (row) => (
@@ -135,7 +140,7 @@ export default function ShipmentManagementTableView({
       },
       {
         key: "paidAmount",
-        header: "入金額",
+        header: tr("入金額", "Số tiền thu"),
         align: "right",
         render: (row) => <span className="text-sm">{formatCurrencyValue(row.currency, row.paidAmount)}</span>,
       },
@@ -143,8 +148,8 @@ export default function ShipmentManagementTableView({
         key: "download",
         header: (
           <div className="flex flex-col leading-tight">
-            <span>インボイス</span>
-            <span>パッキングリスト</span>
+            <span>{tr("インボイス", "Hóa đơn")}</span>
+            <span>{tr("パッキングリスト", "Phiếu đóng gói")}</span>
           </div>
         ),
         align: "center",
@@ -161,20 +166,20 @@ export default function ShipmentManagementTableView({
                 onIssue?.(row);
               }}
             >
-              {isIssuing ? "発行中..." : "発行"}
+              {isIssuing ? tr("発行中...", "Đang phát hành...") : tr("発行", "Phát hành")}
             </Button>
           );
         },
       },
       {
         key: "delete",
-        header: <span>削除</span>,
+        header: <span>{tr("削除", "Xóa")}</span>,
         align: "center",
         render: (row) =>
           onDelete ? (
             <IconButton
               size="small"
-              aria-label="delete"
+              aria-label={tr("削除", "Xóa")}
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(row);
@@ -187,7 +192,7 @@ export default function ShipmentManagementTableView({
           ),
       },
     ],
-    [issuingShipmentId, onDelete, onIssue, salesRows, summaryMap],
+    [issuingShipmentId, onDelete, onIssue, summaryMap, tr],
   );
 
   const handleSort = (key: string) => {
@@ -200,18 +205,21 @@ export default function ShipmentManagementTableView({
     setSortDirection("asc");
   };
 
-  const getSortValue = (row: ShipmentRow, key: SortKey) => {
-    switch (key) {
-      case "orderNo":
-        return (summaryMap.get(row.shipmentId)?.orderNos ?? [])[0] ?? "";
-      case "quantity":
-        return summaryMap.get(row.shipmentId)?.totalQuantity ?? 0;
-      case "amount":
-        return summaryMap.get(row.shipmentId)?.totalAmount ?? 0;
-      default:
-        return row[key];
-    }
-  };
+  const getSortValue = useCallback(
+    (row: ShipmentRow, key: SortKey) => {
+      switch (key) {
+        case "orderNo":
+          return (summaryMap.get(row.shipmentId)?.orderNos ?? [])[0] ?? "";
+        case "quantity":
+          return summaryMap.get(row.shipmentId)?.totalQuantity ?? 0;
+        case "amount":
+          return summaryMap.get(row.shipmentId)?.totalAmount ?? 0;
+        default:
+          return row[key];
+      }
+    },
+    [summaryMap],
+  );
 
   const sortedRows = useMemo(() => {
     const nextRows = [...rows];
@@ -231,7 +239,7 @@ export default function ShipmentManagementTableView({
         : String(rightValue).localeCompare(String(leftValue));
     });
     return nextRows;
-  }, [rows, sortDirection, sortKey, summaryMap]);
+  }, [getSortValue, rows, sortDirection, sortKey]);
 
   return (
     <DataTable

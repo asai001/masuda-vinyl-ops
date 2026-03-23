@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
@@ -63,7 +63,7 @@ const getUnitPriceLabel = (items: SalesLineItem[], currency: string) => {
   return "複数";
 };
 
-const getDeliveryDateLabel = (items: SalesLineItem[], fallbackDate: string) => {
+const getDeliveryDateLabel = (items: SalesLineItem[], fallbackDate: string, useVietnamese: boolean) => {
   const dates = collectDeliveryDates(items, fallbackDate);
   if (!dates.length) {
     return "-";
@@ -71,7 +71,7 @@ const getDeliveryDateLabel = (items: SalesLineItem[], fallbackDate: string) => {
   if (dates.length === 1) {
     return dates[0];
   }
-  return `${dates[0]} ~ ${dates[dates.length - 1]} (${dates.length}日程)`;
+  return `${dates[0]} ~ ${dates[dates.length - 1]} (${dates.length}${useVietnamese ? " đợt" : "日程"})`;
 };
 
 const renderStatusItems = (items: { label: string; active: boolean }[], tx: (text: string) => string) => (
@@ -111,7 +111,8 @@ export default function SalesManagementTableView({
   onRowClick,
   onDelete,
 }: SalesManagementTableViewProps) {
-  const { tx } = useLanguage();
+  const { language, tx } = useLanguage();
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -119,19 +120,19 @@ export default function SalesManagementTableView({
     () => [
       {
         key: "orderNo",
-        header: "PO NO.",
+        header: "PO No.",
         sortKey: "orderNo",
         render: (row) => <span className="text-sm font-semibold text-blue-600">{row.orderNo}</span>,
       },
       {
         key: "orderDate",
-        header: "受注日",
+        header: tr("受注日", "Ngày nhận đơn"),
         sortKey: "orderDate",
         render: (row) => <span className="text-sm">{row.orderDate}</span>,
       },
       {
         key: "customerName",
-        header: "顧客名",
+        header: tr("顧客名", "Tên khách hàng"),
         sortKey: "customerName",
         render: (row) => (
           <div className="flex flex-col text-sm">
@@ -142,7 +143,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "product",
-        header: "品目/品番",
+        header: tr("品目/品番", "Sản phẩm / Mã hàng"),
         sortKey: "productCode",
         render: (row) => {
           const summary = getItemSummary(row.items);
@@ -157,7 +158,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "materials",
-        header: "使用材料",
+        header: tr("使用材料", "Nguyên vật liệu sử dụng"),
         render: (row) => {
           const materials = getMaterials(row.items);
           const firstRow = materials.slice(0, 3);
@@ -204,13 +205,13 @@ export default function SalesManagementTableView({
       },
       {
         key: "stockQuantity",
-        header: "在庫数",
+        header: tr("在庫数", "Tồn kho"),
         align: "right",
         render: (row) => <span className="text-sm">{tx(getStockLabel(row.items))}</span>,
       },
       {
         key: "orderQuantity",
-        header: "注数",
+        header: tr("注数", "Số lượng đặt"),
         sortKey: "orderQuantity",
         align: "right",
         render: (row) => {
@@ -220,7 +221,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "shippedQuantity",
-        header: "出荷数",
+        header: tr("出荷数", "Số lượng xuất"),
         sortKey: "shippedQuantity",
         align: "right",
         render: (row) => {
@@ -230,7 +231,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "remainingQuantity",
-        header: "残注数",
+        header: tr("残注数", "Số lượng còn lại"),
         sortKey: "remainingQuantity",
         align: "right",
         render: (row) => {
@@ -240,14 +241,14 @@ export default function SalesManagementTableView({
       },
       {
         key: "unitPrice",
-        header: "単価",
+        header: tr("単価", "Đơn giá"),
         sortKey: "unitPrice",
         align: "right",
         render: (row) => <span className="text-sm font-semibold">{tx(getUnitPriceLabel(row.items, row.currency))}</span>,
       },
       {
         key: "amount",
-        header: "金額",
+        header: tr("金額", "Số tiền"),
         sortKey: "amount",
         align: "right",
         render: (row) => {
@@ -257,7 +258,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "orderBalance",
-        header: "受注残高",
+        header: tr("受注残高", "Số dư đơn hàng"),
         sortKey: "orderBalance",
         align: "right",
         render: (row) => {
@@ -267,7 +268,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "receivableBalance",
-        header: "売掛残高",
+        header: tr("売掛残高", "Công nợ phải thu"),
         sortKey: "receivableBalance",
         align: "right",
         render: (row) => {
@@ -281,7 +282,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "unshippedAmount",
-        header: "未出荷残高",
+        header: tr("未出荷残高", "Số dư chưa xuất"),
         sortKey: "unshippedAmount",
         align: "right",
         render: (row) => {
@@ -291,7 +292,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "requiredMaterial",
-        header: "必要材料量",
+        header: tr("必要材料量", "Lượng nguyên vật liệu cần thiết"),
         align: "right",
         render: (row) => {
           const metrics = getSalesOrderMetrics(row);
@@ -303,25 +304,25 @@ export default function SalesManagementTableView({
       },
       {
         key: "moldingTime",
-        header: "成形時間",
+        header: tr("成形時間", "Thời gian tạo hình"),
         align: "right",
         render: (row) => {
           const metrics = getSalesOrderMetrics(row);
           if (metrics.moldingTime === null) {
             return <span className="text-sm text-gray-400">-</span>;
           }
-          return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} 時間</span>;
+          return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} {tr("時間", "giờ")}</span>;
         },
       },
       {
         key: "deliveryDate",
-        header: "出荷日",
+        header: tr("出荷日", "Ngày xuất hàng"),
         sortKey: "deliveryDate",
-        render: (row) => <span className="text-sm">{getDeliveryDateLabel(row.items, row.deliveryDate)}</span>,
+        render: (row) => <span className="text-sm">{getDeliveryDateLabel(row.items, row.deliveryDate, language === "vi")}</span>,
       },
       {
         key: "status",
-        header: "ステータス",
+        header: tr("ステータス", "Trạng thái"),
         render: (row) =>
           renderStatusItems(
             salesStatusOptions.map((status) => ({
@@ -333,7 +334,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "documentStatus",
-        header: "請求状況",
+        header: tr("請求状況", "Tình trạng hóa đơn"),
         render: (row) =>
           renderStatusItems(
             salesDocumentStatusOptions.map((status) => ({
@@ -345,13 +346,13 @@ export default function SalesManagementTableView({
       },
       {
         key: "delete",
-        header: <span>削除</span>,
+        header: <span>{tr("削除", "Xóa")}</span>,
         align: "center",
         render: (row) =>
           onDelete ? (
             <IconButton
               size="small"
-              aria-label="delete"
+              aria-label={tr("削除", "Xóa")}
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(row);
@@ -364,7 +365,7 @@ export default function SalesManagementTableView({
           ),
       },
     ],
-    [onDelete, tx],
+    [language, onDelete, tr, tx],
   );
 
   const handleSort = (key: string) => {

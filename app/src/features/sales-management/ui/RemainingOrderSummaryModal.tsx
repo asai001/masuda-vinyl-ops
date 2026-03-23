@@ -100,7 +100,8 @@ export default function RemainingOrderSummaryModal({
   title,
   showDateRange = true,
 }: RemainingOrderSummaryModalProps) {
-  const { tx } = useLanguage();
+  const { language } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const defaultRange = useMemo(() => getDefaultDateRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.startDate);
   const [endDate, setEndDate] = useState(defaultRange.endDate);
@@ -175,12 +176,12 @@ export default function RemainingOrderSummaryModal({
   return (
     <Modal
       open={open}
-      title={title ?? tx("残注数サマリー")}
+      title={title ?? tr("残注数サマリー", "Tổng hợp số lượng còn lại")}
       onClose={onClose}
       actions={
         <div className="flex w-full items-center justify-end">
           <Button variant="outlined" onClick={onClose}>
-            {tx("閉じる")}
+            {tr("閉じる", "Đóng")}
           </Button>
         </div>
       }
@@ -190,12 +191,12 @@ export default function RemainingOrderSummaryModal({
     >
       {showDateRange ? (
         <div className="flex flex-col gap-1">
-          <div className="text-xs text-gray-500">{tx("集計基準: 受注日")}</div>
+          <div className="text-xs text-gray-500">{tr("集計基準: 受注日", "Tiêu chí tổng hợp: Ngày đặt hàng")}</div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-            <label className="text-sm font-semibold text-gray-700">{tx("開始日")}</label>
+            <label className="text-sm font-semibold text-gray-700">{tr("開始日", "Ngày bắt đầu")}</label>
             <TextField size="small" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
             <span className="text-gray-400">〜</span>
-            <label className="text-sm font-semibold text-gray-700">{tx("終了日")}</label>
+            <label className="text-sm font-semibold text-gray-700">{tr("終了日", "Ngày kết thúc")}</label>
             <TextField size="small" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
           </div>
         </div>
@@ -211,16 +212,16 @@ export default function RemainingOrderSummaryModal({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={headerCellSx}>{tx("顧客名")}</TableCell>
+                <TableCell sx={headerCellSx}>{tr("顧客名", "Tên khách hàng")}</TableCell>
                 <TableCell sx={headerCellSx}>PO No.</TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  {tx("受注数")}
+                  {tr("受注数", "Số lượng đặt hàng")}
                 </TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  {tx("累計出荷数")}
+                  {tr("累計出荷数", "Số lượng đã xuất lũy kế")}
                 </TableCell>
                 <TableCell align="right" sx={headerCellSx}>
-                  {tx("残出荷数")}
+                  {tr("残出荷数", "Số lượng chưa xuất")}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -237,7 +238,7 @@ export default function RemainingOrderSummaryModal({
                             onClick={() => handleToggleCustomer(row.customerName)}
                             className="flex items-center gap-1 rounded px-1 py-1 text-left hover:bg-gray-100"
                             aria-expanded={isExpanded}
-                            aria-label={`${row.customerName} ${isExpanded ? "collapse" : "expand"}`}
+                            aria-label={`${row.customerName} ${isExpanded ? tr("折りたたむ", "Thu gọn") : tr("展開", "Mở rộng")}`}
                           >
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             <span>{row.customerName}</span>
@@ -279,7 +280,7 @@ export default function RemainingOrderSummaryModal({
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} sx={{ ...bodyCellSx, textAlign: "center", color: "#6b7280", py: 3 }}>
-                    {tx("該当する残出荷数はありません")}
+                    {tr("該当する残出荷数はありません", "Không có số lượng chưa xuất tương ứng")}
                   </TableCell>
                 </TableRow>
               )}

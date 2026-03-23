@@ -91,26 +91,26 @@ type CategorySummaryRow = {
   amount: number;
 };
 
-const groupUnitOptions: { value: GroupUnit; labelJa: string; labelEn: string }[] = [
-  { value: "day", labelJa: "日別", labelEn: "Daily" },
-  { value: "week", labelJa: "週別", labelEn: "Weekly" },
-  { value: "month", labelJa: "月別", labelEn: "Monthly" },
+const groupUnitOptions: { value: GroupUnit; labelJa: string; labelVi: string }[] = [
+  { value: "day", labelJa: "日別", labelVi: "Theo ngày" },
+  { value: "week", labelJa: "週別", labelVi: "Theo tuần" },
+  { value: "month", labelJa: "月別", labelVi: "Theo tháng" },
 ];
 
-const financeTabOptions: { value: FinanceTab; labelJa: string; labelEn: string }[] = [
-  { value: "period", labelJa: "期間収支", labelEn: "Period Summary" },
-  { value: "customer", labelJa: "顧客別売上", labelEn: "Revenue by Customer" },
-  { value: "category", labelJa: "カテゴリ別支出", labelEn: "Expense by Category" },
-  { value: "revenue", labelJa: "売上明細", labelEn: "Revenue Details" },
-  { value: "expense", labelJa: "支出明細", labelEn: "Expense Details" },
+const financeTabOptions: { value: FinanceTab; labelJa: string; labelVi: string }[] = [
+  { value: "period", labelJa: "期間収支", labelVi: "Thu chi theo kỳ" },
+  { value: "customer", labelJa: "顧客別売上", labelVi: "Doanh thu theo khách hàng" },
+  { value: "category", labelJa: "カテゴリ別支出", labelVi: "Chi phí theo danh mục" },
+  { value: "revenue", labelJa: "売上明細", labelVi: "Chi tiết doanh thu" },
+  { value: "expense", labelJa: "支出明細", labelVi: "Chi tiết chi phí" },
 ];
 
-const periodChartOptions: { value: PeriodChartMetric; labelJa: string; labelEn: string }[] = [
-  { value: "revenue", labelJa: "売上推移", labelEn: "Revenue Trend" },
-  { value: "receipt", labelJa: "入金推移", labelEn: "Receipt Trend" },
-  { value: "expense", labelJa: "支出推移", labelEn: "Expense Trend" },
-  { value: "revenueBalance", labelJa: "収支差額（売上 - 支出）", labelEn: "Balance (Revenue - Expense)" },
-  { value: "receiptBalance", labelJa: "収支差額（入金 - 支出）", labelEn: "Balance (Receipt - Expense)" },
+const periodChartOptions: { value: PeriodChartMetric; labelJa: string; labelVi: string }[] = [
+  { value: "revenue", labelJa: "売上推移", labelVi: "Xu hướng doanh thu" },
+  { value: "receipt", labelJa: "入金推移", labelVi: "Xu hướng thu tiền" },
+  { value: "expense", labelJa: "支出推移", labelVi: "Xu hướng chi phí" },
+  { value: "revenueBalance", labelJa: "収支差額（売上 - 支出）", labelVi: "Chênh lệch thu chi (doanh thu - chi phí)" },
+  { value: "receiptBalance", labelJa: "収支差額（入金 - 支出）", labelVi: "Chênh lệch thu chi (thu tiền - chi phí)" },
 ];
 const defaultPeriodChartSelections: PeriodChartMetric[] = ["revenue", "expense", "revenueBalance"];
 const periodChartSelectionsStorageKey = "finance-summary.period-chart-selections";
@@ -229,7 +229,7 @@ const compareDateDesc = (left: string, right: string) => right.localeCompare(lef
 
 export default function FinanceSummaryView() {
   const { language } = useLanguage();
-  const tr = useCallback((ja: string, en: string) => (language === "vi" ? en : ja), [language]);
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.startDate);
   const [endDate, setEndDate] = useState(defaultRange.endDate);
@@ -250,9 +250,9 @@ export default function FinanceSummaryView() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const paymentRequestIdRef = useRef(0);
 
-  const unsetLabel = tr("未設定", "Unset");
-  const otherLabel = tr("その他", "Others");
-  const noDataMessage = tr("指定期間に一致するデータがありません。", "No data matched the selected range.");
+  const unsetLabel = tr("未設定", "Chưa thiết lập");
+  const otherLabel = tr("その他", "Khác");
+  const noDataMessage = tr("指定期間に一致するデータがありません。", "Không có dữ liệu khớp với khoảng thời gian đã chọn.");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -263,7 +263,7 @@ export default function FinanceSummaryView() {
       setPeriodChartSelections(storedSelections);
     }
     setPeriodChartSelectionsLoaded(true);
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     if (!periodChartSelectionsLoaded || typeof window === "undefined") {
@@ -285,7 +285,7 @@ export default function FinanceSummaryView() {
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          setSalesError(error instanceof Error ? error.message : "Failed to load");
+          setSalesError(error instanceof Error ? error.message : tr("読み込みに失敗しました", "Tải dữ liệu thất bại"));
         }
       } finally {
         if (!cancelled) {
@@ -296,7 +296,7 @@ export default function FinanceSummaryView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,7 +311,7 @@ export default function FinanceSummaryView() {
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          setPurchaseOrderError(error instanceof Error ? error.message : "Failed to load");
+          setPurchaseOrderError(error instanceof Error ? error.message : tr("読み込みに失敗しました", "Tải dữ liệu thất bại"));
         }
       } finally {
         if (!cancelled) {
@@ -322,7 +322,7 @@ export default function FinanceSummaryView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     let cancelled = false;
@@ -370,14 +370,14 @@ export default function FinanceSummaryView() {
         if (paymentRequestIdRef.current !== requestId) {
           return;
         }
-        setPaymentError(error instanceof Error ? error.message : "Failed to load");
+          setPaymentError(error instanceof Error ? error.message : tr("読み込みに失敗しました", "Tải dữ liệu thất bại"));
       } finally {
         if (paymentRequestIdRef.current === requestId) {
           setPaymentLoading(false);
         }
       }
     })();
-  }, [endDate, startDate]);
+  }, [endDate, startDate, tr]);
 
   const revenueEntries = useMemo<RevenueEntry[]>(
     () =>
@@ -430,14 +430,14 @@ export default function FinanceSummaryView() {
         .map((row) => ({
           id: row.purchaseOrderId,
           source: "purchaseOrder" as const,
-          sourceLabel: tr("発注", "Purchase Order"),
+          sourceLabel: tr("発注", "Đơn đặt hàng"),
           date: row.orderDate.trim(),
-          category: tr("発注", "Purchase Order"),
+          category: tr("発注", "Đơn đặt hàng"),
           referenceNo: row.purchaseOrderId,
-          content: row.note.trim() || tr("発注金額", "Purchase Amount"),
+          content: row.note.trim() || tr("発注金額", "Giá trị đơn đặt hàng"),
           counterparty: row.supplier.trim() || unsetLabel,
           status: row.status.paid ? ("paid" as const) : ("unpaid" as const),
-          statusLabel: row.status.paid ? tr("支払済", "Paid") : tr("未払い", "Unpaid"),
+          statusLabel: row.status.paid ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
           amount: row.amount,
           currency: row.currency,
         }))
@@ -451,14 +451,14 @@ export default function FinanceSummaryView() {
         .map((row) => ({
           id: row.paymentId,
           source: "payment" as const,
-          sourceLabel: tr("支払い", "Payment"),
+          sourceLabel: tr("支払い", "Thanh toán"),
           date: row.paymentDate.trim(),
           category: row.category.trim() || unsetLabel,
           referenceNo: row.paymentId,
           content: row.content.trim() || "-",
           counterparty: row.transferDestinationName?.trim() || "-",
           status: row.status,
-          statusLabel: row.status === "paid" ? tr("支払済", "Paid") : tr("未払い", "Unpaid"),
+          statusLabel: row.status === "paid" ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
           amount: row.amount,
           currency: row.currency,
         }))
@@ -662,83 +662,82 @@ export default function FinanceSummaryView() {
   );
 
   const periodColumns: TableColumn<PeriodSummaryRow>[] = [
-    { key: "period", header: tr("期間", "Period"), render: (row) => <span className="text-sm font-semibold">{row.period}</span> },
-    { key: "orderCount", header: tr("売上PO数", "Revenue POs"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.orderCount)}</span> },
-    { key: "revenue", header: `${tr("売上金額", "Revenue")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, row.revenue)}</span> },
-    { key: "receipt", header: `${tr("入金金額", "Receipt")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-emerald-700">{formatCurrencyValue(displayCurrency, row.receipt)}</span> },
-    { key: "expense", header: `${tr("支出金額", "Expense")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-rose-700">{formatCurrencyValue(displayCurrency, row.expense)}</span> },
-    { key: "expenseCount", header: tr("支出件数", "Expense Count"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
-    { key: "revenueBalance", header: `${tr("収支差額（売上 - 支出）", "Balance (Revenue - Expense)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.revenueBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.revenueBalance)}</span> },
-    { key: "receiptBalance", header: `${tr("収支差額（入金 - 支出）", "Balance (Receipt - Expense)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.receiptBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.receiptBalance)}</span> },
+    { key: "period", header: tr("期間", "Kỳ"), render: (row) => <span className="text-sm font-semibold">{row.period}</span> },
+    { key: "orderCount", header: tr("売上PO数", "Số PO doanh thu"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.orderCount)}</span> },
+    { key: "revenue", header: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, row.revenue)}</span> },
+    { key: "receipt", header: `${tr("入金金額", "Tiền thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-emerald-700">{formatCurrencyValue(displayCurrency, row.receipt)}</span> },
+    { key: "expense", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-rose-700">{formatCurrencyValue(displayCurrency, row.expense)}</span> },
+    { key: "expenseCount", header: tr("支出件数", "Số khoản chi"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
+    { key: "revenueBalance", header: `${tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.revenueBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.revenueBalance)}</span> },
+    { key: "receiptBalance", header: `${tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.receiptBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.receiptBalance)}</span> },
   ];
 
   const customerColumns: TableColumn<CustomerSummaryRow>[] = [
-    { key: "partner", header: tr("顧客名", "Customer"), render: (row) => <span className="text-sm font-semibold">{row.partner}</span> },
-    { key: "orderCount", header: tr("売上PO数", "Revenue POs"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.orderCount)}</span> },
-    { key: "shipmentCount", header: tr("出荷件数", "Shipments"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.shipmentCount)}</span> },
-    { key: "revenue", header: `${tr("売上金額", "Revenue")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, row.revenue)}</span> },
-    { key: "receipt", header: `${tr("入金金額", "Receipt")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-emerald-700">{formatCurrencyValue(displayCurrency, row.receipt)}</span> },
+    { key: "partner", header: tr("顧客名", "Khách hàng"), render: (row) => <span className="text-sm font-semibold">{row.partner}</span> },
+    { key: "orderCount", header: tr("売上PO数", "Số PO doanh thu"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.orderCount)}</span> },
+    { key: "shipmentCount", header: tr("出荷件数", "Số lần xuất hàng"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.shipmentCount)}</span> },
+    { key: "revenue", header: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, row.revenue)}</span> },
+    { key: "receipt", header: `${tr("入金金額", "Tiền thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-emerald-700">{formatCurrencyValue(displayCurrency, row.receipt)}</span> },
   ];
 
   const categoryColumns: TableColumn<CategorySummaryRow>[] = [
-    { key: "category", header: tr("カテゴリ", "Category"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
-    { key: "expenseCount", header: tr("支出件数", "Expense Count"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
-    { key: "amount", header: `${tr("支出金額", "Expense")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, row.amount)}</span> },
+    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
+    { key: "expenseCount", header: tr("支出件数", "Số khoản chi"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
+    { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, row.amount)}</span> },
   ];
 
   const revenueColumns: TableColumn<RevenueEntry>[] = [
-    { key: "date", header: tr("出荷日", "Shipment Date"), render: (row) => <span className="text-sm">{row.date}</span> },
+    { key: "date", header: tr("出荷日", "Ngày xuất hàng"), render: (row) => <span className="text-sm">{row.date}</span> },
     { key: "orderNo", header: "PO No.", render: (row) => <span className="text-sm font-semibold text-blue-600">{row.orderNo}</span> },
-    { key: "orderDate", header: tr("受注日", "Order Date"), render: (row) => <span className="text-sm">{row.orderDate}</span> },
-    { key: "partner", header: tr("顧客名", "Customer"), render: (row) => <span className="text-sm font-semibold">{row.partner}</span> },
-    { key: "amount", header: `${tr("売上金額", "Revenue")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
+    { key: "orderDate", header: tr("受注日", "Ngày nhận đơn"), render: (row) => <span className="text-sm">{row.orderDate}</span> },
+    { key: "partner", header: tr("顧客名", "Khách hàng"), render: (row) => <span className="text-sm font-semibold">{row.partner}</span> },
+    { key: "amount", header: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
   ];
 
   const expenseColumns: TableColumn<ExpenseEntry>[] = [
-    { key: "sourceLabel", header: tr("区分", "Type"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.source === "purchaseOrder" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>{row.sourceLabel}</span> },
-    { key: "date", header: tr("支出日", "Expense Date"), render: (row) => <span className="text-sm">{row.date}</span> },
-    { key: "referenceNo", header: tr("伝票No.", "Reference No."), render: (row) => <span className="text-sm font-semibold text-blue-600">{row.referenceNo}</span> },
-    { key: "category", header: tr("カテゴリ", "Category"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
-    { key: "content", header: tr("内容", "Content"), render: (row) => <span className="text-sm">{row.content}</span> },
-    { key: "counterparty", header: tr("支出先", "Counterparty"), render: (row) => <span className="text-sm">{row.counterparty}</span> },
-    { key: "statusLabel", header: tr("ステータス", "Status"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{row.statusLabel}</span> },
-    { key: "amount", header: `${tr("支出金額", "Expense")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
+    { key: "sourceLabel", header: tr("区分", "Loại"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.source === "purchaseOrder" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>{row.sourceLabel}</span> },
+    { key: "date", header: tr("支出日", "Ngày chi"), render: (row) => <span className="text-sm">{row.date}</span> },
+    { key: "referenceNo", header: tr("伝票No.", "Số chứng từ"), render: (row) => <span className="text-sm font-semibold text-blue-600">{row.referenceNo}</span> },
+    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
+    { key: "content", header: tr("内容", "Nội dung"), render: (row) => <span className="text-sm">{row.content}</span> },
+    { key: "counterparty", header: tr("支出先", "Đối tác chi"), render: (row) => <span className="text-sm">{row.counterparty}</span> },
+    { key: "statusLabel", header: tr("ステータス", "Trạng thái"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{row.statusLabel}</span> },
+    { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
   ];
 
   const summaryCards = [
-    { label: `${tr("売上金額", "Revenue")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueTotal), valueClassName: "text-gray-900" },
-    { label: `${tr("入金金額", "Receipt")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptTotal), valueClassName: "text-emerald-700" },
-    { label: `${tr("支出金額", "Expense")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, expenseTotal), valueClassName: "text-rose-700" },
-    { label: `${tr("収支差額（売上 - 支出）", "Balance (Revenue - Expense)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueBalanceTotal), valueClassName: revenueBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
-    { label: `${tr("収支差額（入金 - 支出）", "Balance (Receipt - Expense)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptBalanceTotal), valueClassName: receiptBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
-    { label: tr("支出件数", "Expense Count"), value: formatNumberValue(filteredExpenseEntries.length), valueClassName: "text-gray-900" },
+    { label: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueTotal), valueClassName: "text-gray-900" },
+    { label: `${tr("入金金額", "Tiền thu")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptTotal), valueClassName: "text-emerald-700" },
+    { label: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, expenseTotal), valueClassName: "text-rose-700" },
+    { label: `${tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueBalanceTotal), valueClassName: revenueBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
+    { label: `${tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptBalanceTotal), valueClassName: receiptBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
   ];
 
   const notes = [
-    tr("売上: 出荷日ベース", "Revenue: shipment-date basis"),
-    tr("入金: 入金日ベース", "Receipt: receipt-date basis"),
-    tr("支出: 発注は発注日、支払いは支払日ベース", "Expense: PO by order date, payments by payment date"),
-    tr("支出には確定済み発注金額と支払い管理の支出を含みます", "Expense includes confirmed purchase orders and payment-management entries"),
-    tr("差額はセレクトボックスで切り替えて確認できます", "Use the selector to switch balance views"),
+    tr("売上: 出荷日ベース", "Doanh thu: theo ngày xuất hàng"),
+    tr("入金: 入金日ベース", "Tiền thu: theo ngày thu tiền"),
+    tr("支出: 発注は発注日、支払いは支払日ベース", "Chi phí: đơn đặt hàng theo ngày đặt, thanh toán theo ngày chi"),
+    tr("支出には確定済み発注金額と支払い管理の支出を含みます", "Chi phí bao gồm giá trị đơn đặt hàng đã xác định và các khoản chi trong quản lý thanh toán"),
+    tr("差額はセレクトボックスで切り替えて確認できます", "Có thể chuyển đổi cách xem chênh lệch bằng hộp chọn"),
     `1 USD = ${formatNumberValue(exchangeRates.jpyPerUsd)} JPY / ${formatNumberValue(exchangeRates.vndPerUsd)} VND`,
   ];
 
   const loading = salesLoading || purchaseOrderLoading || paymentLoading;
-  const groupUnitLabel = groupUnitOptions.find((option) => option.value === groupUnit)?.[language === "vi" ? "labelEn" : "labelJa"] ?? "";
+  const groupUnitLabel = groupUnitOptions.find((option) => option.value === groupUnit)?.[language === "vi" ? "labelVi" : "labelJa"] ?? "";
 
   const getPeriodChartConfig = useCallback((metric: PeriodChartMetric) => {
     switch (metric) {
       case "receipt":
-        return { title: tr("入金推移", "Receipt Trend"), data: periodReceiptChartData, barColor: "#a7f3d0", lineColor: "#059669" };
+        return { title: tr("入金推移", "Xu hướng thu tiền"), data: periodReceiptChartData, barColor: "#a7f3d0", lineColor: "#059669" };
       case "expense":
-        return { title: tr("支出推移", "Expense Trend"), data: periodExpenseChartData, barColor: "#fecdd3", lineColor: "#e11d48" };
+        return { title: tr("支出推移", "Xu hướng chi phí"), data: periodExpenseChartData, barColor: "#fecdd3", lineColor: "#e11d48" };
       case "revenueBalance":
-        return { title: tr("収支差額（売上 - 支出）", "Balance (Revenue - Expense)"), data: periodRevenueBalanceChartData, barColor: "#ddd6fe", lineColor: "#7c3aed" };
+        return { title: tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)"), data: periodRevenueBalanceChartData, barColor: "#ddd6fe", lineColor: "#7c3aed" };
       case "receiptBalance":
-        return { title: tr("収支差額（入金 - 支出）", "Balance (Receipt - Expense)"), data: periodReceiptBalanceChartData, barColor: "#fde68a", lineColor: "#d97706" };
+        return { title: tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)"), data: periodReceiptBalanceChartData, barColor: "#fde68a", lineColor: "#d97706" };
       case "revenue":
       default:
-        return { title: tr("売上推移", "Revenue Trend"), data: periodRevenueChartData, barColor: "#bfdbfe", lineColor: "#2563eb" };
+        return { title: tr("売上推移", "Xu hướng doanh thu"), data: periodRevenueChartData, barColor: "#bfdbfe", lineColor: "#2563eb" };
     }
   }, [periodExpenseChartData, periodReceiptBalanceChartData, periodReceiptChartData, periodRevenueBalanceChartData, periodRevenueChartData, tr]);
 
@@ -753,24 +752,24 @@ export default function FinanceSummaryView() {
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 xl:grid-cols-2">
               {renderChartCard(
-                tr("顧客別売上構成", "Revenue Share by Customer"),
-                tr("売上金額の構成比を上位顧客中心に表示します。", "Shows the revenue mix by major customers."),
+                tr("顧客別売上構成", "Cơ cấu doanh thu theo khách hàng"),
+                tr("売上金額の構成比を上位顧客中心に表示します。", "Hiển thị tỷ trọng doanh thu, tập trung vào các khách hàng hàng đầu."),
                 renderPieChartBody(customerRevenueSlices),
                 renderPieLegend(customerRevenueSlices),
-                tr("上位7件", "Top 7"),
+                tr("上位7件", "7 mục hàng đầu"),
               )}
               {renderChartCard(
-                tr("顧客別売上ランキング", "Revenue Ranking by Customer"),
-                tr("表示通貨に換算した売上金額の上位顧客を表示します。", "Shows top customers ranked by revenue in the display currency."),
+                tr("顧客別売上ランキング", "Xếp hạng doanh thu theo khách hàng"),
+                tr("表示通貨に換算した売上金額の上位顧客を表示します。", "Hiển thị các khách hàng có doanh thu cao nhất sau khi quy đổi sang tiền tệ hiển thị."),
                 <BarLineChart data={customerRevenueChartData} height={260} barColor="#bfdbfe" lineColor="#2563eb" unitLabel={displayCurrency} />,
                 undefined,
-                tr("上位7件", "Top 7"),
+                tr("上位7件", "7 mục hàng đầu"),
               )}
             </div>
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-3 space-y-1">
-                <div className="text-sm font-semibold text-gray-700">{tr("顧客別売上一覧", "Revenue by Customer")}</div>
-                <div className="text-xs text-gray-500">{tr("売上・入金の実績を顧客単位で確認できます。", "Review revenue and receipt performance by customer.")}</div>
+                <div className="text-sm font-semibold text-gray-700">{tr("顧客別売上一覧", "Danh sách doanh thu theo khách hàng")}</div>
+                <div className="text-xs text-gray-500">{tr("売上・入金の実績を顧客単位で確認できます。", "Có thể kiểm tra doanh thu và thu tiền theo từng khách hàng.")}</div>
               </div>
               <DataTable columns={customerColumns} rows={customerSummaryRows} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
             </Paper>
@@ -781,24 +780,24 @@ export default function FinanceSummaryView() {
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 xl:grid-cols-2">
               {renderChartCard(
-                tr("カテゴリ別支出構成", "Expense Share by Category"),
-                tr("支出金額の構成比をカテゴリ別に表示します。", "Shows the expense mix by category."),
+                tr("カテゴリ別支出構成", "Cơ cấu chi phí theo danh mục"),
+                tr("支出金額の構成比をカテゴリ別に表示します。", "Hiển thị tỷ trọng chi phí theo từng danh mục."),
                 renderPieChartBody(categoryExpenseSlices),
                 renderPieLegend(categoryExpenseSlices),
-                tr("上位7件", "Top 7"),
+                tr("上位7件", "7 mục hàng đầu"),
               )}
               {renderChartCard(
-                tr("カテゴリ別支出ランキング", "Expense Ranking by Category"),
-                tr("発注と支払いを統合した支出金額の上位カテゴリです。", "Shows the top expense categories across orders and payments."),
+                tr("カテゴリ別支出ランキング", "Xếp hạng chi phí theo danh mục"),
+                tr("発注と支払いを統合した支出金額の上位カテゴリです。", "Hiển thị các danh mục chi phí cao nhất, gộp cả đơn đặt hàng và thanh toán."),
                 <BarLineChart data={categoryExpenseChartData} height={260} barColor="#fecdd3" lineColor="#e11d48" unitLabel={displayCurrency} />,
                 undefined,
-                tr("上位7件", "Top 7"),
+                tr("上位7件", "7 mục hàng đầu"),
               )}
             </div>
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-3 space-y-1">
-                <div className="text-sm font-semibold text-gray-700">{tr("カテゴリ別支出一覧", "Expense by Category")}</div>
-                <div className="text-xs text-gray-500">{tr("発注金額と支払い管理の支出をカテゴリ単位で集計しています。", "Aggregates confirmed orders and payment-management expenses by category.")}</div>
+                <div className="text-sm font-semibold text-gray-700">{tr("カテゴリ別支出一覧", "Danh sách chi phí theo danh mục")}</div>
+                <div className="text-xs text-gray-500">{tr("発注金額と支払い管理の支出をカテゴリ単位で集計しています。", "Tổng hợp giá trị đơn đặt hàng và chi phí quản lý thanh toán theo từng danh mục.")}</div>
               </div>
               <DataTable columns={categoryColumns} rows={categorySummaryRows} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
             </Paper>
@@ -808,8 +807,8 @@ export default function FinanceSummaryView() {
         return (
           <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-3 space-y-1">
-              <div className="text-sm font-semibold text-gray-700">{tr("売上明細", "Revenue Details")}</div>
-              <div className="text-xs text-gray-500">{tr("出荷日ベースで売上を表示します。金額は表示通貨に換算しています。", "Revenue is listed by shipment date and converted into the display currency.")}</div>
+              <div className="text-sm font-semibold text-gray-700">{tr("売上明細", "Chi tiết doanh thu")}</div>
+              <div className="text-xs text-gray-500">{tr("出荷日ベースで売上を表示します。金額は表示通貨に換算しています。", "Hiển thị doanh thu theo ngày xuất hàng. Số tiền đã được quy đổi sang tiền tệ hiển thị.")}</div>
             </div>
             <DataTable columns={revenueColumns} rows={filteredRevenueEntries} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
           </Paper>
@@ -818,8 +817,8 @@ export default function FinanceSummaryView() {
         return (
           <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-3 space-y-1">
-              <div className="text-sm font-semibold text-gray-700">{tr("支出明細", "Expense Details")}</div>
-              <div className="text-xs text-gray-500">{tr("発注と支払いを統合した支出明細です。金額は表示通貨に換算しています。", "Shows the combined expense details from orders and payments in the display currency.")}</div>
+              <div className="text-sm font-semibold text-gray-700">{tr("支出明細", "Chi tiết chi phí")}</div>
+              <div className="text-xs text-gray-500">{tr("発注と支払いを統合した支出明細です。金額は表示通貨に換算しています。", "Đây là chi tiết chi phí gộp từ đơn đặt hàng và thanh toán. Số tiền đã được quy đổi sang tiền tệ hiển thị.")}</div>
             </div>
             <DataTable columns={expenseColumns} rows={filteredExpenseEntries} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
           </Paper>
@@ -831,8 +830,8 @@ export default function FinanceSummaryView() {
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex flex-col gap-4">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-gray-700">{tr("期間収支サマリー", "Period Summary")}</div>
-                  <div className="text-xs text-gray-500">{tr("3つのグラフを横並びで比較しながら、各カード内で表示内容を切り替えできます。", "Compare three charts side by side and switch each card independently.")}</div>
+                  <div className="text-sm font-semibold text-gray-700">{tr("期間収支サマリー", "Tóm tắt thu chi theo kỳ")}</div>
+                  <div className="text-xs text-gray-500">{tr("3つのグラフを横並びで比較しながら、各カード内で表示内容を切り替えできます。", "Có thể so sánh 3 biểu đồ song song và chuyển nội dung hiển thị trong từng thẻ.")}</div>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-3">
                   {periodChartSelections.map((selectedChart, index) => {
@@ -849,12 +848,12 @@ export default function FinanceSummaryView() {
                             >
                               {periodChartOptions.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
-                                  {language === "vi" ? option.labelEn : option.labelJa}
+                                  {language === "vi" ? option.labelVi : option.labelJa}
                                 </MenuItem>
                               ))}
                             </Select>
                           </div>,
-                          tr("選択期間を集計単位ごとにまとめた推移です。", "Trend aggregated by the selected group unit."),
+                          tr("選択期間を集計単位ごとにまとめた推移です。", "Đây là xu hướng được tổng hợp theo đơn vị gom trong khoảng thời gian đã chọn."),
                           <BarLineChart
                             data={chartConfig.data}
                             height={280}
@@ -873,8 +872,8 @@ export default function FinanceSummaryView() {
             </Paper>
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-3 space-y-1">
-                <div className="text-sm font-semibold text-gray-700">{tr("期間別一覧", "Period Table")}</div>
-                <div className="text-xs text-gray-500">{tr("選択した集計単位で売上・入金・支出・差額を一覧表示します。", "Lists revenue, receipts, expenses, and balances by the selected group unit.")}</div>
+                <div className="text-sm font-semibold text-gray-700">{tr("期間別一覧", "Danh sách theo kỳ")}</div>
+                <div className="text-xs text-gray-500">{tr("選択した集計単位で売上・入金・支出・差額を一覧表示します。", "Hiển thị danh sách doanh thu, thu tiền, chi phí và chênh lệch theo đơn vị gom đã chọn.")}</div>
               </div>
               <DataTable columns={periodColumns} rows={periodRows} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={12} />
             </Paper>
@@ -892,7 +891,7 @@ export default function FinanceSummaryView() {
       <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-4">
           <TextField
-            label={tr("開始日", "Start Date")}
+            label={tr("開始日", "Ngày bắt đầu")}
             type="date"
             size="small"
             value={startDate}
@@ -900,7 +899,7 @@ export default function FinanceSummaryView() {
             InputLabelProps={{ shrink: true }}
           />
           <TextField
-            label={tr("終了日", "End Date")}
+            label={tr("終了日", "Ngày kết thúc")}
             type="date"
             size="small"
             value={endDate}
@@ -909,20 +908,20 @@ export default function FinanceSummaryView() {
           />
           <TextField
             select
-            label={tr("集計単位", "Group Unit")}
+            label={tr("集計単位", "Đơn vị tổng hợp")}
             size="small"
             value={groupUnit}
             onChange={(event) => setGroupUnit(event.target.value as GroupUnit)}
           >
             {groupUnitOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
-                {language === "vi" ? option.labelEn : option.labelJa}
+                {language === "vi" ? option.labelVi : option.labelJa}
               </MenuItem>
             ))}
           </TextField>
           <TextField
             select
-            label={tr("表示通貨", "Display Currency")}
+            label={tr("表示通貨", "Tiền tệ hiển thị")}
             size="small"
             value={displayCurrency}
             onChange={(event) => setDisplayCurrency(event.target.value as CurrencyCode)}
@@ -935,9 +934,9 @@ export default function FinanceSummaryView() {
           </TextField>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-gray-500">{tr("集計範囲や表示通貨を変えると、サマリー・グラフ・一覧がまとめて切り替わります。", "Changing the range or display currency updates the summary, charts, and tables together.")}</div>
+          <div className="text-xs text-gray-500">{tr("集計範囲や表示通貨を変えると、サマリー・グラフ・一覧がまとめて切り替わります。", "Khi thay đổi khoảng tổng hợp hoặc tiền tệ hiển thị, phần tóm tắt, biểu đồ và danh sách sẽ được cập nhật đồng thời.")}</div>
           <Button variant="outlined" size="small" onClick={handleReset}>
-            {tr("今月に戻す", "Reset to Current Month")}
+            {tr("今月に戻す", "Quay về tháng này")}
           </Button>
         </div>
       </Paper>
@@ -950,7 +949,7 @@ export default function FinanceSummaryView() {
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {summaryCards.map((card) => (
           <Paper key={card.label} variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="text-xs font-medium text-gray-500">{card.label}</div>
@@ -970,7 +969,7 @@ export default function FinanceSummaryView() {
               onClick={() => setActiveTab(option.value)}
               className={isActive ? "!bg-blue-600 !text-white hover:!bg-blue-700" : ""}
             >
-              {language === "vi" ? option.labelEn : option.labelJa}
+              {language === "vi" ? option.labelVi : option.labelJa}
             </Button>
           );
         })}
@@ -978,7 +977,7 @@ export default function FinanceSummaryView() {
 
       {loading ? (
         <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
-          {tr("集計データを読み込んでいます。", "Loading summary data.")}
+          {tr("集計データを読み込んでいます。", "Đang tải dữ liệu tổng hợp.")}
         </Paper>
       ) : (
         tabContent

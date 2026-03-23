@@ -4,6 +4,7 @@ import React from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { ShipmentRow } from "@/features/shipment-management/types";
+import { useLanguage } from "@/lib/i18n/language";
 
 type DeleteShipmentDialogProps = {
   open: boolean;
@@ -18,6 +19,8 @@ export default function DeleteShipmentDialog({
   onClose,
   onConfirm,
 }: DeleteShipmentDialogProps) {
+  const { language } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const [confirmed, setConfirmed] = React.useState(false);
 
   React.useEffect(() => {
@@ -29,25 +32,27 @@ export default function DeleteShipmentDialog({
   return (
     <Modal
       open={open}
-      title="削除確認"
+      title={tr("削除確認", "Xác nhận xóa")}
       onClose={onClose}
       actions={
         <>
           <Button variant="outlined" onClick={onClose}>
-            キャンセル
+            {tr("キャンセル", "Hủy")}
           </Button>
           <Button variant="contained" color="error" onClick={() => shipment && onConfirm(shipment)} disabled={!confirmed}>
-            削除
+            {tr("削除", "Xóa")}
           </Button>
         </>
       }
     >
       <div className="text-sm text-gray-700">
-        {shipment ? `「${shipment.shipmentNo}」を削除してもよろしいですか？` : "削除してもよろしいですか？"}
+        {shipment
+          ? tr(`「${shipment.shipmentNo}」を削除してもよろしいですか？`, `Bạn có chắc chắn muốn xóa "${shipment.shipmentNo}" không?`)
+          : tr("削除してもよろしいですか？", "Bạn có chắc chắn muốn xóa không?")}
       </div>
       <FormControlLabel
         control={<Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />}
-        label="削除することを確認しました"
+        label={tr("削除することを確認しました", "Tôi xác nhận xóa mục này")}
       />
     </Modal>
   );

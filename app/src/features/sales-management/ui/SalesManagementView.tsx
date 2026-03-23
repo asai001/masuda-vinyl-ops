@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@mui/material";
 import { CheckCircle, Clock, Package, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -55,7 +55,8 @@ import {
 
 export default function SalesManagementView() {
   const router = useRouter();
-  const { tx } = useLanguage();
+  const { language, tx } = useLanguage();
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const {
     rows,
     replaceRows,
@@ -263,31 +264,31 @@ export default function SalesManagementView() {
     }));
 
     return [
-      { key: "orderNo", label: "PO NO.", type: "text" },
-      { key: "orderDate", label: "受注日", type: "date-range" },
-      { key: "customer", label: "顧客名", type: "select", options: customerOptions },
-      { key: "currency", label: "通貨", type: "select", options: currencyOptions },
-      { key: "productCode", label: "品番", type: "text" },
-      { key: "productName", label: "品目", type: "text" },
-      { key: "material", label: "使用材料", type: "select", options: materialOptions },
-      { key: "stockQuantity", label: "在庫数", type: "range" },
-      { key: "orderQuantity", label: "注数", type: "range" },
-      { key: "shippedQuantity", label: "出荷数", type: "range" },
-      { key: "remainingQuantity", label: "残注数", type: "range" },
-      { key: "unitPrice", label: "単価", type: "range" },
-      { key: "amount", label: "金額", type: "range" },
-      { key: "paidAmount", label: "入金額", type: "range" },
-      { key: "orderBalance", label: "受注残高", type: "range" },
-      { key: "receivableBalance", label: "売掛残高", type: "range" },
-      { key: "unshippedAmount", label: "未出荷残高", type: "range" },
-      { key: "requiredMaterial", label: "必要材料量", type: "range" },
-      { key: "moldingTime", label: "成形時間", type: "range" },
-      { key: "deliveryDate", label: "出荷日", type: "date-range" },
-      { key: "paidDate", label: "入金日", type: "date-range" },
-      { key: "status", label: "ステータス", type: "select", options: statusFilterOptions },
-      { key: "documentStatus", label: "請求状況", type: "select", options: documentFilterOptions },
+      { key: "orderNo", label: "PO No.", type: "text" },
+      { key: "orderDate", label: tr("受注日", "Ngày nhận đơn"), type: "date-range" },
+      { key: "customer", label: tr("顧客名", "Tên khách hàng"), type: "select", options: customerOptions },
+      { key: "currency", label: tr("通貨", "Tiền tệ"), type: "select", options: currencyOptions },
+      { key: "productCode", label: tr("品番", "Mã hàng"), type: "text" },
+      { key: "productName", label: tr("品目", "Mặt hàng"), type: "text" },
+      { key: "material", label: tr("使用材料", "Nguyên vật liệu sử dụng"), type: "select", options: materialOptions },
+      { key: "stockQuantity", label: tr("在庫数", "Tồn kho"), type: "range" },
+      { key: "orderQuantity", label: tr("注数", "Số lượng đặt"), type: "range" },
+      { key: "shippedQuantity", label: tr("出荷数", "Số lượng xuất"), type: "range" },
+      { key: "remainingQuantity", label: tr("残注数", "Số lượng còn lại"), type: "range" },
+      { key: "unitPrice", label: tr("単価", "Đơn giá"), type: "range" },
+      { key: "amount", label: tr("金額", "Số tiền"), type: "range" },
+      { key: "paidAmount", label: tr("入金額", "Số tiền thu"), type: "range" },
+      { key: "orderBalance", label: tr("受注残高", "Số dư đơn hàng"), type: "range" },
+      { key: "receivableBalance", label: tr("売掛残高", "Công nợ phải thu"), type: "range" },
+      { key: "unshippedAmount", label: tr("未出荷残高", "Số dư chưa xuất"), type: "range" },
+      { key: "requiredMaterial", label: tr("必要材料量", "Lượng nguyên vật liệu cần thiết"), type: "range" },
+      { key: "moldingTime", label: tr("成形時間", "Thời gian tạo hình"), type: "range" },
+      { key: "deliveryDate", label: tr("出荷日", "Ngày xuất hàng"), type: "date-range" },
+      { key: "paidDate", label: tr("入金日", "Ngày thu tiền"), type: "date-range" },
+      { key: "status", label: tr("ステータス", "Trạng thái"), type: "select", options: statusFilterOptions },
+      { key: "documentStatus", label: tr("請求状況", "Tình trạng hóa đơn"), type: "select", options: documentFilterOptions },
     ];
-  }, [currencyOptions, rows]);
+  }, [currencyOptions, rows, tr]);
 
   const filteredRows = useMemo(() => {
     const groupedFilters = filters.reduce<Record<string, FilterRow[]>>((acc, filter) => {
@@ -482,7 +483,7 @@ export default function SalesManagementView() {
   const monthlyAmountLabel = loading ? tx("読み込み中...") : formatCurrencyValue("USD", monthSummary.totalUsd);
   const monthlyCountLabel = loading ? "-" : formatNumberValue(monthSummary.paymentCount);
 
-  const savingMessage = mutatingAction === "delete" ? "削除中" : "保存中";
+  const savingMessage = mutatingAction === "delete" ? tr("削除中", "Đang xóa") : tr("保存中", "Đang lưu");
 
   return (
     <div className="flex flex-col gap-6">
@@ -491,7 +492,9 @@ export default function SalesManagementView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-sm font-semibold text-gray-700">{tx("集計サマリー（今月）")}</div>
-            <div className="text-xs text-gray-500">{tx("確定のみ・出荷日基準・集計時点レート")}</div>
+            <div className="text-xs text-gray-500">
+              {tr("確定のみ・出荷日基準・集計時点レート", "Chỉ dữ liệu đã xác nhận / theo ngày xuất hàng / theo tỷ giá tại thời điểm tổng hợp")}
+            </div>
           </div>
           <Button variant="contained" size="small" onClick={() => router.push("/sales-management/summary")}>
             {tx("集計ページへ")}
@@ -503,7 +506,7 @@ export default function SalesManagementView() {
             <div className="text-lg font-bold text-gray-900">{monthlyAmountLabel}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">{tx("入金件数")}</div>
+            <div className="text-xs text-gray-500">{tr("入金件数", "Số lần thu tiền")}</div>
             <div className="text-lg font-bold text-gray-900">{monthlyCountLabel}</div>
           </div>
         </div>
@@ -513,7 +516,7 @@ export default function SalesManagementView() {
         filters={filters}
         onFiltersChange={setFilters}
         onCreate={openCreate}
-        createLabel="新規受注"
+        createLabel={tr("新規受注", "Tạo đơn bán")}
         rightActions={
           <>
             <Button
@@ -521,7 +524,7 @@ export default function SalesManagementView() {
               onClick={() => router.push("/shipment-management")}
               className="whitespace-nowrap"
             >
-              出荷管理へ
+              {tr("出荷管理へ", "Đến quản lý xuất hàng")}
             </Button>
             <Button
               variant="outlined"
@@ -537,17 +540,17 @@ export default function SalesManagementView() {
       />
       {loadError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          受注管理の取得に失敗しました。（{loadError}）
+          {tr("受注管理の取得に失敗しました。", "Không thể tải dữ liệu quản lý đơn bán.")}（{loadError}）
         </div>
       )}
       {optionError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          取引先・材料・製品マスタの取得に失敗しました。（{optionError}）
+          {tr("取引先・材料・製品マスタの取得に失敗しました。", "Không thể tải dữ liệu master khách hàng, vật liệu và sản phẩm.")}（{optionError}）
         </div>
       )}
       {mutateError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          操作に失敗しました。（{mutateError}）
+          {tr("操作に失敗しました。", "Thao tác thất bại.")}（{mutateError}）
         </div>
       )}
       {loading && <div className="text-sm text-gray-500">{tx("読み込み中...")}</div>}

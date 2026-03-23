@@ -12,6 +12,7 @@ import type {
   ShipmentRow,
   UpdateShipmentInput,
 } from "@/features/shipment-management/types";
+import { useLanguage } from "@/lib/i18n/language";
 
 type ShipmentFormModalProps = {
   open: boolean;
@@ -175,6 +176,8 @@ export default function ShipmentFormModal({
   onIssue,
   isIssuing = false,
 }: ShipmentFormModalProps) {
+  const { language } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const initialForm = useMemo(() => getInitialForm(shipment), [shipment]);
   const [form, setForm] = useState<ShipmentFormState>(initialForm);
   const [errors, setErrors] = useState<FormErrors>(emptyErrors);
@@ -396,25 +399,25 @@ export default function ShipmentFormModal({
     const nextErrors = emptyErrors();
 
     if (!form.deliveryDate) {
-      nextErrors.deliveryDate = "出荷日を入力してください";
+      nextErrors.deliveryDate = tr("出荷日を入力してください", "Vui lòng nhập ngày xuất hàng");
     }
 
     const paidAmount = Number(form.paidAmount);
     if (form.paidAmount.trim() && Number.isNaN(paidAmount)) {
-      nextErrors.paidAmount = "数値で入力してください";
+      nextErrors.paidAmount = tr("数値で入力してください", "Vui lòng nhập bằng số");
     } else if (!Number.isNaN(paidAmount) && paidAmount < 0) {
-      nextErrors.paidAmount = "0以上で入力してください";
+      nextErrors.paidAmount = tr("0以上で入力してください", "Vui lòng nhập số từ 0 trở lên");
     } else if (paidAmount > 0 && !form.paidDate.trim()) {
-      nextErrors.paidDate = "入金日を入力してください";
+      nextErrors.paidDate = tr("入金日を入力してください", "Vui lòng nhập ngày thu tiền");
     }
 
     if (!form.targetOrders.length) {
-      nextErrors.targetOrders = "出荷対象受注を追加してください";
+      nextErrors.targetOrders = tr("出荷対象受注を追加してください", "Vui lòng thêm đơn hàng xuất");
     }
 
     form.targetOrders.forEach((selection) => {
       if (!selection.salesOrderId) {
-        nextErrors.targetOrderMap[selection.id] = "PO No. を選択してください";
+        nextErrors.targetOrderMap[selection.id] = tr("PO No. を選択してください", "Vui lòng chọn PO No.");
       }
     });
 
@@ -423,11 +426,11 @@ export default function ShipmentFormModal({
       const rawValue = form.allocations[line.key] ?? "0";
       const quantity = rawValue.trim() ? Number(rawValue) : 0;
       if (!Number.isFinite(quantity) || quantity < 0) {
-        nextErrors.allocationMap[line.key] = "0以上の数値で入力してください";
+        nextErrors.allocationMap[line.key] = tr("0以上の数値で入力してください", "Vui lòng nhập số từ 0 trở lên");
         return [];
       }
       if (quantity > line.remainingQuantity) {
-        nextErrors.allocationMap[line.key] = "残数を超えています";
+        nextErrors.allocationMap[line.key] = tr("残数を超えています", "Vượt quá số lượng còn lại");
         return [];
       }
       return [
@@ -449,7 +452,7 @@ export default function ShipmentFormModal({
       Object.values(nextErrors.allocationMap).some(Boolean);
 
     if (hasErrors) {
-      nextErrors.actionError = "入力内容を確認してください。";
+      nextErrors.actionError = tr("入力内容を確認してください。", "Vui lòng kiểm tra lại nội dung đã nhập.");
       setErrors(nextErrors);
       return { payload: null, previewRow: null };
     }
@@ -517,7 +520,11 @@ export default function ShipmentFormModal({
   return (
     <Modal
       open={open}
-      title={shipment ? `出荷編集（${shipment.shipmentNo}）` : "新規出荷"}
+      title={
+        shipment
+          ? tr(`出荷編集（${shipment.shipmentNo}）`, `Chỉnh sửa xuất hàng (${shipment.shipmentNo})`)
+          : tr("新規出荷", "Tạo xuất hàng")
+      }
       onClose={onClose}
       paperSx={{
         width: { xs: "calc(100vw - 32px)", xl: 1100 },
@@ -527,33 +534,36 @@ export default function ShipmentFormModal({
         <div className="flex w-full items-center gap-2">
           {shipment ? (
             <Button variant="outlined" color="error" onClick={() => shipment && onDelete?.(shipment)}>
-              削除
+              {tr("削除", "Xóa")}
             </Button>
           ) : null}
           {errors.actionError ? <div className="text-xs text-red-600">{errors.actionError}</div> : null}
           <div className="ml-auto flex items-center gap-2">
             {shipment ? (
               <Button variant="outlined" onClick={handleIssue} disabled={isIssuing}>
-                インボイス・パッキングリスト発行
+                {tr("インボイス・パッキングリスト発行", "Phát hành Invoice / Packing List")}
               </Button>
             ) : null}
             <Button variant="outlined" onClick={onClose}>
-              キャンセル
+              {tr("キャンセル", "Hủy")}
             </Button>
             <Button variant="contained" startIcon={<Save size={16} />} onClick={handleSave}>
-              保存
+              {tr("保存", "Lưu")}
             </Button>
           </div>
         </div>
       }
     >
       <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-        出荷対象受注を追加して PO No. を選択し、受注明細ごとに出荷数を入力してください。1出荷の中で選べる受注は、同じ顧客・同じ通貨に限定されます。
+        {tr(
+          "出荷対象受注を追加して PO No. を選択し、受注明細ごとに出荷数を入力してください。1出荷の中で選べる受注は、同じ顧客・同じ通貨に限定されます。",
+          "Hãy thêm đơn hàng xuất, chọn PO No. và nhập số lượng xuất cho từng chi tiết đơn bán. Trong một phiếu xuất chỉ có thể chọn các đơn hàng cùng khách hàng và cùng tiền tệ.",
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">出荷日</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("出荷日", "Ngày xuất hàng")}</label>
           <TextField
             size="small"
             type="date"
@@ -567,7 +577,7 @@ export default function ShipmentFormModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">入金日</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("入金日", "Ngày thu tiền")}</label>
           <TextField
             size="small"
             type="date"
@@ -581,7 +591,7 @@ export default function ShipmentFormModal({
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">入金額</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("入金額", "Số tiền thu")}</label>
           <TextField
             size="small"
             type="number"
@@ -599,14 +609,14 @@ export default function ShipmentFormModal({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">顧客名</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("顧客名", "Tên khách hàng")}</label>
           <FormControl size="small">
             <Select
               value={form.customerName}
               onChange={(event) => pruneSelections(String(event.target.value), "")}
               displayEmpty
               renderValue={(selected) =>
-                selected ? selected : <span className="text-gray-400">顧客名を選択してください</span>
+                selected ? selected : <span className="text-gray-400">{tr("顧客名を選択してください", "Vui lòng chọn tên khách hàng")}</span>
               }
             >
               {customerOptions.map((customerName) => (
@@ -618,14 +628,14 @@ export default function ShipmentFormModal({
           </FormControl>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">通貨</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("通貨", "Tiền tệ")}</label>
           <FormControl size="small" disabled={!form.customerName || currencyOptions.length <= 1}>
             <Select
               value={form.currency}
               onChange={(event) => pruneSelections(form.customerName, String(event.target.value))}
               displayEmpty
               renderValue={(selected) =>
-                selected ? selected : <span className="text-gray-400">通貨を選択してください</span>
+                selected ? selected : <span className="text-gray-400">{tr("通貨を選択してください", "Vui lòng chọn tiền tệ")}</span>
               }
             >
               {currencyOptions.map((currency) => (
@@ -640,7 +650,7 @@ export default function ShipmentFormModal({
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="text-sm font-semibold text-gray-700">出荷対象受注</label>
+          <label className="text-sm font-semibold text-gray-700">{tr("出荷対象受注", "Đơn hàng xuất")}</label>
           <Button
             size="small"
             variant="outlined"
@@ -648,7 +658,7 @@ export default function ShipmentFormModal({
             onClick={handleAddTargetOrder}
             disabled={!canAddTargetOrder}
           >
-            出荷対象受注を追加
+            {tr("出荷対象受注を追加", "Thêm đơn hàng xuất")}
           </Button>
         </div>
 
@@ -657,19 +667,19 @@ export default function ShipmentFormModal({
 
         {!form.customerName ? (
           <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            先に顧客名を選択してください
+            {tr("先に顧客名を選択してください", "Vui lòng chọn tên khách hàng trước")}
           </div>
         ) : currencyOptions.length > 1 && !form.currency ? (
           <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            通貨を選択してください
+            {tr("通貨を選択してください", "Vui lòng chọn tiền tệ")}
           </div>
         ) : visibleOrders.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            出荷可能な受注はありません
+            {tr("出荷可能な受注はありません", "Không có đơn hàng có thể xuất")}
           </div>
         ) : form.targetOrders.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            「出荷対象受注を追加」から PO No. を選択してください
+            {tr("「出荷対象受注を追加」から PO No. を選択してください", 'Hãy chọn PO No. từ "Thêm đơn hàng xuất"')}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -680,7 +690,7 @@ export default function ShipmentFormModal({
                 <div key={selection.id} className="rounded-lg border border-gray-200 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-[260px] flex-1 flex-col gap-2">
-                      <div className="text-xs font-semibold text-blue-700">出荷対象受注 {index + 1}</div>
+                      <div className="text-xs font-semibold text-blue-700">{tr(`出荷対象受注 ${index + 1}`, `Đơn hàng xuất ${index + 1}`)}</div>
                       <FormControl size="small" error={Boolean(errors.targetOrderMap[selection.id])}>
                         <Select
                           value={selection.salesOrderId}
@@ -690,7 +700,7 @@ export default function ShipmentFormModal({
                             selected ? (
                               order?.orderNo ?? String(selected)
                             ) : (
-                              <span className="text-gray-400">PO No. を選択してください</span>
+                              <span className="text-gray-400">{tr("PO No. を選択してください", "Vui lòng chọn PO No.")}</span>
                             )
                           }
                         >
@@ -706,14 +716,15 @@ export default function ShipmentFormModal({
                       ) : null}
                       {order ? (
                         <div className="text-xs text-gray-500">
-                          {order.customerName} / {order.customerRegion || "-"} / {order.currency} / 明細 {order.lines.length} 件
+                          {order.customerName} / {order.customerRegion || "-"} / {order.currency} /{" "}
+                          {tr(`明細 ${order.lines.length} 件`, `Chi tiết ${order.lines.length} mục`)}
                         </div>
                       ) : (
-                        <div className="text-xs text-gray-500">出荷対象の PO No. を選択してください</div>
+                        <div className="text-xs text-gray-500">{tr("出荷対象の PO No. を選択してください", "Vui lòng chọn PO No. để xuất hàng")}</div>
                       )}
                     </div>
                     <Button variant="outlined" color="inherit" startIcon={<Trash2 size={16} />} onClick={() => handleRemoveTargetOrder(selection.id)}>
-                      受注を外す
+                      {tr("受注を外す", "Bỏ đơn hàng")}
                     </Button>
                   </div>
 
@@ -723,37 +734,59 @@ export default function ShipmentFormModal({
                         const quantityValue = form.allocations[line.key] ?? (shipment ? "" : "0");
                         const quantity = Number(quantityValue);
                         const lineAmount = Number.isFinite(quantity) ? quantity * line.unitPrice : 0;
+                        const isExhausted = line.remainingQuantity <= 0;
 
                         return (
-                          <div key={line.key} className="rounded-lg border border-gray-200 p-4">
+                          <div
+                            key={line.key}
+                            className={`rounded-lg border p-4 ${isExhausted ? "border-gray-100 bg-gray-50" : "border-gray-200"}`}
+                          >
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_180px_180px] md:items-start">
                               <div className="flex flex-col gap-1">
-                                <div className="text-sm font-semibold text-gray-800">
+                                <div className={`text-sm font-semibold ${isExhausted ? "text-gray-500" : "text-gray-800"}`}>
                                   {line.productCode} {line.productName}
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                  受注数 {amountFormatter.format(line.orderQuantity)} / 既出荷{" "}
-                                  {amountFormatter.format(line.shippedQuantity)} / 残数{" "}
-                                  {amountFormatter.format(line.remainingQuantity)}
+                                <div className={`text-xs ${isExhausted ? "text-gray-400" : "text-gray-500"}`}>
+                                  {tr(
+                                    `受注数 ${amountFormatter.format(line.orderQuantity)} / 既出荷 ${amountFormatter.format(line.shippedQuantity)} / 残数 ${amountFormatter.format(line.remainingQuantity)}`,
+                                    `Số lượng đặt ${amountFormatter.format(line.orderQuantity)} / Đã xuất ${amountFormatter.format(line.shippedQuantity)} / Còn lại ${amountFormatter.format(line.remainingQuantity)}`,
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-col gap-2">
-                                <label className="text-sm font-semibold text-gray-700">今回出荷数</label>
+                                <label className={`text-sm font-semibold ${isExhausted ? "text-gray-500" : "text-gray-700"}`}>
+                                  {tr("今回出荷数", "Số lượng xuất lần này")}
+                                </label>
                                 <TextField
                                   size="small"
                                   type="number"
                                   value={quantityValue}
                                   onChange={(event) => handleQuantityChange(line, event.target.value)}
+                                  disabled={isExhausted}
                                   error={Boolean(errors.allocationMap[line.key])}
                                   helperText={
-                                    errors.allocationMap[line.key] || `最大 ${amountFormatter.format(line.remainingQuantity)}`
+                                    errors.allocationMap[line.key] ||
+                                    (isExhausted
+                                      ? tr("出荷済み", "Đã xuất hàng")
+                                      : tr(
+                                          `最大 ${amountFormatter.format(line.remainingQuantity)}`,
+                                          `Tối đa ${amountFormatter.format(line.remainingQuantity)}`,
+                                        ))
                                   }
                                   slotProps={{ htmlInput: { min: 0, max: line.remainingQuantity } }}
                                 />
                               </div>
                               <div className="flex flex-col gap-2">
-                                <label className="text-sm font-semibold text-gray-700">金額</label>
-                                <div className="flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                                <label className={`text-sm font-semibold ${isExhausted ? "text-gray-500" : "text-gray-700"}`}>
+                                  {tr("金額", "Số tiền")}
+                                </label>
+                                <div
+                                  className={`flex h-10 items-center rounded-md border px-3 text-sm ${
+                                    isExhausted
+                                      ? "border-gray-100 bg-gray-100 text-gray-500"
+                                      : "border-gray-200 bg-gray-50 text-gray-700"
+                                  }`}
+                                >
                                   {formatCurrencyValue(line.currency, lineAmount)}
                                 </div>
                               </div>
@@ -772,25 +805,25 @@ export default function ShipmentFormModal({
 
       <div className="grid grid-cols-1 gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm md:grid-cols-4">
         <div>
-          <div className="text-xs text-blue-700">対象PO数</div>
+          <div className="text-xs text-blue-700">{tr("対象PO数", "Số PO mục tiêu")}</div>
           <div className="font-semibold text-blue-900">{amountFormatter.format(summary.orderCount)}</div>
         </div>
         <div>
-          <div className="text-xs text-blue-700">対象品目数</div>
+          <div className="text-xs text-blue-700">{tr("対象品目数", "Số mặt hàng mục tiêu")}</div>
           <div className="font-semibold text-blue-900">{amountFormatter.format(summary.lineCount)}</div>
         </div>
         <div>
-          <div className="text-xs text-blue-700">出荷数合計</div>
+          <div className="text-xs text-blue-700">{tr("出荷数合計", "Tổng số lượng xuất")}</div>
           <div className="font-semibold text-blue-900">{amountFormatter.format(summary.totalQuantity)}</div>
         </div>
         <div>
-          <div className="text-xs text-blue-700">出荷金額</div>
+          <div className="text-xs text-blue-700">{tr("出荷金額", "Tổng tiền xuất hàng")}</div>
           <div className="font-semibold text-blue-900">{formatCurrencyValue(form.currency, summary.totalAmount)}</div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-700">備考</label>
+        <label className="text-sm font-semibold text-gray-700">{tr("備考", "Ghi chú")}</label>
         <TextField
           size="small"
           multiline
