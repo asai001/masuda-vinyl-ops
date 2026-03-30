@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
+import SearchableSelect from "@/components/SearchableSelect";
 import type { SalesDocumentStatusKey, SalesRow, SalesStatusKey } from "@/features/sales-management/types";
 import {
   buildSalesOrderDraft,
@@ -297,27 +298,15 @@ export default function EditSalesModal({
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">{tx("顧客名")}</label>
-        <FormControl size="small" error={Boolean(errors.customerName)}>
-          <Select
-            value={form.customerName}
-            onChange={(event) => handleCustomerChange(event.target.value)}
-            displayEmpty
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">{tx("選択してください")}</span>;
-              }
-              const option = customerOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {customerOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          <FormHelperText>{tx(errors.customerName)}</FormHelperText>
-        </FormControl>
+        <SearchableSelect
+          value={form.customerName}
+          options={customerOptions}
+          onChange={handleCustomerChange}
+          placeholder={tx("選択してください")}
+          noOptionsText={tx("候補がありません")}
+          error={Boolean(errors.customerName)}
+          helperText={tx(errors.customerName)}
+        />
       </div>
 
       <Divider />
@@ -370,27 +359,15 @@ export default function EditSalesModal({
                         </span>
                       ) : null}
                     </label>
-                    <FormControl size="small" error={Boolean(itemError?.productCode)}>
-                      <Select
-                        value={item.productCode}
-                        onChange={(event) => handleProductSelect(item.id, event.target.value)}
-                        displayEmpty
-                        renderValue={(selected) => {
-                          if (!selected) {
-                            return <span className="text-gray-400">{tx("製品を選択してください")}</span>;
-                          }
-                          const option = productOptions.find((optionItem) => optionItem.value === selected);
-                          return option?.label ?? selected;
-                        }}
-                      >
-                        {productOptions.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {itemError?.productCode ? <FormHelperText>{tx(itemError.productCode)}</FormHelperText> : null}
-                    </FormControl>
+                    <SearchableSelect
+                      value={item.productCode}
+                      options={productOptions}
+                      onChange={(value) => handleProductSelect(item.id, value)}
+                      placeholder={tx("製品を選択してください")}
+                      noOptionsText={tx("候補がありません")}
+                      error={Boolean(itemError?.productCode)}
+                      helperText={itemError?.productCode ? tx(itemError.productCode) : ""}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

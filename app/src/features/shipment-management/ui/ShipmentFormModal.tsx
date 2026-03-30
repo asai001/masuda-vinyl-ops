@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Button, FormControl, MenuItem, Select, TextField } from "@mui/material";
 import { Plus, Save, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
+import SearchableSelect from "@/components/SearchableSelect";
 import type { SalesRow } from "@/features/sales-management/types";
 import { buildShipmentCandidateLines } from "@/features/shipment-management/shipmentUtils";
 import type {
@@ -610,22 +611,13 @@ export default function ShipmentFormModal({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">{tr("顧客名", "Tên khách hàng")}</label>
-          <FormControl size="small">
-            <Select
-              value={form.customerName}
-              onChange={(event) => pruneSelections(String(event.target.value), "")}
-              displayEmpty
-              renderValue={(selected) =>
-                selected ? selected : <span className="text-gray-400">{tr("顧客名を選択してください", "Vui lòng chọn tên khách hàng")}</span>
-              }
-            >
-              {customerOptions.map((customerName) => (
-                <MenuItem key={customerName} value={customerName}>
-                  {customerName}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SearchableSelect
+            value={form.customerName}
+            options={customerOptions.map((customerName) => ({ value: customerName, label: customerName }))}
+            onChange={(value) => pruneSelections(value, "")}
+            placeholder={tr("顧客名を選択してください", "Vui lòng chọn tên khách hàng")}
+            noOptionsText={tr("候補がありません", "Không có lựa chọn")}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">{tr("通貨", "Tiền tệ")}</label>
@@ -691,29 +683,18 @@ export default function ShipmentFormModal({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-[260px] flex-1 flex-col gap-2">
                       <div className="text-xs font-semibold text-blue-700">{tr(`出荷対象受注 ${index + 1}`, `Đơn hàng xuất ${index + 1}`)}</div>
-                      <FormControl size="small" error={Boolean(errors.targetOrderMap[selection.id])}>
-                        <Select
-                          value={selection.salesOrderId}
-                          onChange={(event) => handleTargetOrderChange(selection.id, String(event.target.value))}
-                          displayEmpty
-                          renderValue={(selected) =>
-                            selected ? (
-                              order?.orderNo ?? String(selected)
-                            ) : (
-                              <span className="text-gray-400">{tr("PO No. を選択してください", "Vui lòng chọn PO No.")}</span>
-                            )
-                          }
-                        >
-                          {orderOptions.map((option) => (
-                            <MenuItem key={option.salesOrderId} value={option.salesOrderId}>
-                              {option.orderNo}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      {errors.targetOrderMap[selection.id] ? (
-                        <div className="text-xs text-red-600">{errors.targetOrderMap[selection.id]}</div>
-                      ) : null}
+                      <SearchableSelect
+                        value={selection.salesOrderId}
+                        options={orderOptions.map((option) => ({
+                          value: option.salesOrderId,
+                          label: option.orderNo,
+                        }))}
+                        onChange={(value) => handleTargetOrderChange(selection.id, value)}
+                        placeholder={tr("PO No. を選択してください", "Vui lòng chọn PO No.")}
+                        noOptionsText={tr("候補がありません", "Không có lựa chọn")}
+                        error={Boolean(errors.targetOrderMap[selection.id])}
+                        helperText={errors.targetOrderMap[selection.id]}
+                      />
                       {order ? (
                         <div className="text-xs text-gray-500">
                           {order.customerName} / {order.customerRegion || "-"} / {order.currency} /{" "}
