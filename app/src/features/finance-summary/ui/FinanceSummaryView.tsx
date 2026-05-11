@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, MenuItem, Paper, Select, TextField } from "@mui/material";
+import { Button, Checkbox, ListItemText, MenuItem, Paper, Select, TextField } from "@mui/material";
 import DataTable, { type TableColumn } from "@/components/DataTable";
 import BarLineChart from "@/components/charts/BarLineChart";
 import PieChart from "@/components/charts/PieChart";
@@ -235,6 +235,7 @@ export default function FinanceSummaryView() {
   const [endDate, setEndDate] = useState(defaultRange.endDate);
   const [groupUnit, setGroupUnit] = useState<GroupUnit>("month");
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>("USD");
+  const [selectedExpenseCategories, setSelectedExpenseCategories] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<FinanceTab>("period");
   const [periodChartSelections, setPeriodChartSelections] = useState<PeriodChartMetric[]>(defaultPeriodChartSelections);
   const [periodChartSelectionsLoaded, setPeriodChartSelectionsLoaded] = useState(false);
@@ -427,20 +428,60 @@ export default function FinanceSummaryView() {
     () =>
       purchaseOrderRows
         .filter((row) => row.documentStatus.orderSent)
-        .map((row) => ({
-          id: row.purchaseOrderId,
-          source: "purchaseOrder" as const,
-          sourceLabel: tr("発注", "Đơn đặt hàng"),
-          date: row.orderDate.trim(),
-          category: tr("発注", "Đơn đặt hàng"),
-          referenceNo: row.purchaseOrderId,
-          content: row.note.trim() || tr("発注金額", "Giá trị đơn đặt hàng"),
-          counterparty: row.supplier.trim() || unsetLabel,
-          status: row.status.paid ? ("paid" as const) : ("unpaid" as const),
-          statusLabel: row.status.paid ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
-          amount: row.amount,
-          currency: row.currency,
-        }))
+        .flatMap<ExpenseEntry>((row) => {
+          const poLabel = row.poNo.trim() || "-";
+          const baseContent = row.note.trim() || tr("発注金額", "Giá trị đơn đặt hàng");
+          const counterparty = row.supplier.trim() || unsetLabel;
+          const sourceLabel = tr("発注", "Đơn đặt hàng");
+          const categoryLabel = tr("発注", "Đơn đặt hàng");
+
+          // 支払い履歴が登録されていれば各支払いを支払日基準で個別エントリ化する
+          const validPayments = (row.payments ?? []).filter(
+            (payment) => payment.paymentDate.trim() && payment.amount > 0,
+          );
+          if (validPayments.length > 0) {
+            const total = validPayments.length;
+            return validPayments.map((payment, index) => {
+              const sequenceLabel = `(${index + 1}/${total})`;
+              const noteSegment = payment.note?.trim();
+              const occurrenceSegment = tr(`${index + 1}回目`, `Lần ${index + 1}`);
+              const contentSegments = [baseContent, occurrenceSegment];
+              if (noteSegment) {
+                contentSegments.push(noteSegment);
+              }
+              return {
+                id: `${row.purchaseOrderId}-payment-${payment.id}`,
+                source: "purchaseOrder" as const,
+                sourceLabel,
+                date: payment.paymentDate.trim(),
+                category: categoryLabel,
+                referenceNo: `${poLabel} ${sequenceLabel}`,
+                content: contentSegments.join(" - "),
+                counterparty,
+                status: "paid" as const,
+                statusLabel: tr("支払済", "Đã thanh toán"),
+                amount: payment.amount,
+                currency: row.currency,
+              };
+            });
+          }
+
+          // 支払い履歴なしは従来通り発注日基準・全額1件
+          return [{
+            id: row.purchaseOrderId,
+            source: "purchaseOrder" as const,
+            sourceLabel,
+            date: row.orderDate.trim(),
+            category: categoryLabel,
+            referenceNo: poLabel,
+            content: baseContent,
+            counterparty,
+            status: row.status.paid ? ("paid" as const) : ("unpaid" as const),
+            statusLabel: row.status.paid ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
+            amount: row.amount,
+            currency: row.currency,
+          }];
+        })
         .filter((row) => row.date && row.amount > 0),
     [purchaseOrderRows, tr, unsetLabel],
   );
@@ -454,7 +495,7 @@ export default function FinanceSummaryView() {
           sourceLabel: tr("支払い", "Thanh toán"),
           date: row.paymentDate.trim(),
           category: row.category.trim() || unsetLabel,
-          referenceNo: row.paymentId,
+          referenceNo: "-",
           content: row.content.trim() || "-",
           counterparty: row.transferDestinationName?.trim() || "-",
           status: row.status,
@@ -468,6 +509,16 @@ export default function FinanceSummaryView() {
 
   const expenseEntries = useMemo(() => [...purchaseOrderExpenseEntries, ...paymentExpenseEntries], [paymentExpenseEntries, purchaseOrderExpenseEntries]);
 
+  const expenseCategoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    expenseEntries.forEach((row) => {
+      if (row.category) {
+        set.add(row.category);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [expenseEntries]);
+
   const filteredRevenueEntries = useMemo(
     () => revenueEntries.filter((row) => isWithinRange(row.date, startDate, endDate)).sort((a, b) => compareDateDesc(a.date, b.date) || a.orderNo.localeCompare(b.orderNo)),
     [endDate, revenueEntries, startDate],
@@ -479,8 +530,12 @@ export default function FinanceSummaryView() {
   );
 
   const filteredExpenseEntries = useMemo(
-    () => expenseEntries.filter((row) => isWithinRange(row.date, startDate, endDate)).sort((a, b) => compareDateDesc(a.date, b.date) || a.category.localeCompare(b.category)),
-    [endDate, expenseEntries, startDate],
+    () =>
+      expenseEntries
+        .filter((row) => isWithinRange(row.date, startDate, endDate))
+        .filter((row) => selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(row.category))
+        .sort((a, b) => compareDateDesc(a.date, b.date) || a.category.localeCompare(b.category)),
+    [endDate, expenseEntries, selectedExpenseCategories, startDate],
   );
 
   const revenueTotal = useMemo(() => filteredRevenueEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredRevenueEntries]);
@@ -609,6 +664,7 @@ export default function FinanceSummaryView() {
     setEndDate(defaultRange.endDate);
     setGroupUnit("month");
     setDisplayCurrency("USD");
+    setSelectedExpenseCategories([]);
     setActiveTab("period");
     setPeriodChartSelections(defaultPeriodChartSelections);
   };
@@ -716,7 +772,10 @@ export default function FinanceSummaryView() {
   const notes = [
     tr("売上: 出荷日ベース", "Doanh thu: theo ngày xuất hàng"),
     tr("入金: 入金日ベース", "Tiền thu: theo ngày thu tiền"),
-    tr("支出: 発注は発注日、支払いは支払日ベース", "Chi phí: đơn đặt hàng theo ngày đặt, thanh toán theo ngày chi"),
+    tr(
+      "支出: 発注は支払い履歴があれば支払日、なければ発注日。支払い管理は支払日",
+      "Chi phí: đơn đặt hàng theo ngày chi nếu có lịch sử thanh toán, nếu không thì theo ngày đặt. Quản lý thanh toán theo ngày chi",
+    ),
     tr("支出には確定済み発注金額と支払い管理の支出を含みます", "Chi phí bao gồm giá trị đơn đặt hàng đã xác định và các khoản chi trong quản lý thanh toán"),
     tr("差額はセレクトボックスで切り替えて確認できます", "Có thể chuyển đổi cách xem chênh lệch bằng hộp chọn"),
     `1 USD = ${formatNumberValue(exchangeRates.jpyPerUsd)} JPY / ${formatNumberValue(exchangeRates.vndPerUsd)} VND`,
@@ -958,7 +1017,7 @@ export default function FinanceSummaryView() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         {financeTabOptions.map((option) => {
           const isActive = activeTab === option.value;
           return (
@@ -973,6 +1032,39 @@ export default function FinanceSummaryView() {
             </Button>
           );
         })}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500">{tr("カテゴリ選択（支出）", "Chọn danh mục (chi phí)")}</span>
+          <Select
+            size="small"
+            multiple
+            displayEmpty
+            value={selectedExpenseCategories}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedExpenseCategories(typeof value === "string" ? value.split(",") : value);
+            }}
+            sx={{ minWidth: { xs: 200, sm: 280 } }}
+            renderValue={(selected) => {
+              if (!selected.length) {
+                return <span className="text-gray-400">{tr("すべて", "Tất cả")}</span>;
+              }
+              return selected.join(", ");
+            }}
+          >
+            {expenseCategoryOptions.length === 0 ? (
+              <MenuItem disabled value="">
+                <ListItemText primary={tr("カテゴリなし", "Không có danh mục")} />
+              </MenuItem>
+            ) : (
+              expenseCategoryOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  <Checkbox checked={selectedExpenseCategories.includes(option)} />
+                  <ListItemText primary={option} />
+                </MenuItem>
+              ))
+            )}
+          </Select>
+        </div>
       </div>
 
       {loading ? (

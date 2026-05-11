@@ -15,6 +15,7 @@ import {
   orderStatusOptions,
   type DocumentStatus,
   type OrderLineItem,
+  type OrderPayment,
   type OrderStatus,
   type PurchaseOrderItem,
 } from "../types";
@@ -80,7 +81,32 @@ const normalizeItems = (items: unknown): OrderLineItem[] => {
   });
 };
 
+const normalizePayments = (payments: unknown): OrderPayment[] => {
+  if (!Array.isArray(payments)) {
+    return [];
+  }
+  return payments
+    .map((payment, index) => {
+      if (!payment || typeof payment !== "object") {
+        return null;
+      }
+      const record = payment as Record<string, unknown>;
+      const paymentDate = typeof record.paymentDate === "string" ? record.paymentDate.trim() : "";
+      const amount = typeof record.amount === "number" && Number.isFinite(record.amount) ? record.amount : 0;
+      const note = typeof record.note === "string" ? record.note.trim() : undefined;
+      const id = typeof record.id === "number" ? record.id : index + 1;
+      // 全フィールド空の行は破棄する
+      if (!paymentDate && amount === 0 && !note) {
+        return null;
+      }
+      return { id, paymentDate, amount, ...(note ? { note } : {}) } as OrderPayment;
+    })
+    .filter((payment): payment is OrderPayment => payment !== null);
+};
+
 const calculateAmount = (items: OrderLineItem[]) => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+
+const sumPayments = (payments: OrderPayment[]) => payments.reduce((sum, payment) => sum + (payment.amount ?? 0), 0);
 
 function buildPurchaseOrderItem(
   orgId: string,
@@ -90,11 +116,17 @@ function buildPurchaseOrderItem(
   const deliveryDate = (base.deliveryDate ?? "").trim();
   const supplier = (base.supplier ?? "").trim();
   const currency = (base.currency ?? "").trim();
+  const poNo = (base.poNo ?? "").trim();
   const note = base.note?.trim() || undefined;
 
   const items = normalizeItems(base.items);
   const amount = typeof base.amount === "number" ? base.amount : calculateAmount(items);
+  const payments = normalizePayments(base.payments);
   const status = normalizeStatus(base.status);
+  // 支払い履歴が登録されている場合、status.paid は支払合計が発注額以上かで自動制御する
+  if (payments.length > 0 && amount > 0) {
+    status.paid = sumPayments(payments) >= amount;
+  }
   const documentStatus = normalizeDocumentStatus(base.documentStatus);
 
   const purchaseOrderId = base.purchaseOrderId;
@@ -102,6 +134,7 @@ function buildPurchaseOrderItem(
   return {
     orgId,
     purchaseOrderId,
+    poNo,
     displayNo: base.displayNo,
     orderDate,
     deliveryDate,
@@ -110,6 +143,7 @@ function buildPurchaseOrderItem(
     currency,
     amount,
     note,
+    payments,
     status,
     documentStatus,
     createdAt: base.createdAt,

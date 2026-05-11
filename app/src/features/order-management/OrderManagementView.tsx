@@ -239,6 +239,7 @@ export default function OrderManagementView() {
     }));
 
     return [
+      { key: "poNo", label: "PO No.", type: "text" },
       { key: "supplier", label: "仕入先", type: "select", options: supplierOptions },
       { key: "itemCode", label: "品番", type: "text" },
       { key: "itemName", label: "品目", type: "text" },
@@ -281,6 +282,8 @@ export default function OrderManagementView() {
           return true;
         }
         switch (key) {
+          case "poNo":
+            return values.some((value) => row.poNo.toLowerCase().includes(value.value.toLowerCase()));
           case "supplier":
             return values.some((value) => value.value === row.supplier);
           case "itemCode":

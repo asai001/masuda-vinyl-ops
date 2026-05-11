@@ -11,6 +11,7 @@ import {
   orderStatusOptions,
   type DocumentStatusKey,
   type OrderLineItem,
+  type OrderPayment,
   type OrderStatusKey,
   type PurchaseOrderItem,
 } from "@/features/order-management/types";
@@ -63,6 +64,22 @@ const isOrderLineItem = (value: unknown): value is Partial<OrderLineItem> => {
 const isOrderLineItems = (value: unknown): value is Partial<OrderLineItem>[] =>
   value === undefined || (Array.isArray(value) && value.every(isOrderLineItem));
 
+const isOrderPayment = (value: unknown): value is Partial<OrderPayment> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    (record.id === undefined || isFiniteNumber(record.id)) &&
+    isOptionalString(record.paymentDate) &&
+    isOptionalFiniteNumber(record.amount) &&
+    isOptionalString(record.note)
+  );
+};
+
+const isOrderPayments = (value: unknown): value is Partial<OrderPayment>[] =>
+  value === undefined || (Array.isArray(value) && value.every(isOrderPayment));
+
 const isPurchaseOrderPayload = (value: unknown): value is Partial<PurchaseOrderItem> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
@@ -73,9 +90,11 @@ const isPurchaseOrderPayload = (value: unknown): value is Partial<PurchaseOrderI
     isOptionalString(record.deliveryDate) &&
     isOptionalString(record.supplier) &&
     isOptionalString(record.currency) &&
+    isOptionalString(record.poNo) &&
     isOptionalFiniteNumber(record.amount) &&
     isOptionalString(record.note) &&
     isOrderLineItems(record.items) &&
+    isOrderPayments(record.payments) &&
     isOrderStatus(record.status) &&
     isDocumentStatus(record.documentStatus)
   );
