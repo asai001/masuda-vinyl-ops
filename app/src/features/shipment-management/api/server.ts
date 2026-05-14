@@ -24,7 +24,21 @@ function requireEnv(name: string) {
 
 let cachedDdb: DynamoDBDocumentClient | null = null;
 
-const getShipmentsTableName = () => requireEnv("SHIPMENTS_TABLE_NAME");
+// SHIPMENTS_TABLE_NAME が未設定でも動くよう、既存テーブル名から推測するフォールバックを許可している。
+// 経緯: 本番 Vercel が先方アカウントで、メンバー追加すると課金が増えるため env var 追加を避けたい事情あり。
+// CDK の命名規則 `${prefix}-${tableName}-${stage}` ([infra/lib/dynamodb.ts]) に従い、
+// 既存の PURCHASE_ORDERS_TABLE_NAME / SALES_ORDERS_TABLE_NAME のテーブル部分だけ "shipments" に差し替える。
+// 命名規則が変わった場合はこのフォールバックが壊れるので、その時は env var を追加する運用に戻すこと。
+const getShipmentsTableName = () => {
+  if (process.env.SHIPMENTS_TABLE_NAME) {
+    return process.env.SHIPMENTS_TABLE_NAME;
+  }
+  const reference = process.env.PURCHASE_ORDERS_TABLE_NAME ?? process.env.SALES_ORDERS_TABLE_NAME;
+  if (reference) {
+    return reference.replace(/(purchase-orders|sales-orders)(?=-[^-]+$)/, "shipments");
+  }
+  throw new Error("SHIPMENTS_TABLE_NAME is not set");
+};
 
 const getDdb = () => {
   if (cachedDdb) {
