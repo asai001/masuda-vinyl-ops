@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import { requireAuthContext } from "@/lib/auth/requireAuthContext";
-import { getExchangeRates, updateExchangeRates } from "@/features/settings/api/server";
+import {
+  getSettingsData,
+  updateCompanyProfile,
+  updateExchangeRates,
+  type CompanyProfile,
+  type ExchangeRates,
+} from "@/features/settings/api/server";
 
 const badRequest = (message: string) => NextResponse.json({ error: message }, { status: 400 });
 const resource = "settings";
@@ -22,8 +28,9 @@ export async function GET(req: Request) {
     return auth.response;
   }
   const { orgId, actor } = auth;
+
   try {
-    const rates = await getExchangeRates(orgId, "DEFAULT");
+    const settings = await getSettingsData(orgId, "DEFAULT");
     await writeAuditLog({
       req,
       orgId,
@@ -34,7 +41,7 @@ export async function GET(req: Request) {
       result: "success",
       statusCode: 200,
     });
-    return NextResponse.json(rates, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load settings";
     await writeAuditLog({
@@ -104,10 +111,14 @@ export async function PUT(req: Request) {
   }
 
   const record = body as Record<string, unknown>;
-  const jpyPerUsd = Number(record.jpyPerUsd);
-  const vndPerUsd = Number(record.vndPerUsd);
+  const hasRateUpdate = Object.prototype.hasOwnProperty.call(record, "jpyPerUsd") || Object.prototype.hasOwnProperty.call(record, "vndPerUsd");
+  const hasCompanyUpdate =
+    Object.prototype.hasOwnProperty.call(record, "issuerName") ||
+    Object.prototype.hasOwnProperty.call(record, "issuerAddress") ||
+    Object.prototype.hasOwnProperty.call(record, "issuerPhone") ||
+    Object.prototype.hasOwnProperty.call(record, "issuerFax");
 
-  if (!Number.isFinite(jpyPerUsd) || jpyPerUsd <= 0) {
+  if (!hasRateUpdate && !hasCompanyUpdate) {
     await writeAuditLog({
       req,
       orgId,
@@ -117,27 +128,87 @@ export async function PUT(req: Request) {
       target: { settingsKey: "DEFAULT" },
       result: "failure",
       statusCode: 400,
-      errorMessage: "jpyPerUsd must be a positive number",
+      errorMessage: "Invalid payload",
     });
-    return badRequest("jpyPerUsd must be a positive number");
+    return badRequest("Invalid payload");
   }
-  if (!Number.isFinite(vndPerUsd) || vndPerUsd <= 0) {
-    await writeAuditLog({
-      req,
-      orgId,
-      actor,
-      action,
-      resource,
-      target: { settingsKey: "DEFAULT" },
-      result: "failure",
-      statusCode: 400,
-      errorMessage: "vndPerUsd must be a positive number",
-    });
-    return badRequest("vndPerUsd must be a positive number");
+
+  let ratesInput: ExchangeRates | null = null;
+  if (hasRateUpdate) {
+    const jpyPerUsd = Number(record.jpyPerUsd);
+    const vndPerUsd = Number(record.vndPerUsd);
+
+    if (!Number.isFinite(jpyPerUsd) || jpyPerUsd <= 0) {
+      await writeAuditLog({
+        req,
+        orgId,
+        actor,
+        action,
+        resource,
+        target: { settingsKey: "DEFAULT" },
+        result: "failure",
+        statusCode: 400,
+        errorMessage: "jpyPerUsd must be a positive number",
+      });
+      return badRequest("jpyPerUsd must be a positive number");
+    }
+    if (!Number.isFinite(vndPerUsd) || vndPerUsd <= 0) {
+      await writeAuditLog({
+        req,
+        orgId,
+        actor,
+        action,
+        resource,
+        target: { settingsKey: "DEFAULT" },
+        result: "failure",
+        statusCode: 400,
+        errorMessage: "vndPerUsd must be a positive number",
+      });
+      return badRequest("vndPerUsd must be a positive number");
+    }
+
+    ratesInput = { jpyPerUsd, vndPerUsd };
+  }
+
+  let companyInput: CompanyProfile | null = null;
+  if (hasCompanyUpdate) {
+    if (
+      typeof record.issuerName !== "string" ||
+      typeof record.issuerAddress !== "string" ||
+      typeof record.issuerPhone !== "string" ||
+      typeof record.issuerFax !== "string"
+    ) {
+      await writeAuditLog({
+        req,
+        orgId,
+        actor,
+        action,
+        resource,
+        target: { settingsKey: "DEFAULT" },
+        result: "failure",
+        statusCode: 400,
+        errorMessage: "issuerName, issuerAddress, issuerPhone and issuerFax must be strings",
+      });
+      return badRequest("issuerName, issuerAddress, issuerPhone and issuerFax must be strings");
+    }
+
+    companyInput = {
+      issuerName: record.issuerName.trim(),
+      issuerAddress: record.issuerAddress.trim(),
+      issuerPhone: record.issuerPhone.trim(),
+      issuerFax: record.issuerFax.trim(),
+    };
   }
 
   try {
-    const updated = await updateExchangeRates(orgId, { jpyPerUsd, vndPerUsd }, "DEFAULT");
+    if (ratesInput) {
+      await updateExchangeRates(orgId, ratesInput, "DEFAULT");
+    }
+    if (companyInput) {
+      await updateCompanyProfile(orgId, companyInput, "DEFAULT");
+    }
+
+    const updated = await getSettingsData(orgId, "DEFAULT");
     await writeAuditLog({
       req,
       orgId,

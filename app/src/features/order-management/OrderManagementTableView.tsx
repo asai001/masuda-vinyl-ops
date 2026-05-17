@@ -47,7 +47,20 @@ const getUnitPriceLabel = (items: OrderRow["items"], currency: string) => {
   return "複数";
 };
 
-type SortKey = "orderDate" | "supplier" | "itemName" | "quantity" | "unitPrice" | "amount" | "deliveryDate";
+type SortKey =
+  | "orderDate"
+  | "supplier"
+  | "itemName"
+  | "quantity"
+  | "unitPrice"
+  | "amount"
+  | "deliveryDate"
+  | "poNo"
+  | "paidAmount"
+  | "remainingAmount";
+
+const sumPayments = (row: OrderRow) =>
+  (row.payments ?? []).reduce((sum, payment) => sum + (Number.isFinite(payment.amount) ? payment.amount : 0), 0);
 
 type OrderManagementTableViewProps = {
   rows: OrderRow[];
@@ -79,6 +92,12 @@ export default function OrderManagementTableView({
 
   const columns = useMemo<TableColumn<OrderRow>[]>(
     () => [
+      {
+        key: "poNo",
+        header: "PO No.",
+        sortKey: "poNo",
+        render: (row) => <span className="text-sm whitespace-nowrap">{row.poNo || "-"}</span>,
+      },
       {
         key: "orderDate",
         header: "発注日",
@@ -134,6 +153,37 @@ export default function OrderManagementTableView({
             {formatCurrencyValue(row.currency, row.amount, amountFormatter)}
           </span>
         ),
+      },
+      {
+        key: "paidAmount",
+        header: "支払済み額",
+        sortKey: "paidAmount",
+        align: "right",
+        render: (row) => {
+          const paid = sumPayments(row);
+          if (!row.currency) {
+            return <span className="text-sm whitespace-nowrap">{amountFormatter.format(paid)}</span>;
+          }
+          return (
+            <span className="text-sm whitespace-nowrap">{formatCurrencyValue(row.currency, paid, amountFormatter)}</span>
+          );
+        },
+      },
+      {
+        key: "remainingAmount",
+        header: "残額",
+        sortKey: "remainingAmount",
+        align: "right",
+        render: (row) => {
+          const paid = sumPayments(row);
+          const remaining = row.amount - paid;
+          const text = row.currency
+            ? formatCurrencyValue(row.currency, remaining, amountFormatter)
+            : amountFormatter.format(remaining);
+          const className =
+            remaining > 0 ? "text-sm font-semibold whitespace-nowrap text-amber-700" : "text-sm whitespace-nowrap text-gray-500";
+          return <span className={className}>{text}</span>;
+        },
       },
       {
         key: "deliveryDate",
@@ -221,6 +271,12 @@ export default function OrderManagementTableView({
         return row.items.reduce((sum, item) => sum + item.quantity, 0);
       case "unitPrice":
         return row.items[0]?.unitPrice ?? 0;
+      case "paidAmount":
+        return sumPayments(row);
+      case "remainingAmount":
+        return row.amount - sumPayments(row);
+      case "poNo":
+        return row.poNo ?? "";
       default:
         return row[key as keyof OrderRow];
     }

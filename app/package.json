@@ -23,6 +23,8 @@
     "salesOrders:clear": "npm run -s node:aws:dev -- scripts/clear-sales-orders.mjs",
     "salesOrders:seed": "npm run -s node:aws:dev -- scripts/seed-sales-orders.mjs",
     "salesOrders:test": "npm run -s node:aws:dev -- scripts/seed-sales-orders-test.mjs",
+    "shipments:clear": "npm run -s node:aws:dev -- scripts/clear-shipments.mjs",
+    "shipments:seed": "npm run -s node:aws:dev -- scripts/seed-shipments.mjs",
     "paymentDefinitions:clear": "npm run -s node:aws:dev -- scripts/clear-payment-definitions-master.mjs",
     "paymentDefinitions:seed": "npm run -s node:aws:dev -- scripts/seed-payment-definitions-master.mjs",
     "paymentDefinitions:test": "npm run -s node:aws:dev -- scripts/seed-payment-definitions-master-test.mjs",

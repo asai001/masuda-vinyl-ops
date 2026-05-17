@@ -26,9 +26,17 @@ export type OrderLineItem = {
   unitPrice: number;
 };
 
+export type OrderPayment = {
+  id: number;
+  paymentDate: string;
+  amount: number;
+  note?: string;
+};
+
 export type OrderRow = {
   id: number;
   purchaseOrderId: string;
+  poNo: string;
   orderDate: string;
   supplier: string;
   items: OrderLineItem[];
@@ -36,6 +44,7 @@ export type OrderRow = {
   amount: number;
   deliveryDate: string;
   note: string;
+  payments: OrderPayment[];
   status: OrderStatus;
   documentStatus: DocumentStatus;
 };
@@ -46,6 +55,7 @@ export type UpdatePurchaseOrderInput = Omit<OrderRow, "id">;
 export type PurchaseOrderItem = {
   orgId: string;
   purchaseOrderId: string;
+  poNo?: string;
   displayNo?: number;
   orderDate: string;
   deliveryDate: string;
@@ -54,6 +64,7 @@ export type PurchaseOrderItem = {
   currency: string;
   amount: number;
   note?: string;
+  payments?: OrderPayment[];
   status?: OrderStatus;
   documentStatus?: DocumentStatus;
   createdAt?: string;

@@ -1,9 +1,14 @@
 import type { OrderIssueExcelLineItem, OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
-import { issuerInfo } from "@/features/order-management/orderIssueTemplate";
 
 export type OrderIssuePreviewPayload = OrderIssueExcelPayload & {
   note?: string;
+  issuerName?: string;
+  issuerAddress?: string;
+  issuerPhone?: string;
+  issuerFax?: string;
 };
+
+const USD_CURRENCY_CODE = "USD";
 
 const escapeHtml = (value: string) =>
   value
@@ -17,6 +22,19 @@ const safeText = (value?: string | null) => escapeHtml((value ?? "").trim());
 
 const safeMultilineText = (value?: string | null) => safeText(value).replace(/\r?\n/g, "<br />");
 
+const buildIssuerContactLine = (phone?: string | null, fax?: string | null) => {
+  const phoneText = (phone ?? "").trim();
+  const faxText = (fax ?? "").trim();
+  const parts: string[] = [];
+  if (phoneText) {
+    parts.push(`TELL: ${phoneText}`);
+  }
+  if (faxText) {
+    parts.push(`FAX: ${faxText}`);
+  }
+  return parts.join(" ");
+};
+
 const formatNumber = (value: number, digits = 0) => {
   if (!Number.isFinite(value)) {
     return "0";
@@ -28,11 +46,13 @@ const formatNumber = (value: number, digits = 0) => {
 };
 
 const formatMoney = (value: number, currency: string) => {
-  const formatted = formatNumber(value, 0);
-  if (!currency) {
+  const normalizedCurrency = currency.trim();
+  const digits = normalizedCurrency.toUpperCase() === USD_CURRENCY_CODE ? 2 : 0;
+  const formatted = formatNumber(value, digits);
+  if (!normalizedCurrency) {
     return formatted;
   }
-  return `${formatted} ${currency}`;
+  return `${formatted} ${normalizedCurrency}`;
 };
 
 const toDisplayDate = (value?: string | null) => {
@@ -107,6 +127,9 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
   const outputItems = payload.lineItems.slice(0, rowCount);
   const subtotal = outputItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const amountLabel = formatMoney(subtotal, safeCurrency);
+  const issuerName = (payload.issuerName ?? "").trim();
+  const issuerAddress = safeMultilineText(payload.issuerAddress);
+  const issuerContactLine = buildIssuerContactLine(payload.issuerPhone, payload.issuerFax);
 
   return `<!DOCTYPE html>
   <html lang="ja">
@@ -120,7 +143,7 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; }
         @font-face { font-family: "NotoSerif"; src: url("/fonts/NotoSerif-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; }
         .vn { font-family: "NotoSerif", "NotoSerifJP", serif; }
-        .page { width: min(210mm, calc(100vw - 16px)); min-height: 297mm; margin: 8px auto; background: #ffffff; padding: 10mm 8mm; }
+        .page { width: 580px; min-height: 297mm; margin: 8px auto; background: #ffffff; padding: 10mm 8mm; }
         .title { text-align: center; margin-top: 3mm; line-height: 1.2; }
         .title-main { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
         .title-sub { font-size: 14px; font-weight: 400; letter-spacing: 0.8px; }
@@ -173,11 +196,9 @@ export const renderOrderIssuePreviewHtml = (payload: OrderIssuePreviewPayload) =
               <div class="meta-order-label vn">Mã đặt hàng:</div>
               <div class="meta-date">${safeText(toDisplayDate(payload.issueDate))}</div>
             </div>
-            <div class="issuer-name">${safeText(issuerInfo.name)}</div>
-            ${issuerInfo.addressLines
-              .map((line) => `<div class="text-line vn">${safeText(line)}</div>`)
-              .join("")}
-            <div class="text-line">TEL: ${safeText(issuerInfo.phone)}</div>
+            <div class="issuer-name">${safeText(issuerName)}</div>
+            ${issuerAddress ? `<div class="text-line vn">${issuerAddress}</div>` : ""}
+            ${issuerContactLine ? `<div class="text-line">${safeText(issuerContactLine)}</div>` : ""}
           </div>
         </div>
         <div class="description">

@@ -3,10 +3,7 @@ import JSZip from "jszip";
 import XlsxPopulate from "xlsx-populate";
 import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
-import {
-  InvoicePackingPayload,
-  type InvoicePackingTemplate,
-} from "@/features/sales-management/invoicePackingList";
+import { InvoicePackingPayload, type InvoicePackingTemplate } from "@/features/sales-management/invoicePackingList";
 
 export const runtime = "nodejs";
 
@@ -14,19 +11,29 @@ const templateFileNames: Record<InvoicePackingTemplate, string> = {
   client: "インボイス-パッキングリスト-取引先用.xlsx",
   hq: "インボイス-パッキングリスト-本社用.xlsx",
 };
-const sheetName = "INVOICE";
-const packingListSheetName = "PACKING LIST";
+
+const defaultInvoiceSheetName = "INVOICE";
+const defaultPackingListSheetName = "PACKING LIST";
+const hqInvoice20SheetName = "INVOICE-20";
+const hqPackingList20SheetName = "PACKING LIST-20";
+
 const clientStartRow = 33;
 const clientEndRow = 50;
 const hqStartRow = 33;
 const hqEndRow = 45;
+const hq20EndRow = 52;
+
 const clientPackingStartRow = 35;
 const clientPackingEndRow = 52;
 const hqPackingStartRow = 35;
 const hqPackingEndRow = 48;
+const hqPacking20EndRow = 54;
+
+const hqTwentySheetItemThreshold = 14;
 
 const formatTel = (value: string) => (value ? `TEL: ${value}` : "TEL:");
 const formatTaxId = (value: string) => (value ? `TAX ID: ${value}` : "TAX ID:");
+
 const parseInvoiceDate = (value: string) => {
   const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) {
@@ -34,6 +41,16 @@ const parseInvoiceDate = (value: string) => {
   }
   const [, day, month, year] = match;
   return { day, month, year };
+};
+
+const formatHqInvoiceDateLabel = (value: string) => {
+  const parsed = parseInvoiceDate(value);
+  if (!parsed) {
+    return value;
+  }
+  const day = parsed.day.padStart(2, "0");
+  const month = parsed.month.padStart(2, "0");
+  return `${day}/${month}/${parsed.year}`;
 };
 
 const sanitizeFileName = (value: string) => {
@@ -54,26 +71,12 @@ const updateSharedStringsXml = (xml: string, count: number, uniqueCount: number)
 };
 
 const stripPhonetics = (xml: string) => {
-  // rPh（ふりがな割当）を削除
-  xml = xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "");
-  // phoneticPr を削除（自己終了と通常の両方に対応）
-  xml = xml.replace(/<phoneticPr\b[^\/>]*\/>/g, "");
-  xml = xml.replace(/<phoneticPr\b[\s\S]*?<\/phoneticPr>/g, "");
-  return xml;
+  let result = xml;
+  result = result.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "");
+  result = result.replace(/<phoneticPr\b[^\/>]*\/>/g, "");
+  result = result.replace(/<phoneticPr\b[\s\S]*?<\/phoneticPr>/g, "");
+  return result;
 };
-
-// function addXmlSpacePreserve(xml: string) {
-//   // <t ...>TEXT</t> の TEXT に空白/改行/連続スペースが含まれる場合に xml:space="preserve" を付ける
-//   return xml.replace(/<t(?![^>]*\bxml:space=)([^>]*)>([\s\S]*?)<\/t>/g, (full, attrs, text) => {
-//     // text はXMLエスケープ済み（改行は実体として残る）
-//     const needs =
-//       /(^\s)|(\s$)/.test(text) || // 先頭/末尾スペース
-//       / {2,}/.test(text) || // 連続スペース
-//       /[\r\n\t]/.test(text); // 改行/タブ
-//     if (!needs) return full;
-//     return `<t${attrs} xml:space="preserve">${text}</t>`;
-//   });
-// }
 
 const updateSharedStringCounts = async (buffer: Buffer) => {
   const zip = await JSZip.loadAsync(buffer);
@@ -86,6 +89,7 @@ const updateSharedStringCounts = async (buffer: Buffer) => {
   const uniqueCount = (sharedStringsXml.match(/<si\b/g) || []).length;
   const sheetFiles = Object.keys(zip.files).filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
   let count = 0;
+
   for (const sheetFile of sheetFiles) {
     const sheetEntry = zip.file(sheetFile);
     if (!sheetEntry) {
@@ -100,7 +104,6 @@ const updateSharedStringCounts = async (buffer: Buffer) => {
 
   let updatedSharedStringsXml = updateSharedStringsXml(sharedStringsXml, count, uniqueCount);
   updatedSharedStringsXml = stripPhonetics(updatedSharedStringsXml);
-  // updatedSharedStringsXml = addXmlSpacePreserve(updatedSharedStringsXml);
   zip.file("xl/sharedStrings.xml", updatedSharedStringsXml);
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 };
@@ -116,10 +119,23 @@ const toPackingFormat = (unitLabel: string) => {
   return `0 "${safe}"`;
 };
 
+const toFiniteNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const gramsToKg = (value: number) => value / 1000;
+
+const calculateClientNetWeight = (item: InvoicePackingPayload["items"][number]) => {
+  const totalWeight = toFiniteNumber(item.totalWeight);
+  return gramsToKg(totalWeight);
+};
+
+const calculateClientGrossWeight = (item: InvoicePackingPayload["items"][number]) =>
+  calculateClientNetWeight(item) + toFiniteNumber(item.palletCount) * 20;
+
 export async function POST(request: Request) {
   const action = "invoice-packing-list.generate";
   const resource = "invoice-packing-list";
   let payload: InvoicePackingPayload;
+
   try {
     payload = (await request.json()) as InvoicePackingPayload;
   } catch {
@@ -148,45 +164,37 @@ export async function POST(request: Request) {
   }
 
   try {
+    const items = Array.isArray(payload.items) ? payload.items : [];
     const templateType: InvoicePackingTemplate = payload.templateType === "hq" ? "hq" : "client";
+    const useHqTwentySheet = templateType === "hq" && items.length >= hqTwentySheetItemThreshold;
+
     const templateFileName = templateFileNames[templateType];
     const templatePath = path.join(process.cwd(), "public", templateFileName);
     const workbook = await XlsxPopulate.fromFileAsync(templatePath);
-    const sheet = workbook.sheet(sheetName);
+
+    const invoiceSheetName = useHqTwentySheet ? hqInvoice20SheetName : defaultInvoiceSheetName;
+    const packingSheetName = useHqTwentySheet ? hqPackingList20SheetName : defaultPackingListSheetName;
+
+    const sheet = workbook.sheet(invoiceSheetName);
     if (!sheet) {
       return NextResponse.json({ error: "Sheet not found" }, { status: 500 });
     }
-    const packingSheet = workbook.sheet(packingListSheetName);
+
+    const packingSheet = workbook.sheet(packingSheetName);
     if (!packingSheet) {
       return NextResponse.json({ error: "Packing list sheet not found" }, { status: 500 });
     }
 
-    const invoiceNo = payload.invoiceNo ?? "";
-    if (templateType === "hq") {
-      const invoiceDateCell = sheet.cell("G5");
-      const invoiceDateTemplate = invoiceDateCell.value();
-      const parsedDate = parseInvoiceDate(payload.invoiceDate);
-      const day = parsedDate?.day ?? "";
-      const month = parsedDate?.month ?? "";
-      const year = parsedDate?.year ?? "";
-      if (typeof invoiceDateTemplate === "string" && parsedDate) {
-        const replaced = invoiceDateTemplate
-          .replace(/\{D\}/g, day)
-          .replace(/\{M\}/g, month)
-          .replace(/\{YYYY\}/g, year);
-        invoiceDateCell.value(replaced);
-      } else {
-        invoiceDateCell.value(`インボイス作成日（Date): ${payload.invoiceDate}`);
-      }
+    if (useHqTwentySheet) {
+      sheet.hidden(false);
+      packingSheet.hidden(false);
+    }
 
-      const invoiceCell = sheet.cell("G8");
-      const invoiceCellValue = invoiceCell.value();
-      if (typeof invoiceCellValue === "string") {
-        const replacedValue = invoiceCellValue.replace(/\{INVOICE No\.\}/g, invoiceNo);
-        invoiceCell.value(replacedValue);
-      } else {
-        invoiceCell.value(`Invoice No\n${invoiceNo}`);
-      }
+    const invoiceNo = payload.invoiceNo ?? payload.orderNo ?? "";
+    if (templateType === "hq") {
+      const invoiceDateLabel = formatHqInvoiceDateLabel(payload.invoiceDate);
+      sheet.cell("G5").value(`インボイス作成日（Date): ${invoiceDateLabel}`);
+      sheet.cell("G8").value(`Invoice No\n${invoiceNo}`);
     } else {
       sheet.cell("H5").value(`インボイス作成日(Date): ${payload.invoiceDate}`);
       const invoiceCell = sheet.cell("H7");
@@ -201,8 +209,10 @@ export async function POST(request: Request) {
         invoiceCell.value(invoiceNo ? `${label}\n${invoiceNo}` : `${label}\n`);
       }
     }
+
     const destinationCountry = templateType === "hq" ? "JAPAN" : payload.destinationCountry;
     sheet.cell("J12").value(destinationCountry);
+
     if (templateType !== "hq") {
       sheet.cell("A18").value(payload.consigneeName);
       sheet.cell("A19").value(payload.consigneeAddress);
@@ -211,9 +221,10 @@ export async function POST(request: Request) {
       sheet.cell("A27").value(destinationCountry);
     }
 
-    const items = Array.isArray(payload.items) ? payload.items : [];
     if (templateType === "hq") {
-      for (let row = hqStartRow; row <= hqEndRow; row += 1) {
+      const hqInvoiceEnd = useHqTwentySheet ? hq20EndRow : hqEndRow;
+
+      for (let row = hqStartRow; row <= hqInvoiceEnd; row += 1) {
         sheet.cell(`A${row}`).value("");
         sheet.cell(`B${row}`).value("");
         sheet.cell(`D${row}`).value("");
@@ -222,15 +233,18 @@ export async function POST(request: Request) {
         sheet.cell(`G${row}`).value("");
       }
 
-      const maxRows = hqEndRow - hqStartRow + 1;
+      const maxRows = hqInvoiceEnd - hqStartRow + 1;
       const hqItems = items.slice(0, maxRows);
       const totalItems = items.length;
       hqItems.forEach((item, index) => {
         const row = hqStartRow + index;
-        const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
-        const unitPrice = Number.isFinite(item.unitPrice) ? item.unitPrice : 0;
+        const quantity = toFiniteNumber(item.quantity);
+        const unitPrice = toFiniteNumber(item.unitPrice);
+        const description = item.partName || item.partNo;
+
         sheet.cell(`A${row}`).value(totalItems ? `${index + 1}/${totalItems}` : "");
-        sheet.cell(`B${row}`).value(item.partName || item.partNo);
+        sheet.cell(`B${row}`).value(description);
+        sheet.cell(`D${row}`).value(item.poNo);
         sheet.cell(`E${row}`).value(item.unit);
         sheet.cell(`F${row}`).value(quantity);
         sheet.cell(`G${row}`).value(unitPrice);
@@ -248,37 +262,51 @@ export async function POST(request: Request) {
 
       items.slice(0, clientEndRow - clientStartRow + 1).forEach((item, index) => {
         const row = clientStartRow + index;
-        const total = Number.isFinite(item.quantity * item.unitPrice) ? item.quantity * item.unitPrice : 0;
+        const quantity = toFiniteNumber(item.quantity);
+        const unitPrice = toFiniteNumber(item.unitPrice);
+        const total = quantity * unitPrice;
+
         sheet.cell(`B${row}`).value(item.partNo);
         sheet.cell(`D${row}`).value(item.partName);
         sheet.cell(`E${row}`).value(item.poNo);
         sheet.cell(`F${row}`).value(item.unit);
-        sheet.cell(`G${row}`).value(item.quantity);
-        sheet.cell(`H${row}`).value(item.unitPrice);
+        sheet.cell(`G${row}`).value(quantity);
+        sheet.cell(`H${row}`).value(unitPrice);
         sheet.cell(`J${row}`).value(total);
       });
     }
 
     if (templateType === "hq") {
-      for (let row = hqPackingStartRow; row <= hqPackingEndRow; row += 1) {
+      const hqPackingEnd = useHqTwentySheet ? hqPacking20EndRow : hqPackingEndRow;
+
+      for (let row = hqPackingStartRow; row <= hqPackingEnd; row += 1) {
+        packingSheet.cell(`D${row}`).value("");
         (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`G${row}`).value(null);
         (packingSheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
           "numberFormat",
           "General",
         );
+
         (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`H${row}`).value(null);
-        packingSheet.cell(`J${row}`).value("");
+
+        (packingSheet.cell(`K${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`K${row}`).value("");
+        packingSheet.cell(`J${row}`).value("");
       }
-      const maxRows = hqPackingEndRow - hqPackingStartRow + 1;
+
+      const maxRows = hqPackingEnd - hqPackingStartRow + 1;
       items.slice(0, maxRows).forEach((item, index) => {
         const row = hqPackingStartRow + index;
-        const palletCount = Number.isFinite(item.palletCount) ? item.palletCount : 0;
-        const totalWeight = Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
+        const quantity = toFiniteNumber(item.quantity);
+        const palletCount = toFiniteNumber(item.palletCount);
+        const unitWeight = toFiniteNumber(item.weight);
+        const description = (item.partName || item.partNo || "").trim();
+
         const packingLabel = item.unit ? `${item.unit}/box` : "/box";
         const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
+        packingSheet.cell(`D${row}`).value(item.poNo);
         if (packingValue !== null) {
           (packingSheet.cell(`G${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
           packingSheet.cell(`G${row}`).value(packingValue);
@@ -288,29 +316,46 @@ export async function POST(request: Request) {
           );
           packingSheet.cell(`H${row}`).value(null);
         }
+
         packingSheet.cell(`J${row}`).value(palletCount);
-        packingSheet.cell(`K${row}`).value(totalWeight);
+
+        if (description) {
+          const grossWeight = gramsToKg(unitWeight * quantity) + palletCount * 20;
+          (packingSheet.cell(`K${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+          packingSheet.cell(`K${row}`).value(grossWeight);
+        } else {
+          (packingSheet.cell(`K${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
+          packingSheet.cell(`K${row}`).value("");
+        }
       });
     } else {
       for (let row = clientPackingStartRow; row <= clientPackingEndRow; row += 1) {
+        packingSheet.cell(`E${row}`).value("");
         (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`H${row}`).value(null);
         (packingSheet.cell(`H${row}`) as unknown as { style: (name: string, value: string) => void }).style(
           "numberFormat",
           "General",
         );
+
         (packingSheet.cell(`I${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
         packingSheet.cell(`I${row}`).value(null);
+
         packingSheet.cell(`K${row}`).value("");
+        packingSheet.cell(`L${row}`).value("");
         packingSheet.cell(`M${row}`).value("");
       }
+
       const maxRows = clientPackingEndRow - clientPackingStartRow + 1;
       items.slice(0, maxRows).forEach((item, index) => {
         const row = clientPackingStartRow + index;
-        const palletCount = Number.isFinite(item.palletCount) ? item.palletCount : 0;
-        const totalWeight = Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
+        const palletCount = toFiniteNumber(item.palletCount);
+        const netWeight = calculateClientNetWeight(item);
+        const grossWeight = calculateClientGrossWeight(item);
         const packingLabel = item.unit ? `${item.unit}/box` : "/box";
         const packingValue = Number.isFinite(item.packaging) ? (item.packaging as number) : null;
+
+        packingSheet.cell(`E${row}`).value(item.poNo);
         if (packingValue !== null) {
           (packingSheet.cell(`H${row}`) as unknown as { formula: (value: string | null) => void }).formula(null);
           packingSheet.cell(`H${row}`).value(packingValue);
@@ -320,17 +365,47 @@ export async function POST(request: Request) {
           );
           packingSheet.cell(`I${row}`).value(null);
         }
+
         packingSheet.cell(`K${row}`).value(palletCount);
-        packingSheet.cell(`M${row}`).value(totalWeight);
+        packingSheet.cell(`L${row}`).value(netWeight);
+        packingSheet.cell(`M${row}`).value(grossWeight);
       });
+    }
+
+    if (templateType === "hq" && useHqTwentySheet) {
+      const defaultInvoiceSheet = workbook.sheet(defaultInvoiceSheetName);
+      if (defaultInvoiceSheet) {
+        defaultInvoiceSheet.delete();
+      }
+
+      const defaultPackingSheet = workbook.sheet(defaultPackingListSheetName);
+      if (defaultPackingSheet) {
+        defaultPackingSheet.delete();
+      }
+
+      sheet.name(defaultInvoiceSheetName);
+      packingSheet.name(defaultPackingListSheetName);
+
+      const formulaCols = ["A", "B", "E", "F"];
+      for (let row = hqPackingStartRow; row <= hqPacking20EndRow; row += 1) {
+        for (const col of formulaCols) {
+          const cell = packingSheet.cell(`${col}${row}`);
+          const formula = cell.formula();
+          if (typeof formula === "string" && formula.includes("'INVOICE-20'!")) {
+            cell.formula(formula.replace(/'INVOICE-20'!/g, "INVOICE!"));
+          }
+        }
+      }
     }
 
     const buffer = await workbook.outputAsync();
     const updatedBuffer = await updateSharedStringCounts(buffer as Buffer);
     const fileBytes = Uint8Array.from(updatedBuffer as Uint8Array);
     const fileBuffer = fileBytes.buffer;
+
     const safeOrderNo = sanitizeFileName(payload.orderNo);
     const fileName = `インボイス-パッキングリスト-${safeOrderNo}.xlsx`;
+
     await writeAuditLog({
       req: request,
       action,
@@ -339,6 +414,7 @@ export async function POST(request: Request) {
       result: "success",
       statusCode: 200,
     });
+
     return new NextResponse(fileBuffer, {
       status: 200,
       headers: {

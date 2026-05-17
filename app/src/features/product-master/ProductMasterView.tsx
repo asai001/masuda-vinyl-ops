@@ -183,14 +183,21 @@ export default function ProductMasterView() {
     }
   }, [isCreateOpen, editingRow]);
 
-  const materialOptions = useMemo<Option[]>(
-    () =>
-      materialRows.map((row) => ({
-        value: row.code,
-        label: `${row.code} - ${row.name}`,
-      })),
-    [materialRows],
-  );
+  const materialOptions = useMemo<Option[]>(() => {
+    const uniqueOptions = new Map<string, Option>();
+    materialRows.forEach((row) => {
+      const code = row.code.trim();
+      if (!code || uniqueOptions.has(code)) {
+        return;
+      }
+      const name = row.name.trim();
+      uniqueOptions.set(code, {
+        value: code,
+        label: name ? `${code} - ${name}` : code,
+      });
+    });
+    return Array.from(uniqueOptions.values());
+  }, [materialRows]);
 
   const filterDefinitions = useMemo<FilterDefinition[]>(() => {
     const uniqueValues = (values: string[]) => Array.from(new Set(values));

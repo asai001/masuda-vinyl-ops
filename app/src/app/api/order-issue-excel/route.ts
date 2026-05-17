@@ -3,6 +3,8 @@ import XlsxPopulate from "xlsx-populate";
 import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import type { OrderIssueExcelLineItem, OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
+import { getSettingsData } from "@/features/settings/api/server";
+import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 
 export const runtime = "nodejs";
 
@@ -15,6 +17,10 @@ const LINE_END_ROW_DEFAULT = 19;
 const LINE_END_ROW_12 = 24;
 const LINE_END_ROW_17 = 29;
 const NOTE_ROW_OFFSET = 4;
+const USD_CURRENCY_CODE = "USD";
+const USD_NUMBER_FORMAT = '#,##0.00 "USD"';
+const SETTINGS_SHEET_NAMES = ["setting", "Setting"] as const;
+const SETTINGS_ADDRESS_CELL = "A1";
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -69,13 +75,43 @@ const buildUnitPriceNumberFormat = (currency: string) => {
   if (!trimmed) {
     return "#,##0";
   }
+  if (trimmed.toUpperCase() === USD_CURRENCY_CODE) {
+    return USD_NUMBER_FORMAT;
+  }
   return `#,##0 "${escapeNumberFormatText(trimmed)}"`;
+};
+
+const isUsdCurrency = (currency: string) => currency.trim().toUpperCase() === USD_CURRENCY_CODE;
+
+const setCellNumberFormat = (sheet: { cell: (address: string) => unknown }, address: string, numberFormat: string) => {
+  (sheet.cell(address) as unknown as { style: (name: string, value: string) => void }).style("numberFormat", numberFormat);
 };
 
 const sanitizeFileName = (value: string) => {
   const trimmed = value.trim();
   const sanitized = trimmed.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "");
   return sanitized || "order";
+};
+
+const buildCompanyInfoText = (settings: {
+  issuerName?: string;
+  issuerAddress?: string;
+  issuerPhone?: string;
+  issuerFax?: string;
+}) => {
+  const companyName = settings.issuerName?.trim() ?? "";
+  const companyAddress = settings.issuerAddress?.trim() ?? "";
+  const tel = settings.issuerPhone?.trim() ?? "";
+  const fax = settings.issuerFax?.trim() ?? "";
+  const contactParts: string[] = [];
+  if (tel) {
+    contactParts.push(`TELL: ${tel}`);
+  }
+  if (fax) {
+    contactParts.push(`FAX: ${fax}`);
+  }
+  const contactLine = contactParts.join(" ");
+  return [companyName, companyAddress, contactLine].filter((line) => line.length > 0).join("\n");
 };
 
 type HiddenSheet = {
@@ -101,6 +137,16 @@ const getSheetOrThrow = (
   return sheet;
 };
 
+const getFirstExistingSheet = (workbook: { sheet: (name: string) => unknown }, sheetNames: readonly string[]) => {
+  for (const name of sheetNames) {
+    const sheet = workbook.sheet(name);
+    if (sheet) {
+      return sheet;
+    }
+  }
+  return null;
+};
+
 const setSheetHidden = (sheet: unknown, hidden: boolean) => {
   (sheet as HiddenSheet).hidden(hidden);
 };
@@ -123,6 +169,16 @@ const resolveSummaryRows = (lineEndRow: number) => ({
   subtotalRow: lineEndRow + 1,
   totalRow: lineEndRow + 3,
 });
+
+const applyUsdNumberFormatForOrderIssue = (sheet: { cell: (address: string) => unknown }, lineEndRow: number) => {
+  for (let row = LINE_START_ROW; row <= lineEndRow; row += 1) {
+    setCellNumberFormat(sheet, `G${row}`, USD_NUMBER_FORMAT);
+    setCellNumberFormat(sheet, `J${row}`, USD_NUMBER_FORMAT);
+  }
+  const { subtotalRow, totalRow } = resolveSummaryRows(lineEndRow);
+  setCellNumberFormat(sheet, `I${subtotalRow}`, USD_NUMBER_FORMAT);
+  setCellNumberFormat(sheet, `I${totalRow}`, USD_NUMBER_FORMAT);
+};
 
 const normalizeLineItems = (items: unknown): OrderIssueExcelLineItem[] => {
   if (!Array.isArray(items)) {
@@ -164,6 +220,20 @@ export async function POST(request: Request) {
   const action = "order-issue-excel.generate";
   const resource = "order-issue-excel";
   let payload: OrderIssueExcelPayload | null = null;
+  const auth = await requireAuthContext(request);
+  if (!auth.ok) {
+    await writeAuditLog({
+      req: request,
+      actor: auth.actor,
+      action,
+      resource,
+      result: "failure",
+      statusCode: auth.status,
+      errorMessage: auth.error,
+    });
+    return auth.response;
+  }
+  const { orgId, actor } = auth;
 
   try {
     const body = await request.json();
@@ -175,6 +245,8 @@ export async function POST(request: Request) {
   if (!payload || !payload.orderNumber || !payload.issueDate) {
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: payload ? { orderNumber: payload.orderNumber } : undefined,
@@ -188,6 +260,20 @@ export async function POST(request: Request) {
   try {
     const templatePath = path.join(process.cwd(), "public", TEMPLATE_FILE_NAME);
     const workbook = await XlsxPopulate.fromFileAsync(templatePath);
+    const companySettings = await getSettingsData(orgId, "DEFAULT");
+    const companyInfoText = buildCompanyInfoText(companySettings);
+
+    const settingsSheet = getFirstExistingSheet(workbook as unknown as { sheet: (name: string) => unknown }, SETTINGS_SHEET_NAMES);
+    if (settingsSheet) {
+      (
+        settingsSheet as {
+          cell: (address: string) => { value: (value?: string | number | boolean | Date | null) => unknown };
+        }
+      )
+        .cell(SETTINGS_ADDRESS_CELL)
+        .value(companyInfoText);
+    }
+
     const defaultSheet = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, DEFAULT_SHEET_NAME);
     const sheet12 = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, SHEET_NAME_12);
     const sheet17 = getSheetOrThrow(workbook as unknown as { sheet: (name: string) => unknown }, SHEET_NAME_17);
@@ -236,10 +322,7 @@ export async function POST(request: Request) {
       sheet.cell(`F${row}`).value(null);
       sheet.cell(`G${row}`).value(null);
       sheet.cell(`H${row}`).value("");
-      (sheet.cell(`I${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `I${row}`, unitPriceNumberFormat);
     }
 
     const outputItems = payload.lineItems.slice(0, maxRows);
@@ -249,24 +332,19 @@ export async function POST(request: Request) {
       sheet.cell(`E${row}`).value(item.unit);
       sheet.cell(`F${row}`).value(item.quantity);
       sheet.cell(`G${row}`).value(item.unitPrice);
-      (sheet.cell(`G${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `G${row}`, unitPriceNumberFormat);
       sheet.cell(`H${row}`).value(toDisplayDate(item.deliveryDate));
     });
 
     const { subtotalRow, totalRow } = resolveSummaryRows(plan.lineEndRow);
     [subtotalRow, totalRow].forEach((row) => {
-      (sheet.cell(`I${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
-      (sheet.cell(`J${row}`) as unknown as { style: (name: string, value: string) => void }).style(
-        "numberFormat",
-        unitPriceNumberFormat,
-      );
+      setCellNumberFormat(sheet, `I${row}`, unitPriceNumberFormat);
+      setCellNumberFormat(sheet, `J${row}`, unitPriceNumberFormat);
     });
+
+    if (isUsdCurrency(payload.currency)) {
+      applyUsdNumberFormatForOrderIssue(sheet, plan.lineEndRow);
+    }
 
     const noteRow = plan.lineEndRow + NOTE_ROW_OFFSET;
     const noteLabel = "※摘要";
@@ -281,6 +359,8 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: { orderNumber: payload.orderNumber },
@@ -301,6 +381,8 @@ export async function POST(request: Request) {
     const msg = error instanceof Error ? error.message : "Failed to generate order issue excel";
     await writeAuditLog({
       req: request,
+      orgId,
+      actor,
       action,
       resource,
       target: payload ? { orderNumber: payload.orderNumber } : undefined,

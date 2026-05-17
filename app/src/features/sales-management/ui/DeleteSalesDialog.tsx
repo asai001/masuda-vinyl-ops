@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import Modal from "@/components/Modal";
 import type { SalesRow } from "@/features/sales-management/types";
+import { useLanguage } from "@/lib/i18n/language";
 
 type DeleteSalesDialogProps = {
   open: boolean;
@@ -13,6 +14,8 @@ type DeleteSalesDialogProps = {
 };
 
 export default function DeleteSalesDialog({ open, sales, onClose, onConfirm }: DeleteSalesDialogProps) {
+  const { language, tx } = useLanguage();
+  const tr = (ja: string, vi: string) => (language === "vi" ? vi : ja);
   const [confirmed, setConfirmed] = useState(false);
 
   const handleClose = () => {
@@ -31,33 +34,35 @@ export default function DeleteSalesDialog({ open, sales, onClose, onConfirm }: D
   const firstItem = sales?.items[0];
   const extraCount = sales ? Math.max(sales.items.length - 1, 0) : 0;
   const salesLabel = sales
-    ? `${sales.orderNo} / ${firstItem ? `${firstItem.productCode} ${firstItem.productName}` : "明細"}${
-        extraCount ? ` 他${extraCount}件` : ""
+    ? `${sales.orderNo} / ${firstItem ? `${firstItem.productCode} ${firstItem.productName}` : tx("明細")}${
+        extraCount ? tr(` 他${extraCount}件`, ` ${extraCount} mục khác`) : ""
       }`
     : "";
 
   return (
     <Modal
       open={open}
-      title="削除確認"
+      title={tx("削除確認")}
       onClose={handleClose}
       actions={
         <>
           <Button variant="outlined" onClick={handleClose}>
-            キャンセル
+            {tx("キャンセル")}
           </Button>
           <Button variant="contained" color="error" onClick={handleConfirm} disabled={!confirmed}>
-            削除
+            {tx("削除")}
           </Button>
         </>
       }
     >
       <div className="text-sm text-gray-700">
-        {sales ? `「${salesLabel}」を削除してもよろしいですか？` : "削除してもよろしいですか？"}
+        {sales
+          ? tr(`「${salesLabel}」を削除してもよろしいですか？`, `Bạn có chắc chắn muốn xóa "${salesLabel}" không?`)
+          : tx("削除してもよろしいですか？")}
       </div>
       <FormControlLabel
         control={<Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />}
-        label="削除することを確認しました"
+        label={tx("削除することを確認しました")}
       />
     </Modal>
   );

@@ -15,7 +15,14 @@ import {
 } from "@mui/material";
 import { Plus, Save } from "lucide-react";
 import Modal from "@/components/Modal";
-import type { DocumentStatusKey, OrderLineItem, OrderRow, OrderStatusKey } from "@/features/order-management/types";
+import SearchableSelect from "@/components/SearchableSelect";
+import type {
+  DocumentStatusKey,
+  OrderLineItem,
+  OrderPayment,
+  OrderRow,
+  OrderStatusKey,
+} from "@/features/order-management/types";
 import { CURRENCY_OPTIONS } from "@/constants/currency";
 
 type Option = {
@@ -56,6 +63,18 @@ type LineItemError = {
   unitPrice?: string;
 };
 
+type PaymentForm = {
+  id: number;
+  paymentDate: string;
+  amount: string;
+  note: string;
+};
+
+type PaymentError = {
+  paymentDate?: string;
+  amount?: string;
+};
+
 type EditOrderModalProps = {
   open: boolean;
   order: OrderRow | null;
@@ -89,6 +108,13 @@ const createEmptyItem = (id: number): LineItemForm => ({
   unitPrice: "",
 });
 
+const createEmptyPayment = (id: number): PaymentForm => ({
+  id,
+  paymentDate: "",
+  amount: "",
+  note: "",
+});
+
 export default function EditOrderModal({
   open,
   order,
@@ -103,6 +129,7 @@ export default function EditOrderModal({
   isIssuing = false,
 }: EditOrderModalProps) {
   const getInitialForm = (row: OrderRow | null) => ({
+    poNo: row?.poNo ?? "",
     orderDate: row?.orderDate ?? "",
     deliveryDate: row?.deliveryDate ?? "",
     supplier: row?.supplier ?? "",
@@ -127,11 +154,19 @@ export default function EditOrderModal({
         quantity: String(item.quantity),
         unitPrice: String(item.unitPrice),
       })) ?? [],
+    payments:
+      row?.payments?.map((payment) => ({
+        id: payment.id,
+        paymentDate: payment.paymentDate,
+        amount: String(payment.amount),
+        note: payment.note ?? "",
+      })) ?? [],
   });
 
   const [form, setForm] = useState(() => getInitialForm(order));
   const [errors, setErrors] = useState(emptyErrors);
   const [lineErrors, setLineErrors] = useState<Record<number, LineItemError>>({});
+  const [paymentErrors, setPaymentErrors] = useState<Record<number, PaymentError>>({});
   const [itemsError, setItemsError] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -200,6 +235,36 @@ export default function EditOrderModal({
       delete next[id];
       return next;
     });
+  };
+
+  const handleAddPayment = () => {
+    const nextId = form.payments.length ? Math.max(...form.payments.map((payment) => payment.id)) + 1 : 1;
+    setForm((prev) => ({ ...prev, payments: [...prev.payments, createEmptyPayment(nextId)] }));
+  };
+
+  const handleRemovePayment = (id: number) => {
+    setForm((prev) => ({ ...prev, payments: prev.payments.filter((payment) => payment.id !== id) }));
+    setPaymentErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handlePaymentChange = (id: number, key: keyof PaymentForm, value: string) => {
+    if (key === "amount" && value.trim().startsWith("-")) {
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      payments: prev.payments.map((payment) =>
+        payment.id === id ? { ...payment, [key]: value } : payment,
+      ),
+    }));
+    setPaymentErrors((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [key]: undefined },
+    }));
   };
 
   const handleLineChange = (id: number, key: "quantity" | "unitPrice", value: string) => {
@@ -298,11 +363,43 @@ export default function EditOrderModal({
     return `${form.currency} ${amountFormatter.format(amountValue)}`;
   }, [amountValue, form.currency]);
 
+  const paidAmountValue = useMemo(() => {
+    return form.payments.reduce((sum, payment) => {
+      const amount = Number(payment.amount);
+      if (!payment.amount || Number.isNaN(amount)) {
+        return sum;
+      }
+      return sum + amount;
+    }, 0);
+  }, [form.payments]);
+
+  const remainingAmountValue = useMemo(() => {
+    if (amountValue === null) {
+      return null;
+    }
+    return amountValue - paidAmountValue;
+  }, [amountValue, paidAmountValue]);
+
+  const paidAmountLabel = useMemo(() => {
+    if (!form.currency) {
+      return "-";
+    }
+    return `${form.currency} ${amountFormatter.format(paidAmountValue)}`;
+  }, [form.currency, paidAmountValue]);
+
+  const remainingAmountLabel = useMemo(() => {
+    if (remainingAmountValue === null || !form.currency) {
+      return "-";
+    }
+    return `${form.currency} ${amountFormatter.format(remainingAmountValue)}`;
+  }, [form.currency, remainingAmountValue]);
+
   const buildNextOrder = (): OrderRow | null => {
     setActionError(null);
     setErrors(emptyErrors);
     setItemsError("");
     setLineErrors({});
+    setPaymentErrors({});
 
     if (!order) {
       return null;
@@ -349,16 +446,56 @@ export default function EditOrderModal({
       });
     });
 
-    if (Object.keys(numericErrors).length) {
+    const paymentValidationErrors: Record<number, PaymentError> = {};
+    const parsedPayments: OrderPayment[] = [];
+    form.payments.forEach((payment) => {
+      const hasInput = Boolean(payment.paymentDate.trim() || payment.amount.trim() || payment.note.trim());
+      if (!hasInput) {
+        return;
+      }
+      const amountValue = payment.amount.trim();
+      const amount = amountValue ? Number(payment.amount) : NaN;
+      const error: PaymentError = {};
+      if (!payment.paymentDate.trim()) {
+        error.paymentDate = "支払日を入力してください";
+      }
+      if (!amountValue) {
+        error.amount = "金額を入力してください";
+      } else if (Number.isNaN(amount)) {
+        error.amount = "数値で入力してください";
+      } else if (amount <= 0) {
+        error.amount = "0より大きい値を入力してください";
+      }
+      if (Object.keys(error).length) {
+        paymentValidationErrors[payment.id] = error;
+        return;
+      }
+      parsedPayments.push({
+        id: payment.id,
+        paymentDate: payment.paymentDate.trim(),
+        amount,
+        ...(payment.note.trim() ? { note: payment.note.trim() } : {}),
+      });
+    });
+
+    if (Object.keys(numericErrors).length || Object.keys(paymentValidationErrors).length) {
       setLineErrors(numericErrors);
+      setPaymentErrors(paymentValidationErrors);
       setActionError("入力内容をご確認ください。");
       return null;
     }
 
     const totalAmount = parsedItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const totalPaid = parsedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    // 支払い履歴登録時は合計支払額>=発注額で支払済みフラグを自動制御する
+    const nextStatus =
+      parsedPayments.length > 0 && totalAmount > 0
+        ? { ...form.status, paid: totalPaid >= totalAmount }
+        : form.status;
 
     return {
       ...order,
+      poNo: form.poNo.trim(),
       orderDate: form.orderDate,
       deliveryDate: form.deliveryDate,
       supplier: form.supplier,
@@ -366,7 +503,8 @@ export default function EditOrderModal({
       currency: form.currency,
       amount: totalAmount,
       note: form.note,
-      status: form.status,
+      payments: parsedPayments,
+      status: nextStatus,
       documentStatus: form.documentStatus,
     };
   };
@@ -420,6 +558,16 @@ export default function EditOrderModal({
         </div>
       }
     >
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">PO No.</label>
+        <TextField
+          size="small"
+          value={form.poNo}
+          onChange={(event) => handleChange("poNo", event.target.value)}
+          placeholder="仕入先発行のPO番号を入力してください"
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-semibold text-gray-700">
@@ -453,27 +601,14 @@ export default function EditOrderModal({
         <label className="text-sm font-semibold text-gray-700">
           仕入先
         </label>
-        <FormControl size="small" error={Boolean(errors.supplier)}>
-          <Select
-            value={form.supplier}
-            onChange={(event) => handleChange("supplier", event.target.value)}
-            displayEmpty
-            renderValue={(selected) => {
-              if (!selected) {
-                return <span className="text-gray-400">選択してください</span>;
-              }
-              const option = supplierOptions.find((item) => item.value === selected);
-              return option?.label ?? selected;
-            }}
-          >
-            {supplierOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-          <FormHelperText>{errors.supplier}</FormHelperText>
-        </FormControl>
+        <SearchableSelect
+          value={form.supplier}
+          options={supplierOptions}
+          onChange={(value) => handleChange("supplier", value)}
+          placeholder="選択してください"
+          error={Boolean(errors.supplier)}
+          helperText={errors.supplier}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -549,27 +684,14 @@ export default function EditOrderModal({
                         </span>
                       )}
                     </label>
-                    <FormControl size="small" error={Boolean(itemError?.itemCode)}>
-                      <Select
-                        value={item.itemCode}
-                        onChange={(event) => handleItemSelect(item.id, event.target.value)}
-                        displayEmpty
-                        renderValue={(selected) => {
-                          if (!selected) {
-                            return <span className="text-gray-400">品目を選択してください</span>;
-                          }
-                          const option = itemOptions.find((optionItem) => optionItem.value === selected);
-                          return option?.label ?? selected;
-                        }}
-                      >
-                        {rowItemOptions.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {itemError?.itemCode ? <FormHelperText>{itemError.itemCode}</FormHelperText> : null}
-                    </FormControl>
+                    <SearchableSelect
+                      value={item.itemCode}
+                      options={rowItemOptions}
+                      onChange={(value) => handleItemSelect(item.id, value)}
+                      placeholder="品目を選択してください"
+                      error={Boolean(itemError?.itemCode)}
+                      helperText={itemError?.itemCode}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -618,6 +740,82 @@ export default function EditOrderModal({
         <span>{amountLabel}</span>
       </div>
 
+      <Divider />
+
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold text-gray-700">支払い履歴</label>
+        <Button variant="contained" size="small" startIcon={<Plus size={16} />} onClick={handleAddPayment}>
+          支払いを追加
+        </Button>
+      </div>
+
+      {form.payments.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+          支払いを登録すると、合計金額に達した時点で「支払い済み」が自動的にチェックされます。
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {form.payments.map((payment, index) => {
+            const paymentError = paymentErrors[payment.id];
+            return (
+              <div key={payment.id} className="rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-700">支払い #{index + 1}</div>
+                  <Button variant="text" color="error" size="small" onClick={() => handleRemovePayment(payment.id)}>
+                    削除
+                  </Button>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">支払日</label>
+                    <TextField
+                      size="small"
+                      type="date"
+                      value={payment.paymentDate}
+                      onChange={(event) => handlePaymentChange(payment.id, "paymentDate", event.target.value)}
+                      error={Boolean(paymentError?.paymentDate)}
+                      helperText={paymentError?.paymentDate}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-gray-700">支払金額</label>
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={payment.amount}
+                      onChange={(event) => handlePaymentChange(payment.id, "amount", event.target.value)}
+                      error={Boolean(paymentError?.amount)}
+                      helperText={paymentError?.amount}
+                      slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-gray-700">備考</label>
+                  <TextField
+                    size="small"
+                    value={payment.note}
+                    onChange={(event) => handlePaymentChange(payment.id, "note", event.target.value)}
+                    placeholder="備考を入力してください"
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-2 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 sm:grid-cols-2">
+        <div className="flex items-center justify-between">
+          <span>支払済み額</span>
+          <span>{paidAmountLabel}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span>残額</span>
+          <span>{remainingAmountLabel}</span>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">備考</label>
         <TextField
@@ -635,14 +833,33 @@ export default function EditOrderModal({
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-gray-700">ステータス</label>
         <FormGroup>
-          {statusOptions.map((option) => (
-            <FormControlLabel
-              key={option.value}
-              control={<Checkbox checked={form.status[option.value]} onChange={() => toggleStatus(option.value)} />}
-              label={option.label}
-              className="h-8"
-            />
-          ))}
+          {statusOptions.map((option) => {
+            const isPaidKey = option.value === "paid";
+            const hasPayments = form.payments.some(
+              (payment) => payment.paymentDate.trim() || payment.amount.trim(),
+            );
+            const disabled = isPaidKey && hasPayments;
+            const derivedPaid =
+              isPaidKey && hasPayments && amountValue !== null && amountValue > 0
+                ? paidAmountValue >= amountValue
+                : form.status[option.value];
+            return (
+              <FormControlLabel
+                key={option.value}
+                control={
+                  <Checkbox
+                    checked={derivedPaid}
+                    onChange={() => toggleStatus(option.value)}
+                    disabled={disabled}
+                  />
+                }
+                label={
+                  disabled ? `${option.label}（支払い履歴から自動制御）` : option.label
+                }
+                className="h-8"
+              />
+            );
+          })}
         </FormGroup>
       </div>
 

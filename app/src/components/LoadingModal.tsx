@@ -27,6 +27,7 @@ export default function LoadingModal({ open, message = "保存中" }: LoadingMod
             borderRadius: "40px",
             minHeight: { xs: "300px", sm: "300px" },
             width: { xs: "150px", sm: "250px" },
+            maxWidth: "70vw",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

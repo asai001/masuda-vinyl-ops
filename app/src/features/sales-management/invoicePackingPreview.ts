@@ -1,4 +1,4 @@
-﻿import type { InvoicePackingPayload } from "./invoicePackingList";
+import type { InvoicePackingPayload } from "./invoicePackingList";
 
 const shipperInfo = {
   name: "MASUDA VINYL VIETNAM CO.,LTD",
@@ -23,6 +23,50 @@ const escapeHtml = (value: string) =>
 
 const safeText = (value?: string | null) => escapeHtml((value ?? "").trim());
 const HQ_DESTINATION_COUNTRY = "JAPAN";
+const HQ_TWENTY_SHEET_ITEM_THRESHOLD = 14;
+const HQ_DEFAULT_INVOICE_ROW_COUNT = 13;
+const HQ_DEFAULT_PACKING_ROW_COUNT = 14;
+const HQ_TWENTY_ROW_COUNT = 20;
+type InvoicePackingItem = InvoicePackingPayload["items"][number];
+
+const toFiniteNumber = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+const hasHqDescription = (item: InvoicePackingItem) => Boolean((item.partName || item.partNo || "").trim());
+
+const formatHqInvoiceDateLabel = (value: string) => {
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) {
+    return value;
+  }
+  const [, day, month, year] = match;
+  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+};
+
+const shouldUseHqTwentySheet = (items: InvoicePackingPayload["items"]) => items.length >= HQ_TWENTY_SHEET_ITEM_THRESHOLD;
+
+const resolveHqInvoiceRowCount = (items: InvoicePackingPayload["items"]) =>
+  shouldUseHqTwentySheet(items) ? HQ_TWENTY_ROW_COUNT : HQ_DEFAULT_INVOICE_ROW_COUNT;
+
+const resolveHqPackingRowCount = (items: InvoicePackingPayload["items"]) =>
+  shouldUseHqTwentySheet(items) ? HQ_TWENTY_ROW_COUNT : HQ_DEFAULT_PACKING_ROW_COUNT;
+
+const calculateHqGrossWeight = (item: InvoicePackingItem) => {
+  if (!hasHqDescription(item)) {
+    return null;
+  }
+  const quantity = toFiniteNumber(item.quantity);
+  const palletCount = toFiniteNumber(item.palletCount);
+  const unitWeight = toFiniteNumber(item.weight);
+  return unitWeight * quantity / 1000 + palletCount * 20;
+};
+
+const calculateClientNetWeight = (item: InvoicePackingItem) => {
+  const totalWeight = toFiniteNumber(item.totalWeight);
+  return totalWeight / 1000;
+};
+
+const calculateClientGrossWeight = (item: InvoicePackingItem) =>
+  calculateClientNetWeight(item) + toFiniteNumber(item.palletCount) * 20;
 
 const formatNumber = (value: number, digits = 2) => {
   if (!Number.isFinite(value)) {
@@ -76,6 +120,16 @@ const formatBoxesCount = (quantity: number, packaging: number | null | undefined
     return "";
   }
   return formatNumber(boxesCount, 0);
+};
+
+const formatClientInvoiceAmount = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 const hqConsigneeInfo = {
@@ -378,8 +432,8 @@ const renderInvoiceRows = (items: InvoicePackingPayload["items"]) => {
           <td class="text-center">${safeText(item.poNo)}</td>
           <td class="text-center">${safeText(item.unit)}</td>
           <td class="text-right">${formatQuantity(item.quantity)}</td>
-          <td class="text-right">${formatNumber(item.unitPrice)}</td>
-          <td class="text-right">${formatNumber(amount)}</td>
+          <td class="text-right">${formatClientInvoiceAmount(item.unitPrice)}</td>
+          <td class="text-right">${formatClientInvoiceAmount(amount)}</td>
         </tr>
       `;
     })
@@ -620,8 +674,7 @@ const renderHqTopSection = (invoiceNo: string) => {
 `;
 };
 
-const renderHqInvoiceRows = (items: InvoicePackingPayload["items"]) => {
-  const rowCount = 13;
+const renderHqInvoiceRows = (items: InvoicePackingPayload["items"], rowCount: number) => {
   const totalItems = items.length;
   const rows = Array.from({ length: rowCount }, (_, index) => items[index] ?? null);
 
@@ -663,8 +716,7 @@ const renderHqInvoiceRows = (items: InvoicePackingPayload["items"]) => {
     .join("");
 };
 
-const renderHqPackingRows = (items: InvoicePackingPayload["items"]) => {
-  const rowCount = 14;
+const renderHqPackingRows = (items: InvoicePackingPayload["items"], rowCount: number) => {
   const totalItems = items.length;
   const rows = Array.from({ length: rowCount }, (_, index) => items[index] ?? null);
 
@@ -686,9 +738,9 @@ const renderHqPackingRows = (items: InvoicePackingPayload["items"]) => {
         `;
       }
 
-      const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
-      const palletCount = Number.isFinite(item.palletCount) ? item.palletCount : 0;
-      const totalWeight = Number.isFinite(item.totalWeight) ? item.totalWeight : 0;
+      const quantity = toFiniteNumber(item.quantity);
+      const palletCount = toFiniteNumber(item.palletCount);
+      const grossWeight = calculateHqGrossWeight(item);
       const marks = totalItems ? `${index + 1}/${totalItems}` : `${index + 1}`;
 
       return `
@@ -701,7 +753,7 @@ const renderHqPackingRows = (items: InvoicePackingPayload["items"]) => {
           <td class="hq-center">${formatPackaging(item.packaging, item.unit)}</td>
           <td class="hq-right">${formatBoxesCount(quantity, item.packaging)}</td>
           <td class="hq-right">${formatNumber(palletCount, 0)}</td>
-          <td class="hq-right">${formatWeightKg(totalWeight)}</td>
+          <td class="hq-right">${grossWeight === null ? "" : formatWeightKg(grossWeight)}</td>
         </tr>
       `;
     })
@@ -710,12 +762,14 @@ const renderHqPackingRows = (items: InvoicePackingPayload["items"]) => {
 
 const renderHqInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
-  const totalAmount = items.reduce(
+  const rowCount = resolveHqInvoiceRowCount(items);
+  const visibleItems = items.slice(0, rowCount);
+  const totalAmount = visibleItems.reduce(
     (sum, item) => sum + (Number.isFinite(item.quantity * item.unitPrice) ? item.quantity * item.unitPrice : 0),
     0,
   );
-  const invoiceNo = safeText(payload.invoiceNo ?? "");
-  const invoiceDate = safeText(payload.invoiceDate);
+  const invoiceNo = safeText(payload.invoiceNo ?? payload.orderNo ?? "");
+  const invoiceDate = safeText(formatHqInvoiceDateLabel(payload.invoiceDate));
   const incotermLine = safeText(resolveHqIncotermLine(HQ_DESTINATION_COUNTRY));
 
   return `<!DOCTYPE html>
@@ -727,7 +781,7 @@ const renderHqInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page hq-page">
         <div class="title hq-title">INVOICE</div>
-        <div class="meta-top hq-meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
+        <div class="meta-top hq-meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderHqTopSection(invoiceNo)}
 
@@ -753,7 +807,7 @@ const renderHqInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
             </tr>
           </thead>
           <tbody>
-            ${renderHqInvoiceRows(items)}
+            ${renderHqInvoiceRows(items, rowCount)}
             <tr class="hq-invoice-total-row">
               <td colspan="5" class="hq-invoice-total-label">合計 （Total）</td>
               <td></td>
@@ -776,23 +830,22 @@ const renderHqInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
 
 const renderHqPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
   const items = Array.isArray(payload.items) ? payload.items : [];
-  const invoiceNo = safeText(payload.invoiceNo ?? "");
+  const rowCount = resolveHqPackingRowCount(items);
+  const visibleItems = items.slice(0, rowCount);
+  const invoiceNo = safeText(payload.invoiceNo ?? payload.orderNo ?? "");
   const invoiceDate = safeText(payload.invoiceDate);
-  const totalBoxes = items.reduce((sum, item) => sum + calculateBoxesCount(item.quantity, item.packaging), 0);
-  const totalPallets = items.reduce((sum, item) => sum + (Number.isFinite(item.palletCount) ? item.palletCount : 0), 0);
-  const totalGrossWeight = items.reduce(
-    (sum, item) => sum + (Number.isFinite(item.totalWeight) ? item.totalWeight : 0),
-    0,
-  );
+  const totalBoxes = visibleItems.reduce((sum, item) => sum + calculateBoxesCount(item.quantity, item.packaging), 0);
+  const totalPallets = visibleItems.reduce((sum, item) => sum + toFiniteNumber(item.palletCount), 0);
+  const totalGrossWeight = visibleItems.reduce((sum, item) => sum + (calculateHqGrossWeight(item) ?? 0), 0);
   const incotermLine = safeText(resolveHqIncotermLine(HQ_DESTINATION_COUNTRY));
   const normalizeUnit = (value?: string | null) => (value ?? "").trim().toLowerCase();
   const sumQuantityForUnits = (unitKeys: string[]) =>
-    items.reduce((sum, item) => {
+    visibleItems.reduce((sum, item) => {
       const key = normalizeUnit(item.unit);
       if (!unitKeys.includes(key)) {
         return sum;
       }
-      return sum + (Number.isFinite(item.quantity) ? item.quantity : 0);
+      return sum + toFiniteNumber(item.quantity);
     }, 0);
   const qtyPcs = sumQuantityForUnits(["pc", "pcs", "piece", "pieces"]);
   const qtyM = sumQuantityForUnits(["m", "meter", "meters"]);
@@ -808,7 +861,7 @@ const renderHqPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page hq-page">
         <div class="title hq-title">PACKING LIST</div>
-        <div class="meta-top hq-meta-top"><span>Date: ${invoiceDate}</span></div>
+        <div class="meta-top hq-meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderHqTopSection(invoiceNo)}
 
@@ -838,7 +891,7 @@ const renderHqPackingListPreviewHtml = (payload: InvoicePackingPayload) => {
             </tr>
           </thead>
           <tbody>
-            ${renderHqPackingRows(items)}
+            ${renderHqPackingRows(items, rowCount)}
             <tr class="hq-packing-summary-row">
               <td colspan="4" rowspan="3" class="hq-packing-summary-label">合計 （Total）</td>
               <td class="hq-packing-summary-qty">${formatNumber(qtyPcs, 0)} pcs</td>
@@ -915,7 +968,7 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
     <body>
       <div class="page">
         <div class="title">INVOICE</div>
-        <div class="meta-top"><span>インボイス作成日 (Date): ${invoiceDate}</span></div>
+        <div class="meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderSharedTopSection(payload, invoiceNo, destination)}
 
@@ -945,7 +998,7 @@ export const renderInvoicePreviewHtml = (payload: InvoicePackingPayload) => {
             ${renderInvoiceRows(items)}
             <tr>
               <td colspan="7" class="text-center"><strong>合計 (Total)</strong></td>
-              <td class="text-right"><strong>${formatNumber(totalAmount)}</strong></td>
+              <td class="text-right"><strong>${formatClientInvoiceAmount(totalAmount)}</strong></td>
             </tr>
           </tbody>
         </table>
@@ -986,8 +1039,8 @@ const renderPackingRows = (items: InvoicePackingPayload["items"]) => {
         `;
       }
       const boxesCount = formatBoxesCount(item.quantity, item.packaging);
-      const netWeight = formatWeightKg(0);
-      const grossWeight = formatWeightKg(item.totalWeight);
+      const netWeight = formatWeightKg(calculateClientNetWeight(item));
+      const grossWeight = formatWeightKg(calculateClientGrossWeight(item));
       return `
         <tr>
           <td class="text-center">${index + 1}</td>
@@ -1019,10 +1072,8 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
   const totalQuantity = items.reduce((sum, item) => sum + (Number.isFinite(item.quantity) ? item.quantity : 0), 0);
   const totalBoxes = items.reduce((sum, item) => sum + calculateBoxesCount(item.quantity, item.packaging), 0);
   const totalPallets = items.reduce((sum, item) => sum + (Number.isFinite(item.palletCount) ? item.palletCount : 0), 0);
-  const totalGrossWeight = items.reduce(
-    (sum, item) => sum + (Number.isFinite(item.totalWeight) ? item.totalWeight : 0),
-    0,
-  );
+  const totalNetWeight = items.reduce((sum, item) => sum + calculateClientNetWeight(item), 0);
+  const totalGrossWeight = items.reduce((sum, item) => sum + calculateClientGrossWeight(item), 0);
   const estimatedCbm = totalPallets * 1.6683;
 
   return `<!DOCTYPE html>
@@ -1034,7 +1085,7 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
     <body>
       <div class="page">
         <div class="title">PACKING LIST</div>
-        <div class="meta-top"><span>Date: ${invoiceDate}</span></div>
+        <div class="meta-top"><span>インボイス作成日(Date): ${invoiceDate}</span></div>
 
         ${renderSharedTopSection(payload, invoiceNo, destination)}
 
@@ -1074,7 +1125,7 @@ export const renderPackingListPreviewHtml = (payload: InvoicePackingPayload) => 
               <td></td>
               <td class="packing-total-value">${formatNumber(totalBoxes, 0)} Boxs</td>
               <td class="packing-total-value">${formatNumber(totalPallets, 0)} Pallets</td>
-              <td class="packing-total-value">${formatWeightKg(0)}</td>
+              <td class="packing-total-value">${formatWeightKg(totalNetWeight)}</td>
               <td class="packing-total-value">${formatWeightKg(totalGrossWeight)}</td>
             </tr>
             <tr>

@@ -1,11 +1,15 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
-import { Button, Chip, CircularProgress, IconButton } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
+import { Chip, IconButton } from "@mui/material";
 import { Trash2 } from "lucide-react";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import { useLanguage } from "@/lib/i18n/language";
-import { calculateSalesMetrics } from "@/features/sales-management/salesManagementUtils";
+import {
+  collectDeliveryDates,
+  getPrimaryDeliveryDate,
+  getSalesOrderMetrics,
+} from "@/features/sales-management/salesManagementUtils";
 import { salesDocumentStatusOptions, salesStatusOptions } from "@/features/sales-management/types";
 import type { SalesLineItem, SalesRow } from "@/features/sales-management/types";
 
@@ -59,6 +63,17 @@ const getUnitPriceLabel = (items: SalesLineItem[], currency: string) => {
   return "複数";
 };
 
+const getDeliveryDateLabel = (items: SalesLineItem[], fallbackDate: string, useVietnamese: boolean) => {
+  const dates = collectDeliveryDates(items, fallbackDate);
+  if (!dates.length) {
+    return "-";
+  }
+  if (dates.length === 1) {
+    return dates[0];
+  }
+  return `${dates[0]} ~ ${dates[dates.length - 1]} (${dates.length}${useVietnamese ? " đợt" : "日程"})`;
+};
+
 const renderStatusItems = (items: { label: string; active: boolean }[], tx: (text: string) => string) => (
   <div className="flex flex-col gap-1 text-xs text-gray-700">
     {items.map((item) => (
@@ -78,6 +93,9 @@ type SortKey =
   | "orderQuantity"
   | "shippedQuantity"
   | "remainingQuantity"
+  | "orderBalance"
+  | "receivableBalance"
+  | "unshippedAmount"
   | "unitPrice"
   | "amount"
   | "deliveryDate";
@@ -86,18 +104,15 @@ type SalesManagementTableViewProps = {
   rows: SalesRow[];
   onRowClick?: (row: SalesRow) => void;
   onDelete?: (row: SalesRow) => void;
-  onIssue?: (row: SalesRow) => void;
-  issuingRowId?: number | null;
 };
 
 export default function SalesManagementTableView({
   rows,
   onRowClick,
   onDelete,
-  onIssue,
-  issuingRowId,
 }: SalesManagementTableViewProps) {
-  const { tx } = useLanguage();
+  const { language, tx } = useLanguage();
+  const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const [sortKey, setSortKey] = useState<SortKey>("orderDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -105,19 +120,19 @@ export default function SalesManagementTableView({
     () => [
       {
         key: "orderNo",
-        header: "PO NO.",
+        header: "PO No.",
         sortKey: "orderNo",
         render: (row) => <span className="text-sm font-semibold text-blue-600">{row.orderNo}</span>,
       },
       {
         key: "orderDate",
-        header: "受注日",
+        header: tr("受注日", "Ngày nhận đơn"),
         sortKey: "orderDate",
         render: (row) => <span className="text-sm">{row.orderDate}</span>,
       },
       {
         key: "customerName",
-        header: "顧客名",
+        header: tr("顧客名", "Tên khách hàng"),
         sortKey: "customerName",
         render: (row) => (
           <div className="flex flex-col text-sm">
@@ -128,7 +143,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "product",
-        header: "品目/品番",
+        header: tr("品目/品番", "Sản phẩm / Mã hàng"),
         sortKey: "productCode",
         render: (row) => {
           const summary = getItemSummary(row.items);
@@ -143,7 +158,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "materials",
-        header: "使用材料",
+        header: tr("使用材料", "Nguyên vật liệu sử dụng"),
         render: (row) => {
           const materials = getMaterials(row.items);
           const firstRow = materials.slice(0, 3);
@@ -190,63 +205,97 @@ export default function SalesManagementTableView({
       },
       {
         key: "stockQuantity",
-        header: "在庫数",
+        header: tr("在庫数", "Tồn kho"),
         align: "right",
         render: (row) => <span className="text-sm">{tx(getStockLabel(row.items))}</span>,
       },
       {
         key: "orderQuantity",
-        header: "注数",
+        header: tr("注数", "Số lượng đặt"),
         sortKey: "orderQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm">{amountFormatter.format(metrics.orderQuantity)}</span>;
         },
       },
       {
         key: "shippedQuantity",
-        header: "出荷数",
+        header: tr("出荷数", "Số lượng xuất"),
         sortKey: "shippedQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm">{amountFormatter.format(metrics.shippedQuantity)}</span>;
         },
       },
       {
         key: "remainingQuantity",
-        header: "残注数",
+        header: tr("残注数", "Số lượng còn lại"),
         sortKey: "remainingQuantity",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm font-semibold">{amountFormatter.format(metrics.remainingQuantity)}</span>;
         },
       },
       {
         key: "unitPrice",
-        header: "単価",
+        header: tr("単価", "Đơn giá"),
         sortKey: "unitPrice",
         align: "right",
         render: (row) => <span className="text-sm font-semibold">{tx(getUnitPriceLabel(row.items, row.currency))}</span>,
       },
       {
         key: "amount",
-        header: "金額",
+        header: tr("金額", "Số tiền"),
         sortKey: "amount",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.amount)}</span>;
         },
       },
       {
-        key: "requiredMaterial",
-        header: "必要材料量",
+        key: "orderBalance",
+        header: tr("受注残高", "Số dư đơn hàng"),
+        sortKey: "orderBalance",
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
+          return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.orderBalance)}</span>;
+        },
+      },
+      {
+        key: "receivableBalance",
+        header: tr("売掛残高", "Công nợ phải thu"),
+        sortKey: "receivableBalance",
+        align: "right",
+        render: (row) => {
+          const metrics = getSalesOrderMetrics(row);
+          return (
+            <span className="text-sm font-semibold text-amber-700">
+              {formatCurrencyValue(row.currency, metrics.receivableBalance)}
+            </span>
+          );
+        },
+      },
+      {
+        key: "unshippedAmount",
+        header: tr("未出荷残高", "Số dư chưa xuất"),
+        sortKey: "unshippedAmount",
+        align: "right",
+        render: (row) => {
+          const metrics = getSalesOrderMetrics(row);
+          return <span className="text-sm font-semibold">{formatCurrencyValue(row.currency, metrics.unshippedAmount)}</span>;
+        },
+      },
+      {
+        key: "requiredMaterial",
+        header: tr("必要材料量", "Lượng nguyên vật liệu cần thiết"),
+        align: "right",
+        render: (row) => {
+          const metrics = getSalesOrderMetrics(row);
           if (metrics.requiredMaterial === null) {
             return <span className="text-sm text-gray-400">-</span>;
           }
@@ -255,25 +304,25 @@ export default function SalesManagementTableView({
       },
       {
         key: "moldingTime",
-        header: "成形時間",
+        header: tr("成形時間", "Thời gian tạo hình"),
         align: "right",
         render: (row) => {
-          const metrics = calculateSalesMetrics(row.items);
+          const metrics = getSalesOrderMetrics(row);
           if (metrics.moldingTime === null) {
             return <span className="text-sm text-gray-400">-</span>;
           }
-          return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} 時間</span>;
+          return <span className="text-sm">{timeFormatter.format(metrics.moldingTime)} {tr("時間", "giờ")}</span>;
         },
       },
       {
         key: "deliveryDate",
-        header: "納品予定日",
+        header: tr("出荷日", "Ngày xuất hàng"),
         sortKey: "deliveryDate",
-        render: (row) => <span className="text-sm">{row.deliveryDate}</span>,
+        render: (row) => <span className="text-sm">{getDeliveryDateLabel(row.items, row.deliveryDate, language === "vi")}</span>,
       },
       {
         key: "status",
-        header: "ステータス",
+        header: tr("ステータス", "Trạng thái"),
         render: (row) =>
           renderStatusItems(
             salesStatusOptions.map((status) => ({
@@ -285,7 +334,7 @@ export default function SalesManagementTableView({
       },
       {
         key: "documentStatus",
-        header: "請求状況",
+        header: tr("請求状況", "Tình trạng hóa đơn"),
         render: (row) =>
           renderStatusItems(
             salesDocumentStatusOptions.map((status) => ({
@@ -296,41 +345,14 @@ export default function SalesManagementTableView({
           ),
       },
       {
-        key: "download",
-        header: (
-          <div className="flex flex-col leading-tight">
-            <span>インボイス</span>
-            <span>パッキングリスト</span>
-          </div>
-        ),
-        align: "center",
-        render: (row) => {
-          const isIssuing = issuingRowId === row.id;
-          return (
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={isIssuing}
-              startIcon={isIssuing ? <CircularProgress size={16} /> : null}
-              onClick={(event) => {
-                event.stopPropagation();
-                onIssue?.(row);
-              }}
-            >
-              {isIssuing ? tx("発行中...") : tx("発行")}
-            </Button>
-          );
-        },
-      },
-      {
         key: "delete",
-        header: <span>削除</span>,
+        header: <span>{tr("削除", "Xóa")}</span>,
         align: "center",
         render: (row) =>
           onDelete ? (
             <IconButton
               size="small"
-              aria-label="delete"
+              aria-label={tr("削除", "Xóa")}
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(row);
@@ -343,7 +365,7 @@ export default function SalesManagementTableView({
           ),
       },
     ],
-    [issuingRowId, onDelete, onIssue, tx],
+    [language, onDelete, tr, tx],
   );
 
   const handleSort = (key: string) => {
@@ -361,15 +383,23 @@ export default function SalesManagementTableView({
       case "productCode":
         return row.items[0]?.productCode ?? "";
       case "orderQuantity":
-        return calculateSalesMetrics(row.items).orderQuantity;
+        return getSalesOrderMetrics(row).orderQuantity;
       case "shippedQuantity":
-        return calculateSalesMetrics(row.items).shippedQuantity;
+        return getSalesOrderMetrics(row).shippedQuantity;
       case "remainingQuantity":
-        return calculateSalesMetrics(row.items).remainingQuantity;
+        return getSalesOrderMetrics(row).remainingQuantity;
       case "unitPrice":
         return row.items[0]?.unitPrice ?? 0;
       case "amount":
-        return calculateSalesMetrics(row.items).amount;
+        return getSalesOrderMetrics(row).amount;
+      case "orderBalance":
+        return getSalesOrderMetrics(row).orderBalance;
+      case "receivableBalance":
+        return getSalesOrderMetrics(row).receivableBalance;
+      case "unshippedAmount":
+        return getSalesOrderMetrics(row).unshippedAmount;
+      case "deliveryDate":
+        return getPrimaryDeliveryDate(row.items, row.deliveryDate);
       default:
         return row[key as keyof SalesRow];
     }
