@@ -228,7 +228,7 @@ const toDisplayAmount = (
 const compareDateDesc = (left: string, right: string) => right.localeCompare(left);
 
 export default function FinanceSummaryView() {
-  const { language } = useLanguage();
+  const { language, tx } = useLanguage();
   const tr = useCallback((ja: string, vi: string) => (language === "vi" ? vi : ja), [language]);
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
   const [startDate, setStartDate] = useState(defaultRange.startDate);
@@ -639,9 +639,9 @@ export default function FinanceSummaryView() {
   const periodRevenueBalanceChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.revenueBalance })), [periodRows]);
   const periodReceiptBalanceChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.receiptBalance })), [periodRows]);
   const customerRevenueChartData = useMemo(() => buildRankingChartData(customerSummaryRows, (row) => row.partner, (row) => row.revenue), [customerSummaryRows]);
-  const categoryExpenseChartData = useMemo(() => buildRankingChartData(categorySummaryRows, (row) => row.category, (row) => row.amount), [categorySummaryRows]);
+  const categoryExpenseChartData = useMemo(() => buildRankingChartData(categorySummaryRows, (row) => tx(row.category), (row) => row.amount), [categorySummaryRows, tx]);
   const customerRevenueSlices = useMemo(() => buildPieChartSlices(customerSummaryRows, (row) => row.partner, (row) => row.revenue, otherLabel), [customerSummaryRows, otherLabel]);
-  const categoryExpenseSlices = useMemo(() => buildPieChartSlices(categorySummaryRows, (row) => row.category, (row) => row.amount, otherLabel), [categorySummaryRows, otherLabel]);
+  const categoryExpenseSlices = useMemo(() => buildPieChartSlices(categorySummaryRows, (row) => tx(row.category), (row) => row.amount, otherLabel), [categorySummaryRows, otherLabel, tx]);
 
   const handleStartDateChange = (value: string) => {
     const normalizedValue = normalizeDateInputValue(value);
@@ -737,7 +737,7 @@ export default function FinanceSummaryView() {
   ];
 
   const categoryColumns: TableColumn<CategorySummaryRow>[] = [
-    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
+    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{tx(row.category)}</span> },
     { key: "expenseCount", header: tr("支出件数", "Số khoản chi"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
     { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, row.amount)}</span> },
   ];
@@ -754,8 +754,8 @@ export default function FinanceSummaryView() {
     { key: "sourceLabel", header: tr("区分", "Loại"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.source === "purchaseOrder" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>{row.sourceLabel}</span> },
     { key: "date", header: tr("支出日", "Ngày chi"), render: (row) => <span className="text-sm">{row.date}</span> },
     { key: "referenceNo", header: tr("伝票No.", "Số chứng từ"), render: (row) => <span className="text-sm font-semibold text-blue-600">{row.referenceNo}</span> },
-    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{row.category}</span> },
-    { key: "content", header: tr("内容", "Nội dung"), render: (row) => <span className="text-sm">{row.content}</span> },
+    { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{tx(row.category)}</span> },
+    { key: "content", header: tr("内容", "Nội dung"), render: (row) => <span className="text-sm">{tx(row.content)}</span> },
     { key: "counterparty", header: tr("支出先", "Đối tác chi"), render: (row) => <span className="text-sm">{row.counterparty}</span> },
     { key: "statusLabel", header: tr("ステータス", "Trạng thái"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{row.statusLabel}</span> },
     { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
@@ -1048,7 +1048,7 @@ export default function FinanceSummaryView() {
               if (!selected.length) {
                 return <span className="text-gray-400">{tr("すべて", "Tất cả")}</span>;
               }
-              return selected.join(", ");
+              return selected.map((value) => tx(value)).join(", ");
             }}
           >
             {expenseCategoryOptions.length === 0 ? (
@@ -1059,7 +1059,7 @@ export default function FinanceSummaryView() {
               expenseCategoryOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   <Checkbox checked={selectedExpenseCategories.includes(option)} />
-                  <ListItemText primary={option} />
+                  <ListItemText primary={tx(option)} />
                 </MenuItem>
               ))
             )}
