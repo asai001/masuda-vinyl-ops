@@ -4,6 +4,9 @@ declare module "xlsx-populate" {
   type Cell = {
     value(): CellValue;
     value(value: CellValue): Cell;
+    formula(): string | undefined;
+    formula(value: string | null): Cell;
+    style(name: string, value: string): Cell;
     address(): string;
   };
 
@@ -16,10 +19,16 @@ declare module "xlsx-populate" {
     cell(address: string): Cell;
     cell(row: number, column: number): Cell;
     usedRange(): Range | undefined | null;
+    hidden(): boolean | string;
+    hidden(value: boolean): Sheet;
+    delete(): Workbook;
+    name(): string;
+    name(value: string): Sheet;
   };
 
   type Workbook = {
-    sheet(name: string): Sheet;
+    sheet(name: string | number): Sheet | undefined;
+    activeSheet(sheet: Sheet | string | number): Workbook;
     outputAsync(): Promise<Buffer>;
   };
 

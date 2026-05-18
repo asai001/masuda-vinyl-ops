@@ -30,6 +30,7 @@ export class InfraStack extends cdk.Stack {
         productMaterialLinks: dynamodb.productMaterialLinksTable,
         purchaseOrders: dynamodb.purchaseOrdersTable,
         salesOrders: dynamodb.salesOrdersTable,
+        shipments: dynamodb.shipmentsTable,
         paymentDefinitions: dynamodb.paymentDefinitionsTable,
         payments: dynamodb.paymentsTable,
         sequences: dynamodb.sequencesTable,

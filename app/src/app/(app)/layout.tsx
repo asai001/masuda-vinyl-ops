@@ -73,6 +73,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     "/order-management/summary": "page.orderSummary",
     "/sales-management": "nav.salesManagement",
     "/sales-management/summary": "page.salesSummary",
+    "/shipment-management": "nav.shipmentManagement",
+    "/finance-summary": "page.financeSummary",
     "/payment-master": "nav.paymentMaster",
     "/payment-management": "nav.paymentManagement",
     "/payment-management/summary": "page.paymentSummary",

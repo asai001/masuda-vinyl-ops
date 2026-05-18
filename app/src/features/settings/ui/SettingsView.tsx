@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, MenuItem, TextField } from "@mui/material";
 import { Save } from "lucide-react";
-import { fetchExchangeRates, saveExchangeRates } from "@/features/settings/api/client";
+import { fetchSettings, saveCompanyProfile, saveExchangeRates } from "@/features/settings/api/client";
 import {
   DEFAULT_FONT_SCALE,
   FONT_SCALE_OPTIONS,
   FONT_SCALE_STORAGE_KEY,
   normalizeFontScale,
 } from "@/features/settings/fontScale";
-import { useLanguage } from "@/lib/i18n/language";
 import { getMyProfile, updateMyProfileAttributes } from "@/lib/auth/cognito";
+import { useLanguage } from "@/lib/i18n/language";
 
 const initialRates = {
   jpyPerUsd: "",
@@ -29,6 +29,16 @@ const initialProfile = {
 
 type ProfileKey = keyof typeof initialProfile;
 type ProfileState = typeof initialProfile;
+
+const initialCompany = {
+  issuerName: "",
+  issuerAddress: "",
+  issuerPhone: "",
+  issuerFax: "",
+};
+
+type CompanyKey = keyof typeof initialCompany;
+type CompanyState = typeof initialCompany;
 
 const toPositiveNumberOrNull = (value: string): number | null => {
   const n = Number(value);
@@ -50,21 +60,20 @@ export default function SettingsView() {
   const router = useRouter();
   const { tx } = useLanguage();
 
-  // exchange rates
   const [rates, setRates] = useState<ExchangeRateState>(initialRates);
   const [loadingRates, setLoadingRates] = useState(true);
   const [savingRates, setSavingRates] = useState(false);
 
-  // font scale
   const [fontScale, setFontScale] = useState(DEFAULT_FONT_SCALE);
   const [savingFontScale, setSavingFontScale] = useState(false);
 
-  // profile
   const [profile, setProfile] = useState<ProfileState>(initialProfile);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // shared
+  const [company, setCompany] = useState<CompanyState>(initialCompany);
+  const [savingCompany, setSavingCompany] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const jpy = toPositiveNumberOrNull(rates.jpyPerUsd);
@@ -72,21 +81,26 @@ export default function SettingsView() {
 
   const canSubmitRates = !loadingRates && !savingRates && jpy !== null && vnd !== null;
   const canSubmitProfile = !loadingProfile && !savingProfile;
+  const canSubmitCompany = !loadingRates && !savingCompany;
   const canSubmitFontScale = !savingFontScale;
 
-  // 初期ロード：レート + プロフィール
   useEffect(() => {
     const ac = new AbortController();
 
     (async () => {
       setErrorMessage(null);
 
-      // 1) rates
       try {
-        const data = await fetchExchangeRates(ac.signal);
+        const settings = await fetchSettings(ac.signal);
         setRates({
-          jpyPerUsd: Number.isFinite(data.jpyPerUsd) ? data.jpyPerUsd.toFixed(2) : "",
-          vndPerUsd: Number.isFinite(data.vndPerUsd) ? data.vndPerUsd.toFixed(2) : "",
+          jpyPerUsd: Number.isFinite(settings.jpyPerUsd) ? settings.jpyPerUsd.toFixed(2) : "",
+          vndPerUsd: Number.isFinite(settings.vndPerUsd) ? settings.vndPerUsd.toFixed(2) : "",
+        });
+        setCompany({
+          issuerName: settings.issuerName ?? "",
+          issuerAddress: settings.issuerAddress ?? "",
+          issuerPhone: settings.issuerPhone ?? "",
+          issuerFax: settings.issuerFax ?? "",
         });
       } catch (e) {
         if (!isAbortError(e)) {
@@ -100,7 +114,6 @@ export default function SettingsView() {
         setLoadingRates(false);
       }
 
-      // 2) profile（トークンpayloadから読む想定）
       try {
         const me = await getMyProfile();
         if (!me) {
@@ -112,7 +125,6 @@ export default function SettingsView() {
           departmentName: me.departmentName ?? "",
         });
       } catch {
-        // getMyProfile は基本ローカル処理だけど、念のため
         setErrorMessage("ユーザー情報の取得に失敗しました。");
       } finally {
         setLoadingProfile(false);
@@ -129,7 +141,6 @@ export default function SettingsView() {
     document.documentElement.style.setProperty("--app-font-scale", String(normalizedScale));
   }, []);
 
-  // handlers: rates
   const handleRateChange = (key: ExchangeRateKey) => (event: ChangeEvent<HTMLInputElement>) => {
     setErrorMessage(null);
     setRates((prev) => ({ ...prev, [key]: event.target.value }));
@@ -183,7 +194,44 @@ export default function SettingsView() {
     }
   };
 
-  // handlers: profile
+  const handleCompanyChange = (key: CompanyKey) => (event: ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage(null);
+    setCompany((prev) => ({ ...prev, [key]: event.target.value }));
+  };
+
+  const handleCompanySubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+
+    if (!canSubmitCompany) {
+      return;
+    }
+
+    setSavingCompany(true);
+    try {
+      const updated = await saveCompanyProfile({
+        issuerName: company.issuerName.trim(),
+        issuerAddress: company.issuerAddress.trim(),
+        issuerPhone: company.issuerPhone.trim(),
+        issuerFax: company.issuerFax.trim(),
+      });
+      setCompany({
+        issuerName: updated.issuerName ?? "",
+        issuerAddress: updated.issuerAddress ?? "",
+        issuerPhone: updated.issuerPhone ?? "",
+        issuerFax: updated.issuerFax ?? "",
+      });
+    } catch (e) {
+      if (e instanceof Error && e.message === "UNAUTHORIZED") {
+        router.replace("/");
+        return;
+      }
+      setErrorMessage("会社情報の保存に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setSavingCompany(false);
+    }
+  };
+
   const handleProfileChange = (key: ProfileKey) => (event: ChangeEvent<HTMLInputElement>) => {
     setErrorMessage(null);
     setProfile((prev) => ({ ...prev, [key]: event.target.value }));
@@ -193,18 +241,13 @@ export default function SettingsView() {
     event.preventDefault();
     setErrorMessage(null);
 
-    // 例：空でもOKにするならこのチェックは不要
-    // if (!profile.userName.trim()) { setErrorMessage("ユーザー名を入力してください。"); return; }
-
     setSavingProfile(true);
     try {
-      // ✅ Cognitoの custom:displayName / custom:departmentName に書き込む想定
       await updateMyProfileAttributes({
         userName: profile.userName.trim(),
         departmentName: profile.departmentName.trim(),
       });
 
-      // refreshSession 済みの想定なので、取り直して state 更新
       const me = await getMyProfile();
       if (me) {
         setProfile({
@@ -213,7 +256,6 @@ export default function SettingsView() {
         });
       }
 
-      // もし layout 側でイベント監視してヘッダー更新したい場合に備えて（任意）
       window.dispatchEvent(new Event("mvops:profile-updated"));
     } catch (e: unknown) {
       console.error(e);
@@ -246,7 +288,6 @@ export default function SettingsView() {
         </div>
       )}
 
-      {/* ユーザー情報 */}
       <form onSubmit={handleProfileSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
@@ -292,7 +333,76 @@ export default function SettingsView() {
         </div>
       </form>
 
-      {/* 文字サイズ */}
+      <form onSubmit={handleCompanySubmit}>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">{tx("会社情報")}</h2>
+            <p className="text-sm text-gray-600">{tx("会社名・住所・電話番号・FAXを設定します")}</p>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-gray-800">{tx("会社名")}</span>
+              <TextField
+                size="small"
+                value={company.issuerName}
+                onChange={handleCompanyChange("issuerName")}
+                placeholder={tx("例）増田ビニール株式会社")}
+                disabled={savingCompany || loadingRates}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-gray-800">{tx("住所")}</span>
+              <TextField
+                size="small"
+                value={company.issuerAddress}
+                onChange={handleCompanyChange("issuerAddress")}
+                placeholder={tx("例）Binh Duong, Vietnam")}
+                multiline
+                minRows={3}
+                disabled={savingCompany || loadingRates}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-semibold text-gray-800">TEL</span>
+                <TextField
+                  size="small"
+                  value={company.issuerPhone ?? ""}
+                  onChange={handleCompanyChange("issuerPhone")}
+                  placeholder="1234-5678-901"
+                  disabled={savingCompany || loadingRates}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-semibold text-gray-800">{tx("FAX")}</span>
+                <TextField
+                  size="small"
+                  value={company.issuerFax ?? ""}
+                  onChange={handleCompanyChange("issuerFax")}
+                  placeholder="1234-5678-901"
+                  disabled={savingCompany || loadingRates}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<Save size={16} />}
+              className="whitespace-nowrap"
+              disabled={!canSubmitCompany}
+            >
+              {savingCompany ? tx("保存中...") : tx("保存")}
+            </Button>
+          </div>
+        </div>
+      </form>
+
       <form onSubmit={handleFontScaleSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
@@ -332,17 +442,16 @@ export default function SettingsView() {
         </div>
       </form>
 
-      {/* 換算レート */}
       <form onSubmit={handleRatesSubmit}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2">
             <h2 className="text-lg font-semibold text-gray-900">{tx("換算レート設定")}</h2>
-            <p className="text-sm text-gray-600">{tx("1 USD あたりの金額を入力してください")}</p>
+            <p className="text-sm text-gray-600">{tx("1 USD あたりの通貨を入力してください")}</p>
           </div>
 
           <div className="mt-6 flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              <span className="text-sm font-semibold text-gray-800">{tx("JPY → USD レート")}</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("JPY -> USD レート")}</span>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-gray-600">1 USD =</span>
                 <TextField
@@ -362,7 +471,7 @@ export default function SettingsView() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="text-sm font-semibold text-gray-800">{tx("VND → USD レート")}</span>
+              <span className="text-sm font-semibold text-gray-800">{tx("VND -> USD レート")}</span>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-gray-600">1 USD =</span>
                 <TextField

@@ -6,13 +6,14 @@ import { useLanguage } from "@/lib/i18n/language";
 
 export type SummaryCard = {
   label: string;
-  value: number;
+  value: React.ReactNode;
   tone: "primary" | "success" | "muted" | "warning";
   icon?: React.ReactNode;
 };
 
 type SummaryCardsProps = {
   cards: SummaryCard[];
+  lgColumns?: 3 | 4;
 };
 
 const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; value: string }> = {
@@ -22,10 +23,11 @@ const toneStyles: Record<SummaryCard["tone"], { badge: string; icon: string; val
   muted: { badge: "bg-gray-50", icon: "text-gray-400", value: "text-gray-500" },
 };
 
-export default function SummaryCards({ cards }: SummaryCardsProps) {
+export default function SummaryCards({ cards, lgColumns }: SummaryCardsProps) {
   const { tx } = useLanguage();
   const defaultIcon = <Users size={22} />;
-  const columnClass = cards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3";
+  const resolvedLgColumns = lgColumns ?? (cards.length >= 4 ? 4 : 3);
+  const columnClass = resolvedLgColumns === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3";
   return (
     <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${columnClass}`}>
       {cards.map((card) => {

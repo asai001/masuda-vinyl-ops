@@ -41,7 +41,7 @@ export default function Modal({
       onClose={onClose}
       maxWidth={maxWidth}
       fullWidth={fullWidth}
-      PaperProps={{ sx: { maxWidth: 800, width: "100%", ...paperSx } }}
+      PaperProps={{ sx: { width: "100%", ...paperSx, maxWidth: "70vw" } }}
     >
       <DialogTitle className="flex items-center justify-between" sx={{ px: 3, py: 2 }}>
         {translateNode(title, tx)}

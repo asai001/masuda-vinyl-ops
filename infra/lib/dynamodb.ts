@@ -21,6 +21,7 @@ export class DynamoDbResources extends Construct {
   public readonly productMaterialLinksTable: dynamodb.Table;
   public readonly purchaseOrdersTable: dynamodb.Table;
   public readonly salesOrdersTable: dynamodb.Table;
+  public readonly shipmentsTable: dynamodb.Table;
   public readonly paymentDefinitionsTable: dynamodb.Table;
   public readonly paymentsTable: dynamodb.Table;
   public readonly sequencesTable: dynamodb.Table;
@@ -347,6 +348,28 @@ export class DynamoDbResources extends Construct {
       indexName: "SalesOrdersByPaidStatusIndex",
       partitionKey: { name: "paidStatusIndexPk", type: dynamodb.AttributeType.STRING }, // orgId
       sortKey: { name: "paidStatusIndexSk", type: dynamodb.AttributeType.STRING }, // orderDate
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // ---- shipments ----
+    const shipments = this.createTable({
+      tableName: "shipments",
+      pk: { name: "orgId", type: dynamodb.AttributeType.STRING },
+      sk: { name: "shipmentId", type: dynamodb.AttributeType.STRING },
+      removalPolicy,
+    });
+    this.shipmentsTable = shipments.table;
+
+    shipments.table.addGlobalSecondaryIndex({
+      indexName: "ShipmentsByDeliveryDateIndex",
+      partitionKey: { name: "deliveryDateIndexPk", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "deliveryDateIndexSk", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+    shipments.table.addGlobalSecondaryIndex({
+      indexName: "ShipmentsByCustomerIndex",
+      partitionKey: { name: "customerIndexPk", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "customerIndexSk", type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 

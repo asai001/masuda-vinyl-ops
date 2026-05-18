@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeAuditLog } from "@/lib/audit";
 import { requireAuthContext } from "@/lib/auth/requireAuthContext";
 import { deleteProduct, listProducts, upsertProduct } from "@/features/product-master/api/server";
+import { listMaterials } from "@/features/material-master/api/server";
 import type { NewProductInput, UpdateProductInput } from "@/features/product-master/types";
 
 const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -55,6 +56,17 @@ const toProductTarget = (value: unknown) => {
     code: typeof record.code === "string" ? record.code : undefined,
     name: typeof record.name === "string" ? record.name : undefined,
   };
+};
+
+const findUnknownMaterials = async (orgId: string, materials: string[]) => {
+  const registered = await listMaterials(orgId);
+  const codeSet = new Set(
+    registered
+      .map((item) => (typeof item.code === "string" ? item.code.trim() : ""))
+      .filter(Boolean),
+  );
+  const normalized = Array.from(new Set(materials.map((item) => item.trim()).filter(Boolean)));
+  return normalized.filter((item) => !codeSet.has(item));
 };
 
 export async function GET(req: Request) {
@@ -142,6 +154,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  const unknownMaterials = await findUnknownMaterials(orgId, bodyUnknown.materials);
+  if (unknownMaterials.length) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toProductTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: `Unknown materials: ${unknownMaterials.join(", ")}`,
+    });
+    return NextResponse.json(
+      { error: "材料マスタに登録されていない材料は指定できません", unknownMaterials },
+      { status: 400 },
+    );
+  }
+
   try {
     const saved = await upsertProduct(orgId, bodyUnknown);
     await writeAuditLog({
@@ -219,6 +250,25 @@ export async function PUT(req: Request) {
       errorMessage: "Invalid request body",
     });
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const unknownMaterials = await findUnknownMaterials(orgId, bodyUnknown.materials);
+  if (unknownMaterials.length) {
+    await writeAuditLog({
+      req,
+      orgId,
+      actor,
+      action,
+      resource,
+      target: toProductTarget(bodyUnknown),
+      result: "failure",
+      statusCode: 400,
+      errorMessage: `Unknown materials: ${unknownMaterials.join(", ")}`,
+    });
+    return NextResponse.json(
+      { error: "材料マスタに登録されていない材料は指定できません", unknownMaterials },
+      { status: 400 },
+    );
   }
 
   try {

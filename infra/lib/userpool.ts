@@ -18,6 +18,7 @@ interface UserPoolResourcesProps {
     productMaterialLinks: Table;
     purchaseOrders: Table;
     salesOrders: Table;
+    shipments: Table;
     paymentDefinitions: Table;
     payments: Table;
     sequences: Table;
@@ -106,6 +107,7 @@ export class UserPoolResources extends Construct {
     props.tables.productMaterialLinks.grantReadWriteData(vercelRole);
     props.tables.purchaseOrders.grantReadWriteData(vercelRole);
     props.tables.salesOrders.grantReadWriteData(vercelRole);
+    props.tables.shipments.grantReadWriteData(vercelRole);
     props.tables.paymentDefinitions.grantReadWriteData(vercelRole);
     props.tables.payments.grantReadWriteData(vercelRole);
     props.tables.sequences.grantReadWriteData(vercelRole);

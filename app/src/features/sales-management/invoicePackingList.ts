@@ -5,6 +5,7 @@ export type InvoicePackingLineItem = {
   unit: string;
   quantity: number;
   unitPrice: number;
+  weight?: number | null;
   palletCount: number;
   totalWeight: number;
   packaging?: number | null;
@@ -17,6 +18,7 @@ export type InvoicePackingPayload = {
   invoiceDate: string;
   invoiceNo?: string;
   templateType?: InvoicePackingTemplate;
+  currency?: string;
   destinationCountry: string;
   remark?: string;
   consigneeName: string;

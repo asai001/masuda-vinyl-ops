@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, ListItemText, MenuItem, Paper, Select, TextField } from "@mui/material";
 import DataTable, { TableColumn } from "@/components/DataTable";
 import BarLineChart from "@/components/charts/BarLineChart";
@@ -25,6 +25,7 @@ type AggregationRow = {
   partner: string;
   currency: string;
   amount: number;
+  unpaidAmount?: number;
   confirmed: boolean;
 };
 
@@ -34,10 +35,20 @@ type AggregationDashboardProps = {
   dateLabel: string;
   confirmedLabel: string;
   exchangeRates: ExchangeRates;
+  includeUnpaidAmount?: boolean;
   initialStartDate?: string;
   initialEndDate?: string;
   onDateRangeChange?: (startDate: string, endDate: string) => void;
   scopeNotes?: string[];
+  renderAdditionalSections?: (context: AggregationDashboardRenderContext) => ReactNode;
+};
+
+export type AggregationDashboardRenderContext = {
+  startDate: string;
+  endDate: string;
+  selectedPartners: string[];
+  displayCurrency: CurrencyCode;
+  exchangeRates: ExchangeRates;
 };
 
 type PeriodSummaryRow = {
@@ -46,6 +57,7 @@ type PeriodSummaryRow = {
   count: number;
   partnerCount: number;
   total: number;
+  unpaidAmount: number;
   average: number;
   sortKey: number;
 };
@@ -55,6 +67,7 @@ type PartnerSummaryRow = {
   partner: string;
   count: number;
   total: number;
+  unpaidAmount: number;
   average: number;
 };
 
@@ -64,6 +77,7 @@ type PeriodAccumulator = {
   sortKey: number;
   count: number;
   totalUsd: number;
+  unpaidUsd: number;
   partners: Set<string>;
 };
 
@@ -97,10 +111,12 @@ export default function AggregationDashboard({
   dateLabel,
   confirmedLabel,
   exchangeRates,
+  includeUnpaidAmount = false,
   initialStartDate,
   initialEndDate,
   onDateRangeChange,
   scopeNotes,
+  renderAdditionalSections,
 }: AggregationDashboardProps) {
   const { tx } = useLanguage();
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
@@ -143,9 +159,23 @@ export default function AggregationDashboard({
     () => filteredRows.reduce((sum, row) => sum + convertToUsd(row.amount, row.currency, exchangeRates), 0),
     [exchangeRates, filteredRows],
   );
+  const unpaidUsd = useMemo(
+    () =>
+      filteredRows.reduce((sum, row) => {
+        if (typeof row.unpaidAmount !== "number" || !Number.isFinite(row.unpaidAmount)) {
+          return sum;
+        }
+        return sum + convertToUsd(row.unpaidAmount, row.currency, exchangeRates);
+      }, 0),
+    [exchangeRates, filteredRows],
+  );
   const displayTotal = useMemo(
     () => convertFromUsd(totalUsd, displayCurrency, exchangeRates),
     [displayCurrency, exchangeRates, totalUsd],
+  );
+  const displayUnpaidTotal = useMemo(
+    () => convertFromUsd(unpaidUsd, displayCurrency, exchangeRates),
+    [displayCurrency, exchangeRates, unpaidUsd],
   );
   const averageTotal = filteredRows.length ? displayTotal / filteredRows.length : 0;
   const uniquePartnerCount = useMemo(
@@ -168,10 +198,14 @@ export default function AggregationDashboard({
           sortKey: period.sortKey,
           count: 0,
           totalUsd: 0,
+          unpaidUsd: 0,
           partners: new Set<string>(),
         } as PeriodAccumulator);
       entry.count += 1;
       entry.totalUsd += convertToUsd(row.amount, row.currency, exchangeRates);
+      if (typeof row.unpaidAmount === "number" && Number.isFinite(row.unpaidAmount)) {
+        entry.unpaidUsd += convertToUsd(row.unpaidAmount, row.currency, exchangeRates);
+      }
       if (row.partner) {
         entry.partners.add(row.partner);
       }
@@ -181,12 +215,14 @@ export default function AggregationDashboard({
       .sort((a, b) => a.sortKey - b.sortKey)
       .map((entry) => {
         const total = convertFromUsd(entry.totalUsd, displayCurrency, exchangeRates);
+        const unpaidAmount = convertFromUsd(entry.unpaidUsd, displayCurrency, exchangeRates);
         return {
           id: entry.id,
           period: entry.label,
           count: entry.count,
           partnerCount: entry.partners.size,
           total,
+          unpaidAmount,
           average: entry.count ? total / entry.count : 0,
           sortKey: entry.sortKey,
         };
@@ -194,22 +230,27 @@ export default function AggregationDashboard({
   }, [displayCurrency, exchangeRates, filteredRows, groupUnit]);
 
   const partnerRows = useMemo<PartnerSummaryRow[]>(() => {
-    const map = new Map<string, { partner: string; count: number; totalUsd: number }>();
+    const map = new Map<string, { partner: string; count: number; totalUsd: number; unpaidUsd: number }>();
     filteredRows.forEach((row) => {
       const name = row.partner.trim() || "未設定";
-      const entry = map.get(name) ?? { partner: name, count: 0, totalUsd: 0 };
+      const entry = map.get(name) ?? { partner: name, count: 0, totalUsd: 0, unpaidUsd: 0 };
       entry.count += 1;
       entry.totalUsd += convertToUsd(row.amount, row.currency, exchangeRates);
+      if (typeof row.unpaidAmount === "number" && Number.isFinite(row.unpaidAmount)) {
+        entry.unpaidUsd += convertToUsd(row.unpaidAmount, row.currency, exchangeRates);
+      }
       map.set(name, entry);
     });
     return Array.from(map.values())
       .map((entry) => {
         const total = convertFromUsd(entry.totalUsd, displayCurrency, exchangeRates);
+        const unpaidAmount = convertFromUsd(entry.unpaidUsd, displayCurrency, exchangeRates);
         return {
           id: entry.partner,
           partner: entry.partner,
           count: entry.count,
           total,
+          unpaidAmount,
           average: entry.count ? total / entry.count : 0,
         };
       })
@@ -253,8 +294,8 @@ export default function AggregationDashboard({
     return base;
   }, [partnerRows]);
 
-  const periodColumns = useMemo<TableColumn<PeriodSummaryRow>[]>(
-    () => [
+  const periodColumns = useMemo<TableColumn<PeriodSummaryRow>[]>(() => {
+    const columns: TableColumn<PeriodSummaryRow>[] = [
       { key: "period", header: "期間", render: (row) => <span className="text-sm">{row.period}</span> },
       {
         key: "count",
@@ -280,12 +321,26 @@ export default function AggregationDashboard({
         align: "right",
         render: (row) => <span className="text-sm">{formatCurrencyValue(displayCurrency, row.average)}</span>,
       },
-    ],
-    [displayCurrency, partnerLabel],
-  );
+    ];
 
-  const partnerColumns = useMemo<TableColumn<PartnerSummaryRow>[]>(
-    () => [
+    if (includeUnpaidAmount) {
+      columns.splice(4, 0, {
+        key: "unpaidAmount",
+        header: `受注残金額 (${displayCurrency})`,
+        align: "right",
+        render: (row) => (
+          <span className="text-sm font-semibold text-amber-700">
+            {formatCurrencyValue(displayCurrency, row.unpaidAmount)}
+          </span>
+        ),
+      });
+    }
+
+    return columns;
+  }, [displayCurrency, includeUnpaidAmount, partnerLabel]);
+
+  const partnerColumns = useMemo<TableColumn<PartnerSummaryRow>[]>(() => {
+    const columns: TableColumn<PartnerSummaryRow>[] = [
       {
         key: "partner",
         header: partnerLabel,
@@ -309,9 +364,23 @@ export default function AggregationDashboard({
         align: "right",
         render: (row) => <span className="text-sm">{formatCurrencyValue(displayCurrency, row.average)}</span>,
       },
-    ],
-    [displayCurrency, partnerLabel],
-  );
+    ];
+
+    if (includeUnpaidAmount) {
+      columns.splice(3, 0, {
+        key: "unpaidAmount",
+        header: `受注残金額 (${displayCurrency})`,
+        align: "right",
+        render: (row) => (
+          <span className="text-sm font-semibold text-amber-700">
+            {formatCurrencyValue(displayCurrency, row.unpaidAmount)}
+          </span>
+        ),
+      });
+    }
+
+    return columns;
+  }, [displayCurrency, includeUnpaidAmount, partnerLabel]);
 
   const handleReset = () => {
     const range = getCurrentMonthRange();
@@ -337,6 +406,15 @@ export default function AggregationDashboard({
 
   const summaryItems = [
     { label: `合計金額 (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, displayTotal) },
+    ...(includeUnpaidAmount
+      ? [
+          {
+            label: "受注残金額（未入金）",
+            value: formatCurrencyValue(displayCurrency, displayUnpaidTotal),
+            valueClassName: "text-amber-700",
+          },
+        ]
+      : []),
     { label: "件数", value: formatNumberValue(filteredRows.length) },
     { label: `${partnerLabel}数`, value: formatNumberValue(uniquePartnerCount) },
     {
@@ -441,14 +519,20 @@ export default function AggregationDashboard({
         </div>
       </Paper>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={
+          includeUnpaidAmount
+            ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5"
+            : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        }
+      >
         {summaryItems.map((item) => (
           <div
             key={item.label}
             className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm"
           >
             <div className="text-sm font-semibold text-gray-500">{tx(item.label)}</div>
-            <div className="text-2xl font-bold text-gray-900">{item.value}</div>
+            <div className={`text-2xl font-bold ${item.valueClassName ?? "text-gray-900"}`}>{item.value}</div>
           </div>
         ))}
       </div>
@@ -507,6 +591,15 @@ export default function AggregationDashboard({
             <div className="text-sm font-semibold text-gray-700">{tx(`${partnerLabel}別サマリー`)}</div>
             <DataTable columns={partnerColumns} rows={partnerRows} getRowId={(row) => row.id} />
           </div>
+          {renderAdditionalSections
+            ? renderAdditionalSections({
+                startDate,
+                endDate,
+                selectedPartners,
+                displayCurrency,
+                exchangeRates,
+              })
+            : null}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-6 text-sm text-gray-500">

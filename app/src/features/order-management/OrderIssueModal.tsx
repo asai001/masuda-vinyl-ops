@@ -7,6 +7,8 @@ import type { ClientRow } from "@/features/client-master/types";
 import { renderOrderIssuePreviewHtml } from "@/features/order-management/orderIssuePreview";
 import type { OrderRow } from "@/features/order-management/types";
 import type { OrderIssueExcelPayload } from "@/features/order-management/orderIssueExcel";
+import { getIdTokenJwt } from "@/lib/auth/cognito";
+import { fetchSettings } from "@/features/settings/api/client";
 
 type OrderIssueModalProps = {
   open: boolean;
@@ -16,10 +18,7 @@ type OrderIssueModalProps = {
 };
 
 const ORDER_ISSUE_PREVIEW_SCALE = 0.9;
-
-const amountFormatter = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 6,
-});
+const USD_CURRENCY_CODE = "USD";
 
 const sanitizeFileName = (value: string) => {
   const trimmed = value.trim();
@@ -89,11 +88,24 @@ const saveBlobToPickedFile = async (
   }
 };
 
-const formatNumber = (value: number) => {
+const formatNumber = (value: number, digits = 0) => {
   if (!Number.isFinite(value)) {
     return "0";
   }
-  return amountFormatter.format(value);
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
+
+const formatMoney = (value: number, currency: string) => {
+  const normalizedCurrency = currency.trim();
+  const digits = normalizedCurrency.toUpperCase() === USD_CURRENCY_CODE ? 2 : 0;
+  const formatted = formatNumber(value, digits);
+  if (!normalizedCurrency) {
+    return formatted;
+  }
+  return `${formatted} ${normalizedCurrency}`;
 };
 
 const toIsoDate = (value?: string | null) => {
@@ -123,9 +135,16 @@ const buildSupplierContactLabel = (contactPerson?: string, phone?: string) => {
 };
 
 const requestOrderIssueExcelBlob = async (payload: OrderIssueExcelPayload, signal?: AbortSignal) => {
+  const token = await getIdTokenJwt();
+  if (!token) {
+    throw new Error("UNAUTHORIZED");
+  }
   const response = await fetch("/api/order-issue-excel", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
     signal,
   });
@@ -150,6 +169,12 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [issueError, setIssueError] = useState<string | null>(null);
+  const [issuerProfile, setIssuerProfile] = useState({
+    issuerName: "",
+    issuerAddress: "",
+    issuerPhone: "",
+    issuerFax: "",
+  });
 
   useEffect(() => {
     if (!open) {
@@ -167,6 +192,29 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     setOrderNumberInput(`PO-${String(order.id).padStart(4, "0")}`);
     setNoteInput(order.note ?? "");
   }, [open, order]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const settings = await fetchSettings(ac.signal);
+        setIssuerProfile({
+          issuerName: settings.issuerName ?? "",
+          issuerAddress: settings.issuerAddress ?? "",
+          issuerPhone: settings.issuerPhone ?? "",
+          issuerFax: settings.issuerFax ?? "",
+        });
+      } catch (error) {
+        if (!isAbortError(error)) {
+          console.error("Failed to load issuer profile", error);
+        }
+      }
+    })();
+    return () => ac.abort();
+  }, [open]);
 
   const defaultOrderNumber = order ? `PO-${String(order.id).padStart(4, "0")}` : "-";
   const resolvedOrderNumber = orderNumberInput.trim() || defaultOrderNumber;
@@ -205,10 +253,7 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       return "-";
     }
     const total = displayedLineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    if (!order.currency) {
-      return formatNumber(total);
-    }
-    return `${formatNumber(total)} ${order.currency}`;
+    return formatMoney(total, order.currency ?? "");
   }, [displayedLineItems, order]);
 
   const excelPayload = useMemo<OrderIssueExcelPayload | null>(() => {
@@ -234,8 +279,9 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
     return renderOrderIssuePreviewHtml({
       ...excelPayload,
       note: noteInput,
+      ...issuerProfile,
     });
-  }, [excelPayload, noteInput]);
+  }, [excelPayload, issuerProfile, noteInput]);
 
   const handleDownload = async () => {
     if (!excelPayload || isDownloading) {
@@ -266,6 +312,10 @@ export default function OrderIssueModal({ open, order, onClose, clients = [] }: 
       onClose();
     } catch (error) {
       console.error("Failed to issue order excel", error);
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        setIssueError("ログイン状態を確認して、再度お試しください。");
+        return;
+      }
       setIssueError("Excelファイルの発行に失敗しました。");
     } finally {
       setIsDownloading(false);

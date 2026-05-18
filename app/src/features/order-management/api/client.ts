@@ -4,6 +4,7 @@ import {
   orderStatusOptions,
   type DocumentStatus,
   type OrderLineItem,
+  type OrderPayment,
   type OrderRow,
   type OrderStatus,
   type PurchaseOrderItem,
@@ -62,6 +63,25 @@ const normalizeItems = (items: unknown): OrderLineItem[] => {
   });
 };
 
+const normalizePayments = (payments: unknown): OrderPayment[] => {
+  if (!Array.isArray(payments)) {
+    return [];
+  }
+  return payments.map((payment, index) => {
+    if (!payment || typeof payment !== "object") {
+      return { id: index + 1, paymentDate: "", amount: 0 };
+    }
+    const record = payment as Record<string, unknown>;
+    const note = typeof record.note === "string" ? record.note : undefined;
+    return {
+      id: typeof record.id === "number" ? record.id : index + 1,
+      paymentDate: typeof record.paymentDate === "string" ? record.paymentDate : "",
+      amount: typeof record.amount === "number" ? record.amount : 0,
+      ...(note ? { note } : {}),
+    };
+  });
+};
+
 const calculateAmount = (items: OrderLineItem[]) => items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
 function toRow(item: PurchaseOrderItem): OrderRow {
@@ -71,6 +91,7 @@ function toRow(item: PurchaseOrderItem): OrderRow {
   return {
     id,
     purchaseOrderId: item.purchaseOrderId,
+    poNo: item.poNo ?? "",
     orderDate: item.orderDate ?? "",
     deliveryDate: item.deliveryDate ?? "",
     supplier: item.supplier ?? "",
@@ -78,6 +99,7 @@ function toRow(item: PurchaseOrderItem): OrderRow {
     currency: item.currency ?? "",
     amount,
     note: item.note ?? "",
+    payments: normalizePayments(item.payments),
     status: normalizeStatus(item.status),
     documentStatus: normalizeDocumentStatus(item.documentStatus),
   };
@@ -108,6 +130,7 @@ export async function createPurchaseOrder(input: NewPurchaseOrderInput): Promise
 
 const toUpdatePayload = (row: OrderRow): UpdatePurchaseOrderInput => ({
   purchaseOrderId: row.purchaseOrderId,
+  poNo: row.poNo,
   orderDate: row.orderDate,
   deliveryDate: row.deliveryDate,
   supplier: row.supplier,
@@ -115,6 +138,7 @@ const toUpdatePayload = (row: OrderRow): UpdatePurchaseOrderInput => ({
   currency: row.currency,
   amount: row.amount,
   note: row.note,
+  payments: row.payments,
   status: row.status,
   documentStatus: row.documentStatus,
 });
