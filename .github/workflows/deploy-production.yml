@@ -3,6 +3,14 @@ name: Deploy to Vercel Production
 on:
   push:
     branches: [main]
+    # 以下のパスのみの変更ではデプロイをスキップする
+    # - **/*.md : ドキュメント（RELEASE.md / README.md など）
+    # - .github/** : ワークフロー定義や issue template 等の GitHub 設定
+    # - infra/** : CDK インフラ（別途 `cdk deploy` でデプロイするためアプリ側ビルド不要）
+    paths-ignore:
+      - '**/*.md'
+      - '.github/**'
+      - 'infra/**'
   workflow_dispatch: # 手動実行も可能にしておく
 
 jobs:
