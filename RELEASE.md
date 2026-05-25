@@ -1,134 +1,194 @@
-# リリース手順書（feature/feedback-20260308 → main）
+# リリース手順書
 
-自分用メモ。発注管理の PO No.・分割支払い・収支集計の支出明細フィルタ等を含む `feature/feedback-20260308` を本番にリリースする際の手順。
+自分用メモ。本番デプロイ作業時の手順とトラブルシュート集。
 
-## 変更概要
-
-origin/main に対して 20 コミット前後の差分。主な変更：
-
-- 出荷管理画面（`/shipment-management`）の新規追加
-- 収支集計画面（`/finance-summary`）の新規追加
-- 発注管理：PO No. 追加・分割支払い管理機能追加
-- 収支集計：支出明細のカテゴリ複数選択フィルタ追加・支払日基準計上ロジック
-- 標準カテゴリ・支払方法等のベトナム語翻訳追加
-- インボイス・パッキングリストの HQ 用 14 品以上で別シート分割
-- 注文書の Excel 化・プレビュー
-
-## 影響範囲
+## 本番環境の基本構成
 
 | 項目 | 内容 |
 | --- | --- |
-| 新規 DynamoDB テーブル | `shipments`（CDK で作成必要） |
-| 新規環境変数 | `SHIPMENTS_TABLE_NAME`（**コードでフォールバック対応済みのため設定不要**） |
-| 既存テーブル変更 | なし（既存レコードは fallback ロジックで読み込み可能） |
-| Vercel デプロイ | main マージで自動デプロイ |
+| 本番 URL | https://masuda-vinyl-ops-app-topaz.vercel.app/ |
+| デプロイ先 | 先方Vercelチーム `masuda`（Pro）／プロジェクト `masuda-vinyl-ops-app` |
+| デプロイ方式 | **GitHub Actions → Vercel CLI**（Vercel 側 Git 自動デプロイは `main` のみスキップ設定済み） |
+| 本番AWS | アカウント `859690632026` / リージョン `ap-southeast-1` |
+| 本番ブランチ | `main`（`main` への push で本番反映） |
 
-## 前提
-
-- 先方 AWS アカウント（PROD_AWS_ACCOUNT=859690632026）に CDK デプロイできる IAM ユーザーが付与されている
-- ローカルの AWS CLI で対象アカウントに切り替えできる
-- ローカルが `feature/feedback-20260308` ブランチで origin と同期している
-
-## リリース手順
-
-### 1. CDK デプロイ（shipments テーブル作成）
-
-```bash
-# infra ディレクトリで作業
-cd infra
-
-# 差分確認（shipments テーブル含む 1 個の新規リソースが出るはず）
-npm run cdk:diff:prod -w infra
-
-# 問題なければデプロイ
-npm run cdk:deploy:prod -w infra
-```
-
-確認：
-
-- AWS コンソール → DynamoDB → テーブル一覧に `masuda-vinyl-ops-shipments-prod` が作成されている
-- GSI（`ShipmentsByDeliveryDateIndex`、`ShipmentsByCustomerIndex`）も作成されている
-
-> ⚠️ Vercel 側の環境変数 `SHIPMENTS_TABLE_NAME` は **追加しない**。コード側で `PURCHASE_ORDERS_TABLE_NAME` から推測するフォールバック実装が入っているため。
-
-### 2. PR 作成・マージ
-
-```bash
-git checkout feature/feedback-20260308
-git pull origin feature/feedback-20260308
-
-# PR 作成（GitHub 上で）
-# base: main, compare: feature/feedback-20260308
-```
-
-PR タイトル例：`feature/feedback-20260308 をリリース`
-
-PR 本文例：
+## ブランチ運用
 
 ```
-## 主な変更
-- 出荷管理画面・収支集計画面の追加
-- 発注管理に PO No. と分割支払い管理機能を追加
-- 収支集計：支出明細のカテゴリフィルタ・支払日基準計上
-- ベトナム語翻訳の拡充
-
-## 事前作業
-- [x] CDK デプロイで shipments テーブル作成済み
-- [ ] このPRをマージで Vercel が自動デプロイ
+feature/xxx ─PR→ develop ─リリースPR(release/YYYYMMDD)→ main
+                                                          ↓ Vercel本番デプロイ
 ```
 
-レビュー後 main にマージ。
+- 直接 `main` への push はせず、必ず PR 経由
+- 過去に feature → main 直接マージで develop が取り残された経緯あり。要注意
+- 動作確認は **自分のVercel preview**（`masuda-vinyl-ops-app.vercel.app`）で行う
 
-### 3. Vercel 自動デプロイの完了を確認
+## 通常リリース手順
 
-- Vercel ダッシュボード（先方アカウント）でデプロイ完了を確認
-- もしくは https://masuda-vinyl-ops-app-topaz.vercel.app/dashboard にアクセスして反映を確認
+### 1. 事前確認
 
-### 4. 動作確認（簡易スモークテスト）
+- [ ] 自分の feature ブランチでローカル動作確認済み
+- [ ] feature → develop に PR マージ済み
+- [ ] develop で動作確認済み（preview 環境）
+- [ ] 必要なら CDK のインフラ変更を事前デプロイ済み（新規テーブル追加時など）
 
-最低限以下を確認：
+### 2. 本番リリース PR 作成
 
-- [ ] https://masuda-vinyl-ops-app-topaz.vercel.app/ にアクセス
+GitHub 上で：
+
+- base: `main` ← compare: `develop`（または `release/YYYYMMDD` ブランチ）
+- タイトル: `リリース/YYYYMMDD` 等
+- 本文に主な変更点と事前作業チェックリストを記載
+
+### 3. PR をマージ
+
+`main` にマージすると、自動で：
+
+1. **GitHub Actions の Deploy ワークフローが起動**（[.github/workflows/deploy-production.yml](.github/workflows/deploy-production.yml)）
+2. Vercel CLI で `pull → build → deploy --prod`
+3. 先方Vercelの本番 URL に反映
+
+Vercel 側の Git 自動デプロイは `main` ではスキップ設定（Ignored Build Step）なので二重ビルドは起きない。
+
+### 4. デプロイ完了確認
+
+#### GitHub Actions 側
+
+- リポジトリの **Actions タブ** → `Deploy to Vercel Production` が緑チェックになるのを確認
+- 失敗時は赤マーク。クリックしてログ確認
+
+#### Vercel 側（先方Vercel）
+
+- 先方Vercel にログイン（Viewer 権限で OK）→ プロジェクト `masuda-vinyl-ops-app` → Deployments タブで新規 Production が `Ready` になっているか
+- 自分は Viewer 権限なので閲覧のみ。何か操作したい場合は CLI / GitHub Actions 経由で
+
+#### 動作確認（簡易スモークテスト）
+
+- [ ] https://masuda-vinyl-ops-app-topaz.vercel.app/ に **シークレットウィンドウ** でアクセス
 - [ ] ログインできる
-- [ ] ダッシュボード（トップページ）が表示される
-- [ ] サイドメニューに「出荷管理」「収支集計」が追加されている
+- [ ] サイドメニューに想定通りのページがある
+- [ ] 主要画面（ダッシュボード）が表示される
 
-詳細な機能確認は先方にも軽く触ってもらう想定。
+## 緊急時：手動デプロイ
+
+GitHub Actions が反応しない、または特定のコミットを即座にデプロイしたい場合：
+
+### 方法 A: GitHub Actions を手動実行
+
+1. GitHub リポジトリ → **Actions タブ**
+2. 左メニュー `Deploy to Vercel Production`
+3. 右上 **Run workflow** → `main` ブランチを選んで実行
+
+### 方法 B: 空コミットを push
+
+```bash
+git checkout main
+git pull origin main
+git commit --allow-empty -m "Trigger Vercel deploy"
+git push origin main
+```
+
+→ GitHub Actions が起動する。
+
+### 方法 C: ローカルから Vercel CLI 直接
+
+最終手段。Vercel Token を持っている前提：
+
+```bash
+cd app
+vercel pull --yes --environment=production --token=<VERCEL_TOKEN>
+vercel build --prod --token=<VERCEL_TOKEN>
+vercel deploy --prebuilt --prod --token=<VERCEL_TOKEN>
+```
+
+## インフラ変更（CDK）を伴うリリース
+
+DynamoDB テーブル追加等のインフラ変更がある場合は、**アプリデプロイの前に** CDK デプロイを済ませる。
+
+### 手順
+
+```bash
+cd infra
+$env:AWS_PROFILE = "masuda-prod"  # PowerShell
+# または: export AWS_PROFILE=masuda-prod  # bash
+npx cdk diff -c env=prod
+# 想定通りなら
+npx cdk deploy -c env=prod
+```
+
+- AWS_PROFILE は `masuda-prod`（先方の本番アカウント 859690632026 を指す SSO プロファイル）
+- リージョンは `ap-southeast-1`
+- 事前に `aws sso login --sso-session masuda-prod` で SSO 認証が必要
+
+### 環境変数の追加が必要な場合
+
+新しいテーブル追加で `XXX_TABLE_NAME` 環境変数が必要になる場合：
+
+- **基本方針：env var 追加を避けるためにコード側でフォールバック実装** する（[shipment-management/api/server.ts](app/src/features/shipment-management/api/server.ts) の `getShipmentsTableName` 参照）
+- フォールバックで対応できない場合のみ、Vercel CLI 経由で追加：
+  ```bash
+  vercel env add NEW_TABLE_NAME production --token=<VERCEL_TOKEN>
+  ```
 
 ## ロールバック手順
 
-何らかの理由で本番に問題が出た場合の戻し方。
+問題が起きた場合の戻し方。優先順は A → B → C。
 
-### A. アプリケーションだけ戻す（推奨）
+### A. Vercel ダッシュボードから即時ロールバック（推奨）
 
-データを残したまま、コードだけ前の状態に戻す：
+1. 先方Vercel → プロジェクト → Deployments タブ
+2. 前回成功していたデプロイの「...」メニュー → **Promote to Production**
+3. 即座に旧バージョンが本番に反映される
+
+> 自分は Viewer 権限なのでこの操作はできない。先方に依頼するか、別途 Vercel CLI で実行：
+> ```bash
+> vercel rollback <deployment-url> --token=<VERCEL_TOKEN>
+> ```
+
+### B. main を revert して push
+
+コード側に問題がある場合：
 
 ```bash
-# main に戻って、マージ前のコミットを特定
 git checkout main
-git log --oneline -5
-
-# 直前のマージコミットを revert
+git log --oneline -5  # マージコミット特定
 git revert -m 1 <マージコミットSHA>
 git push origin main
 ```
 
-→ Vercel が自動的に旧バージョンを再デプロイする。
+→ GitHub Actions が旧コードを再デプロイ。
 
-> 新機能で書き込まれた `poNo` / `payments` / `shipments` データは DynamoDB に残るが、旧コードでは単に無視されるだけで壊れない。
+### C. インフラ（CDK）の扱い
 
-### B. Vercel ダッシュボードから即時切り戻し
+- 通常は **テーブルを残す**（消すとデータ消失リスク）
+- 本番 `prod` の `removalPolicy` は `RETAIN` 設定なので、CDK スタックから外しても物理削除されない
+- どうしても削除したい場合は AWS コンソール経由で手動削除
 
-緊急時はマージ revert を待たず、Vercel ダッシュボードの **Deployments → 前のデプロイの "..." → Promote to Production** で即座に旧バージョンに戻せる（先方アカウントなのでアクセスできるなら）。
+## トラブルシュート
 
-### C. インフラ（shipments テーブル）の扱い
+### Vercel に反映されない
 
-- 通常はテーブルを **残す**（消すとデータ消失リスク。空テーブルなら害もない）
-- どうしても削除したい場合：
-  - `removalPolicy` は `prod` で `RETAIN` 設定なので、CDK でスタックから外しても物理削除されない
-  - 完全削除する場合は AWS コンソール経由で手動削除
+過去に発生したケース：
 
-## 注意点
+1. **GitHub Actions が起動しない** → リポジトリ Settings → Actions が enabled か確認
+2. **GitHub Actions が失敗** → Actions タブのログを確認。よくある原因：
+   - `VERCEL_TOKEN` 期限切れ → 新規発行して GitHub Secrets 更新
+   - `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` が変更された → 新しい値で更新
+   - ビルドエラー（依存関係、TypeScript 等） → ローカルで再現確認
+3. **GitHub Actions 成功なのに反映されない** → 先方Vercelの Deployments で実際のデプロイが走ったか確認。ブラウザキャッシュも疑う
+
+### 過去の事故事例
+
+- **2026-05 頃**：Vercel の GitHub 連携が Mar 30 頃に webhook 配信不能になり、PR をマージしてもデプロイが走らない状態に → 先方Vercelで Git 再接続＋GitHub Actions 経由のデプロイに切り替えて解決
+- **同時期**：feature/feedback-20260308 を develop を経由せず main に直接マージしてしまい、develop が古いままになる事故。以降は **feature → develop → release PR → main** の運用を徹底
+
+### Vercel 周りで困ったら
+
+- 自分の Vercel 権限は **Viewer**（先方チーム `masuda`）
+- 操作したい場合は GitHub Actions / Vercel CLI を使う
+- どうしても UI 操作が必要なら、先方に「Member に昇格」を依頼（追加課金 $20/月）
+
+## 注意点（業務挙動）
 
 ### 既存データへの影響
 
@@ -146,10 +206,11 @@ git push origin main
 
 - シードデータの標準カテゴリ（経費 / 人件費 / 材料費 等）は翻訳辞書に登録済み
 - 先方が独自に追加した未登録カテゴリは VN モードでも日本語表示のまま
-- 必要に応じて `app/src/lib/i18n/language.tsx` の `phraseMessages` に追記
+- 必要に応じて [app/src/lib/i18n/language.tsx](app/src/lib/i18n/language.tsx) の `phraseMessages` に追記
 
 ## 参考
 
-- 互換性詳細：このブランチの会話履歴参照
+- GitHub Actions ワークフロー：[.github/workflows/deploy-production.yml](.github/workflows/deploy-production.yml)
+- GitHub Secrets：`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`
 - CDK 命名規則：`${prefix}-${tableName}-${stage}`（[infra/lib/dynamodb.ts](infra/lib/dynamodb.ts)）
 - フォールバック実装：[app/src/features/shipment-management/api/server.ts](app/src/features/shipment-management/api/server.ts) の `getShipmentsTableName`
