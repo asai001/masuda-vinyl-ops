@@ -124,8 +124,9 @@ function buildPurchaseOrderItem(
   const payments = normalizePayments(base.payments);
   const status = normalizeStatus(base.status);
   // 支払い履歴が登録されている場合、status.paid は支払合計が発注額以上かで自動制御する
+  // 端数・丸め・浮動小数点誤差で実質完済が未払い扱いにならないよう、差が発注額の0.1%未満なら完済とみなす（先方合意済み）
   if (payments.length > 0 && amount > 0) {
-    status.paid = sumPayments(payments) >= amount;
+    status.paid = sumPayments(payments) >= amount * 0.999;
   }
   const documentStatus = normalizeDocumentStatus(base.documentStatus);
 
