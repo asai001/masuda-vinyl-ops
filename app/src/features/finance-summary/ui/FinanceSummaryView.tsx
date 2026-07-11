@@ -32,7 +32,7 @@ import type { ExchangeRates } from "@/features/settings/types";
 import { useLanguage } from "@/lib/i18n/language";
 
 type FinanceTab = "period" | "customer" | "category" | "revenue" | "expense";
-type PeriodChartMetric = "revenue" | "receipt" | "expense" | "revenueBalance" | "receiptBalance";
+type PeriodChartMetric = "revenue" | "receipt" | "order" | "payment" | "revenueBalance" | "receiptBalance";
 type ChartPoint = { label: string; value: number };
 type ChartSlice = { label: string; value: number; color: string };
 
@@ -48,10 +48,13 @@ type RevenueEntry = {
 
 type ReceiptEntry = RevenueEntry;
 
+// 支出の集計軸。order=発注（発注日ベース・発注金額）、payment=支払（支払日ベース・実支払額）
+type ExpenseAxis = "order" | "payment";
+
 type ExpenseEntry = {
   id: string;
-  source: "purchaseOrder" | "payment";
-  sourceLabel: string;
+  axis: ExpenseAxis;
+  axisLabel: string;
   date: string;
   category: string;
   referenceNo: string;
@@ -69,8 +72,8 @@ type PeriodSummaryRow = {
   orderCount: number;
   revenue: number;
   receipt: number;
-  expense: number;
-  expenseCount: number;
+  orderExpense: number;
+  paymentExpense: number;
   revenueBalance: number;
   receiptBalance: number;
 };
@@ -108,11 +111,12 @@ const financeTabOptions: { value: FinanceTab; labelJa: string; labelVi: string }
 const periodChartOptions: { value: PeriodChartMetric; labelJa: string; labelVi: string }[] = [
   { value: "revenue", labelJa: "売上推移", labelVi: "Xu hướng doanh thu" },
   { value: "receipt", labelJa: "入金推移", labelVi: "Xu hướng thu tiền" },
-  { value: "expense", labelJa: "支出推移", labelVi: "Xu hướng chi phí" },
-  { value: "revenueBalance", labelJa: "収支差額（売上 - 支出）", labelVi: "Chênh lệch thu chi (doanh thu - chi phí)" },
-  { value: "receiptBalance", labelJa: "収支差額（入金 - 支出）", labelVi: "Chênh lệch thu chi (thu tiền - chi phí)" },
+  { value: "order", labelJa: "発注推移", labelVi: "Xu hướng đặt hàng" },
+  { value: "payment", labelJa: "支払推移", labelVi: "Xu hướng thanh toán" },
+  { value: "revenueBalance", labelJa: "収支差額（売上 - 発注）", labelVi: "Chênh lệch thu chi (doanh thu - đặt hàng)" },
+  { value: "receiptBalance", labelJa: "収支差額（入金 - 支払）", labelVi: "Chênh lệch thu chi (thu tiền - thanh toán)" },
 ];
-const defaultPeriodChartSelections: PeriodChartMetric[] = ["revenue", "expense", "revenueBalance"];
+const defaultPeriodChartSelections: PeriodChartMetric[] = ["revenue", "order", "revenueBalance"];
 const periodChartSelectionsStorageKey = "finance-summary.period-chart-selections";
 const periodChartMetricValues = periodChartOptions.map((option) => option.value);
 
@@ -236,6 +240,7 @@ export default function FinanceSummaryView() {
   const [groupUnit, setGroupUnit] = useState<GroupUnit>("month");
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>("USD");
   const [selectedExpenseCategories, setSelectedExpenseCategories] = useState<string[]>([]);
+  const [expenseAxisFilter, setExpenseAxisFilter] = useState<"all" | ExpenseAxis>("all");
   const [activeTab, setActiveTab] = useState<FinanceTab>("period");
   const [periodChartSelections, setPeriodChartSelections] = useState<PeriodChartMetric[]>(defaultPeriodChartSelections);
   const [periodChartSelectionsLoaded, setPeriodChartSelectionsLoaded] = useState(false);
@@ -424,18 +429,42 @@ export default function FinanceSummaryView() {
     [salesRows, unsetLabel],
   );
 
-  const purchaseOrderExpenseEntries = useMemo<ExpenseEntry[]>(
+  const orderSentRows = useMemo(() => purchaseOrderRows.filter((row) => row.documentStatus.orderSent), [purchaseOrderRows]);
+
+  // 発注軸: 発注書送付済みPOを発注日基準・発注金額全額で計上する（支払い登録の有無に関わらず常に全額）
+  const orderExpenseEntries = useMemo<ExpenseEntry[]>(
     () =>
-      purchaseOrderRows
-        .filter((row) => row.documentStatus.orderSent)
+      orderSentRows
+        .map((row) => ({
+          id: `${row.purchaseOrderId}-order`,
+          axis: "order" as const,
+          axisLabel: tr("発注", "Đặt hàng"),
+          date: row.orderDate.trim(),
+          category: tr("発注", "Đơn đặt hàng"),
+          referenceNo: row.poNo.trim() || "-",
+          content: row.note.trim() || tr("発注金額", "Giá trị đơn đặt hàng"),
+          counterparty: row.supplier.trim() || unsetLabel,
+          status: row.status.paid ? ("paid" as const) : ("unpaid" as const),
+          statusLabel: row.status.paid ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
+          amount: row.amount,
+          currency: row.currency,
+        }))
+        .filter((row) => row.date && row.amount > 0),
+    [orderSentRows, tr, unsetLabel],
+  );
+
+  // 支払軸(発注由来): 支払い履歴は支払日基準で1件ずつ計上する
+  const purchaseOrderPaymentEntries = useMemo<ExpenseEntry[]>(
+    () =>
+      orderSentRows
         .flatMap<ExpenseEntry>((row) => {
           const poLabel = row.poNo.trim() || "-";
           const baseContent = row.note.trim() || tr("発注金額", "Giá trị đơn đặt hàng");
           const counterparty = row.supplier.trim() || unsetLabel;
-          const sourceLabel = tr("発注", "Đơn đặt hàng");
+          const axisLabel = tr("支払", "Thanh toán");
           const categoryLabel = tr("発注", "Đơn đặt hàng");
+          const paidLabel = tr("支払済", "Đã thanh toán");
 
-          // 支払い履歴が登録されていれば各支払いを支払日基準で個別エントリ化する
           const validPayments = (row.payments ?? []).filter(
             (payment) => payment.paymentDate.trim() && payment.amount > 0,
           );
@@ -451,55 +480,62 @@ export default function FinanceSummaryView() {
               }
               return {
                 id: `${row.purchaseOrderId}-payment-${payment.id}`,
-                source: "purchaseOrder" as const,
-                sourceLabel,
+                axis: "payment" as const,
+                axisLabel,
                 date: payment.paymentDate.trim(),
                 category: categoryLabel,
                 referenceNo: `${poLabel} ${sequenceLabel}`,
                 content: contentSegments.join(" - "),
                 counterparty,
                 status: "paid" as const,
-                statusLabel: tr("支払済", "Đã thanh toán"),
+                statusLabel: paidLabel,
                 amount: payment.amount,
                 currency: row.currency,
               };
             });
           }
 
-          // 支払い履歴なしは従来通り発注日基準・全額1件
-          return [{
-            id: row.purchaseOrderId,
-            source: "purchaseOrder" as const,
-            sourceLabel,
-            date: row.orderDate.trim(),
-            category: categoryLabel,
-            referenceNo: poLabel,
-            content: baseContent,
-            counterparty,
-            status: row.status.paid ? ("paid" as const) : ("unpaid" as const),
-            statusLabel: row.status.paid ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
-            amount: row.amount,
-            currency: row.currency,
-          }];
+          // 支払い履歴なしの「支払い済み」POは支払日が不明のため、発注日で全額を支払計上する（先方合意済みの経過措置）
+          if (row.status.paid) {
+            return [{
+              id: `${row.purchaseOrderId}-payment-fallback`,
+              axis: "payment" as const,
+              axisLabel,
+              date: row.orderDate.trim(),
+              category: categoryLabel,
+              referenceNo: poLabel,
+              content: [baseContent, tr("支払日未登録（発注日で計上）", "Chưa có ngày thanh toán (ghi nhận theo ngày đặt hàng)")].join(" - "),
+              counterparty,
+              status: "paid" as const,
+              statusLabel: paidLabel,
+              amount: row.amount,
+              currency: row.currency,
+            }];
+          }
+
+          // 未払いかつ支払い履歴なしのPOは支払軸には計上しない
+          return [];
         })
         .filter((row) => row.date && row.amount > 0),
-    [purchaseOrderRows, tr, unsetLabel],
+    [orderSentRows, tr, unsetLabel],
   );
 
-  const paymentExpenseEntries = useMemo<ExpenseEntry[]>(
+  // 支払軸(支払い管理由来): 「支払済み」のみ計上する（未払いは含めない・先方合意済み）
+  const managedPaymentEntries = useMemo<ExpenseEntry[]>(
     () =>
       paymentRows
+        .filter((row) => row.status === "paid")
         .map((row) => ({
           id: row.paymentId,
-          source: "payment" as const,
-          sourceLabel: tr("支払い", "Thanh toán"),
+          axis: "payment" as const,
+          axisLabel: tr("支払", "Thanh toán"),
           date: row.paymentDate.trim(),
           category: row.category.trim() || unsetLabel,
           referenceNo: "-",
           content: row.content.trim() || "-",
           counterparty: row.transferDestinationName?.trim() || "-",
-          status: row.status,
-          statusLabel: row.status === "paid" ? tr("支払済", "Đã thanh toán") : tr("未払い", "Chưa thanh toán"),
+          status: "paid" as const,
+          statusLabel: tr("支払済", "Đã thanh toán"),
           amount: row.amount,
           currency: row.currency,
         }))
@@ -507,7 +543,12 @@ export default function FinanceSummaryView() {
     [paymentRows, tr, unsetLabel],
   );
 
-  const expenseEntries = useMemo(() => [...purchaseOrderExpenseEntries, ...paymentExpenseEntries], [paymentExpenseEntries, purchaseOrderExpenseEntries]);
+  const paymentExpenseEntries = useMemo(
+    () => [...purchaseOrderPaymentEntries, ...managedPaymentEntries],
+    [managedPaymentEntries, purchaseOrderPaymentEntries],
+  );
+
+  const expenseEntries = useMemo(() => [...orderExpenseEntries, ...paymentExpenseEntries], [orderExpenseEntries, paymentExpenseEntries]);
 
   const expenseCategoryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -529,31 +570,49 @@ export default function FinanceSummaryView() {
     [endDate, receiptEntries, startDate],
   );
 
-  const filteredExpenseEntries = useMemo(
+  const filteredOrderExpenseEntries = useMemo(
     () =>
-      expenseEntries
+      orderExpenseEntries
         .filter((row) => isWithinRange(row.date, startDate, endDate))
-        .filter((row) => selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(row.category))
+        .filter((row) => selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(row.category)),
+    [endDate, orderExpenseEntries, selectedExpenseCategories, startDate],
+  );
+
+  const filteredPaymentExpenseEntries = useMemo(
+    () =>
+      paymentExpenseEntries
+        .filter((row) => isWithinRange(row.date, startDate, endDate))
+        .filter((row) => selectedExpenseCategories.length === 0 || selectedExpenseCategories.includes(row.category)),
+    [endDate, paymentExpenseEntries, selectedExpenseCategories, startDate],
+  );
+
+  // 支出明細タブ用: 発注軸・支払軸を結合し、区分フィルタを適用する
+  const filteredExpenseDetailEntries = useMemo(
+    () =>
+      [...filteredOrderExpenseEntries, ...filteredPaymentExpenseEntries]
+        .filter((row) => expenseAxisFilter === "all" || row.axis === expenseAxisFilter)
         .sort((a, b) => compareDateDesc(a.date, b.date) || a.category.localeCompare(b.category)),
-    [endDate, expenseEntries, selectedExpenseCategories, startDate],
+    [expenseAxisFilter, filteredOrderExpenseEntries, filteredPaymentExpenseEntries],
   );
 
   const revenueTotal = useMemo(() => filteredRevenueEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredRevenueEntries]);
   const receiptTotal = useMemo(() => filteredReceiptEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredReceiptEntries]);
-  const expenseTotal = useMemo(() => filteredExpenseEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredExpenseEntries]);
+  const orderExpenseTotal = useMemo(() => filteredOrderExpenseEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredOrderExpenseEntries]);
+  const paymentExpenseTotal = useMemo(() => filteredPaymentExpenseEntries.reduce((sum, row) => sum + toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates), 0), [displayCurrency, exchangeRates, filteredPaymentExpenseEntries]);
 
-  const revenueBalanceTotal = revenueTotal - expenseTotal;
-  const receiptBalanceTotal = receiptTotal - expenseTotal;
+  // 差額は「売上−発注」（発生ベース）と「入金−支払」（現金ベース）の2種類（先方合意済み）
+  const revenueBalanceTotal = revenueTotal - orderExpenseTotal;
+  const receiptBalanceTotal = receiptTotal - paymentExpenseTotal;
 
   const periodRows = useMemo<PeriodSummaryRow[]>(() => {
-    const bucketMap = new Map<string, { label: string; revenue: number; receipt: number; expense: number; expenseCount: number; orderNos: Set<string> }>();
+    const bucketMap = new Map<string, { label: string; revenue: number; receipt: number; orderExpense: number; paymentExpense: number; orderNos: Set<string> }>();
 
     const ensureBucket = (date: string) => {
       const group = getPeriodGroup(date, groupUnit);
       if (!group) {
         return null;
       }
-      const existing = bucketMap.get(group.key) ?? { label: group.label, revenue: 0, receipt: 0, expense: 0, expenseCount: 0, orderNos: new Set<string>() };
+      const existing = bucketMap.get(group.key) ?? { label: group.label, revenue: 0, receipt: 0, orderExpense: 0, paymentExpense: 0, orderNos: new Set<string>() };
       bucketMap.set(group.key, existing);
       return existing;
     };
@@ -575,13 +634,20 @@ export default function FinanceSummaryView() {
       bucket.receipt += toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates);
     });
 
-    filteredExpenseEntries.forEach((row) => {
+    filteredOrderExpenseEntries.forEach((row) => {
       const bucket = ensureBucket(row.date);
       if (!bucket) {
         return;
       }
-      bucket.expense += toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates);
-      bucket.expenseCount += 1;
+      bucket.orderExpense += toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates);
+    });
+
+    filteredPaymentExpenseEntries.forEach((row) => {
+      const bucket = ensureBucket(row.date);
+      if (!bucket) {
+        return;
+      }
+      bucket.paymentExpense += toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates);
     });
 
     return Array.from(bucketMap.entries())
@@ -591,13 +657,13 @@ export default function FinanceSummaryView() {
         orderCount: bucket.orderNos.size,
         revenue: bucket.revenue,
         receipt: bucket.receipt,
-        expense: bucket.expense,
-        expenseCount: bucket.expenseCount,
-        revenueBalance: bucket.revenue - bucket.expense,
-        receiptBalance: bucket.receipt - bucket.expense,
+        orderExpense: bucket.orderExpense,
+        paymentExpense: bucket.paymentExpense,
+        revenueBalance: bucket.revenue - bucket.orderExpense,
+        receiptBalance: bucket.receipt - bucket.paymentExpense,
       }))
       .sort((a, b) => a.id.localeCompare(b.id));
-  }, [displayCurrency, exchangeRates, filteredExpenseEntries, filteredReceiptEntries, filteredRevenueEntries, groupUnit]);
+  }, [displayCurrency, exchangeRates, filteredOrderExpenseEntries, filteredPaymentExpenseEntries, filteredReceiptEntries, filteredRevenueEntries, groupUnit]);
 
   const customerSummaryRows = useMemo<CustomerSummaryRow[]>(() => {
     const map = new Map<string, { partner: string; orderNos: Set<string>; shipmentCount: number; revenue: number; receipt: number }>();
@@ -622,20 +688,22 @@ export default function FinanceSummaryView() {
       .sort((a, b) => b.revenue - a.revenue);
   }, [displayCurrency, exchangeRates, filteredReceiptEntries, filteredRevenueEntries]);
 
+  // カテゴリ別は「実際に支払った金額」（支払軸）ベースで集計する
   const categorySummaryRows = useMemo<CategorySummaryRow[]>(() => {
     const map = new Map<string, { category: string; expenseCount: number; amount: number }>();
-    filteredExpenseEntries.forEach((row) => {
+    filteredPaymentExpenseEntries.forEach((row) => {
       const entry = map.get(row.category) ?? { category: row.category, expenseCount: 0, amount: 0 };
       entry.expenseCount += 1;
       entry.amount += toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates);
       map.set(row.category, entry);
     });
     return Array.from(map.values()).map((row) => ({ id: row.category, category: row.category, expenseCount: row.expenseCount, amount: row.amount })).sort((a, b) => b.amount - a.amount);
-  }, [displayCurrency, exchangeRates, filteredExpenseEntries]);
+  }, [displayCurrency, exchangeRates, filteredPaymentExpenseEntries]);
 
   const periodRevenueChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.revenue })), [periodRows]);
   const periodReceiptChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.receipt })), [periodRows]);
-  const periodExpenseChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.expense })), [periodRows]);
+  const periodOrderExpenseChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.orderExpense })), [periodRows]);
+  const periodPaymentExpenseChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.paymentExpense })), [periodRows]);
   const periodRevenueBalanceChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.revenueBalance })), [periodRows]);
   const periodReceiptBalanceChartData = useMemo(() => periodRows.map((row) => ({ label: truncateChartLabel(row.period, 16), value: row.receiptBalance })), [periodRows]);
   const customerRevenueChartData = useMemo(() => buildRankingChartData(customerSummaryRows, (row) => row.partner, (row) => row.revenue), [customerSummaryRows]);
@@ -665,6 +733,7 @@ export default function FinanceSummaryView() {
     setGroupUnit("month");
     setDisplayCurrency("USD");
     setSelectedExpenseCategories([]);
+    setExpenseAxisFilter("all");
     setActiveTab("period");
     setPeriodChartSelections(defaultPeriodChartSelections);
   };
@@ -722,10 +791,10 @@ export default function FinanceSummaryView() {
     { key: "orderCount", header: tr("売上PO数", "Số PO doanh thu"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.orderCount)}</span> },
     { key: "revenue", header: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold">{formatCurrencyValue(displayCurrency, row.revenue)}</span> },
     { key: "receipt", header: `${tr("入金金額", "Tiền thu")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-emerald-700">{formatCurrencyValue(displayCurrency, row.receipt)}</span> },
-    { key: "expense", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-rose-700">{formatCurrencyValue(displayCurrency, row.expense)}</span> },
-    { key: "expenseCount", header: tr("支出件数", "Số khoản chi"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
-    { key: "revenueBalance", header: `${tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.revenueBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.revenueBalance)}</span> },
-    { key: "receiptBalance", header: `${tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.receiptBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.receiptBalance)}</span> },
+    { key: "orderExpense", header: `${tr("発注金額", "Giá trị đặt hàng")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-amber-700">{formatCurrencyValue(displayCurrency, row.orderExpense)}</span> },
+    { key: "paymentExpense", header: `${tr("支払金額", "Số tiền thanh toán")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm text-rose-700">{formatCurrencyValue(displayCurrency, row.paymentExpense)}</span> },
+    { key: "revenueBalance", header: `${tr("収支差額（売上 - 発注）", "Chênh lệch thu chi (doanh thu - đặt hàng)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.revenueBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.revenueBalance)}</span> },
+    { key: "receiptBalance", header: `${tr("収支差額（入金 - 支払）", "Chênh lệch thu chi (thu tiền - thanh toán)")} (${displayCurrency})`, align: "right", render: (row) => <span className={`text-sm font-semibold ${row.receiptBalance >= 0 ? "text-blue-700" : "text-rose-700"}`}>{formatCurrencyValue(displayCurrency, row.receiptBalance)}</span> },
   ];
 
   const customerColumns: TableColumn<CustomerSummaryRow>[] = [
@@ -738,8 +807,8 @@ export default function FinanceSummaryView() {
 
   const categoryColumns: TableColumn<CategorySummaryRow>[] = [
     { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{tx(row.category)}</span> },
-    { key: "expenseCount", header: tr("支出件数", "Số khoản chi"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
-    { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, row.amount)}</span> },
+    { key: "expenseCount", header: tr("支払件数", "Số lần thanh toán"), align: "right", render: (row) => <span className="text-sm">{formatNumberValue(row.expenseCount)}</span> },
+    { key: "amount", header: `${tr("支払金額", "Số tiền thanh toán")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, row.amount)}</span> },
   ];
 
   const revenueColumns: TableColumn<RevenueEntry>[] = [
@@ -751,33 +820,34 @@ export default function FinanceSummaryView() {
   ];
 
   const expenseColumns: TableColumn<ExpenseEntry>[] = [
-    { key: "sourceLabel", header: tr("区分", "Loại"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.source === "purchaseOrder" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>{row.sourceLabel}</span> },
-    { key: "date", header: tr("支出日", "Ngày chi"), render: (row) => <span className="text-sm">{row.date}</span> },
+    { key: "axisLabel", header: tr("区分", "Loại"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.axis === "order" ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"}`}>{row.axisLabel}</span> },
+    { key: "date", header: tr("計上日", "Ngày ghi nhận"), render: (row) => <span className="text-sm">{row.date}</span> },
     { key: "referenceNo", header: tr("伝票No.", "Số chứng từ"), render: (row) => <span className="text-sm font-semibold text-blue-600">{row.referenceNo}</span> },
     { key: "category", header: tr("カテゴリ", "Danh mục"), render: (row) => <span className="text-sm font-semibold">{tx(row.category)}</span> },
     { key: "content", header: tr("内容", "Nội dung"), render: (row) => <span className="text-sm">{tx(row.content)}</span> },
     { key: "counterparty", header: tr("支出先", "Đối tác chi"), render: (row) => <span className="text-sm">{row.counterparty}</span> },
     { key: "statusLabel", header: tr("ステータス", "Trạng thái"), render: (row) => <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{row.statusLabel}</span> },
-    { key: "amount", header: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
+    { key: "amount", header: `${tr("金額", "Số tiền")} (${displayCurrency})`, align: "right", render: (row) => <span className="text-sm font-semibold text-rose-700">{formatCurrencyValue(displayCurrency, toDisplayAmount(row.amount, row.currency, displayCurrency, exchangeRates))}</span> },
   ];
 
   const summaryCards = [
     { label: `${tr("売上金額", "Doanh thu")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueTotal), valueClassName: "text-gray-900" },
     { label: `${tr("入金金額", "Tiền thu")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptTotal), valueClassName: "text-emerald-700" },
-    { label: `${tr("支出金額", "Chi phí")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, expenseTotal), valueClassName: "text-rose-700" },
-    { label: `${tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueBalanceTotal), valueClassName: revenueBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
-    { label: `${tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptBalanceTotal), valueClassName: receiptBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
+    { label: `${tr("発注金額", "Giá trị đặt hàng")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, orderExpenseTotal), valueClassName: "text-amber-700" },
+    { label: `${tr("支払金額", "Số tiền thanh toán")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, paymentExpenseTotal), valueClassName: "text-rose-700" },
+    { label: `${tr("収支差額（売上 - 発注）", "Chênh lệch thu chi (doanh thu - đặt hàng)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, revenueBalanceTotal), valueClassName: revenueBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
+    { label: `${tr("収支差額（入金 - 支払）", "Chênh lệch thu chi (thu tiền - thanh toán)")} (${displayCurrency})`, value: formatCurrencyValue(displayCurrency, receiptBalanceTotal), valueClassName: receiptBalanceTotal >= 0 ? "text-blue-700" : "text-rose-700" },
   ];
 
   const notes = [
     tr("売上: 出荷日ベース", "Doanh thu: theo ngày xuất hàng"),
     tr("入金: 入金日ベース", "Tiền thu: theo ngày thu tiền"),
+    tr("発注: 発注日ベース（発注書送付済みの発注金額全額）", "Đặt hàng: theo ngày đặt hàng (toàn bộ giá trị các đơn đã gửi đơn đặt hàng)"),
     tr(
-      "支出: 発注は支払い履歴があれば支払日、なければ発注日。支払い管理は支払日",
-      "Chi phí: đơn đặt hàng theo ngày chi nếu có lịch sử thanh toán, nếu không thì theo ngày đặt. Quản lý thanh toán theo ngày chi",
+      "支払: 支払日ベース（発注の支払い履歴＋支払い管理の支払済み。未払いは含みません）",
+      "Thanh toán: theo ngày chi (lịch sử thanh toán của đơn đặt hàng + các khoản đã thanh toán trong quản lý thanh toán; không gồm chưa thanh toán)",
     ),
-    tr("支出には確定済み発注金額と支払い管理の支出を含みます", "Chi phí bao gồm giá trị đơn đặt hàng đã xác định và các khoản chi trong quản lý thanh toán"),
-    tr("差額はセレクトボックスで切り替えて確認できます", "Có thể chuyển đổi cách xem chênh lệch bằng hộp chọn"),
+    tr("支払日未登録の支払い済み発注は発注日で支払計上", "Đơn đã thanh toán nhưng chưa có ngày thanh toán được ghi nhận theo ngày đặt hàng"),
     `1 USD = ${formatNumberValue(exchangeRates.jpyPerUsd)} JPY / ${formatNumberValue(exchangeRates.vndPerUsd)} VND`,
   ];
 
@@ -788,17 +858,19 @@ export default function FinanceSummaryView() {
     switch (metric) {
       case "receipt":
         return { title: tr("入金推移", "Xu hướng thu tiền"), data: periodReceiptChartData, barColor: "#a7f3d0", lineColor: "#059669" };
-      case "expense":
-        return { title: tr("支出推移", "Xu hướng chi phí"), data: periodExpenseChartData, barColor: "#fecdd3", lineColor: "#e11d48" };
+      case "order":
+        return { title: tr("発注推移", "Xu hướng đặt hàng"), data: periodOrderExpenseChartData, barColor: "#fed7aa", lineColor: "#ea580c" };
+      case "payment":
+        return { title: tr("支払推移", "Xu hướng thanh toán"), data: periodPaymentExpenseChartData, barColor: "#fecdd3", lineColor: "#e11d48" };
       case "revenueBalance":
-        return { title: tr("収支差額（売上 - 支出）", "Chênh lệch thu chi (doanh thu - chi phí)"), data: periodRevenueBalanceChartData, barColor: "#ddd6fe", lineColor: "#7c3aed" };
+        return { title: tr("収支差額（売上 - 発注）", "Chênh lệch thu chi (doanh thu - đặt hàng)"), data: periodRevenueBalanceChartData, barColor: "#ddd6fe", lineColor: "#7c3aed" };
       case "receiptBalance":
-        return { title: tr("収支差額（入金 - 支出）", "Chênh lệch thu chi (thu tiền - chi phí)"), data: periodReceiptBalanceChartData, barColor: "#fde68a", lineColor: "#d97706" };
+        return { title: tr("収支差額（入金 - 支払）", "Chênh lệch thu chi (thu tiền - thanh toán)"), data: periodReceiptBalanceChartData, barColor: "#fde68a", lineColor: "#d97706" };
       case "revenue":
       default:
         return { title: tr("売上推移", "Xu hướng doanh thu"), data: periodRevenueChartData, barColor: "#bfdbfe", lineColor: "#2563eb" };
     }
-  }, [periodExpenseChartData, periodReceiptBalanceChartData, periodReceiptChartData, periodRevenueBalanceChartData, periodRevenueChartData, tr]);
+  }, [periodOrderExpenseChartData, periodPaymentExpenseChartData, periodReceiptBalanceChartData, periodReceiptChartData, periodRevenueBalanceChartData, periodRevenueChartData, tr]);
 
   const handlePeriodChartChange = (index: number, value: PeriodChartMetric) => {
     setPeriodChartSelections((current) => current.map((metric, currentIndex) => (currentIndex === index ? value : metric)));
@@ -840,14 +912,14 @@ export default function FinanceSummaryView() {
             <div className="grid gap-4 xl:grid-cols-2">
               {renderChartCard(
                 tr("カテゴリ別支出構成", "Cơ cấu chi phí theo danh mục"),
-                tr("支出金額の構成比をカテゴリ別に表示します。", "Hiển thị tỷ trọng chi phí theo từng danh mục."),
+                tr("支払金額（実際に支払った金額）の構成比をカテゴリ別に表示します。", "Hiển thị tỷ trọng số tiền đã thanh toán (thực trả) theo từng danh mục."),
                 renderPieChartBody(categoryExpenseSlices),
                 renderPieLegend(categoryExpenseSlices),
                 tr("上位7件", "7 mục hàng đầu"),
               )}
               {renderChartCard(
                 tr("カテゴリ別支出ランキング", "Xếp hạng chi phí theo danh mục"),
-                tr("発注と支払いを統合した支出金額の上位カテゴリです。", "Hiển thị các danh mục chi phí cao nhất, gộp cả đơn đặt hàng và thanh toán."),
+                tr("支払金額ベースの上位カテゴリです。未払いは含みません。", "Các danh mục hàng đầu theo số tiền đã thanh toán. Không bao gồm chưa thanh toán."),
                 <BarLineChart data={categoryExpenseChartData} height={260} barColor="#fecdd3" lineColor="#e11d48" unitLabel={displayCurrency} />,
                 undefined,
                 tr("上位7件", "7 mục hàng đầu"),
@@ -856,7 +928,7 @@ export default function FinanceSummaryView() {
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-3 space-y-1">
                 <div className="text-sm font-semibold text-gray-700">{tr("カテゴリ別支出一覧", "Danh sách chi phí theo danh mục")}</div>
-                <div className="text-xs text-gray-500">{tr("発注金額と支払い管理の支出をカテゴリ単位で集計しています。", "Tổng hợp giá trị đơn đặt hàng và chi phí quản lý thanh toán theo từng danh mục.")}</div>
+                <div className="text-xs text-gray-500">{tr("支払金額（実際に支払った金額）をカテゴリ単位で集計しています。未払いは含みません。", "Tổng hợp số tiền đã thanh toán (thực trả) theo từng danh mục. Không bao gồm chưa thanh toán.")}</div>
               </div>
               <DataTable columns={categoryColumns} rows={categorySummaryRows} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
             </Paper>
@@ -875,11 +947,25 @@ export default function FinanceSummaryView() {
       case "expense":
         return (
           <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 space-y-1">
-              <div className="text-sm font-semibold text-gray-700">{tr("支出明細", "Chi tiết chi phí")}</div>
-              <div className="text-xs text-gray-500">{tr("発注と支払いを統合した支出明細です。金額は表示通貨に換算しています。", "Đây là chi tiết chi phí gộp từ đơn đặt hàng và thanh toán. Số tiền đã được quy đổi sang tiền tệ hiển thị.")}</div>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-gray-700">{tr("支出明細", "Chi tiết chi phí")}</div>
+                <div className="text-xs text-gray-500">{tr("発注（発注日・発注金額）と支払（支払日・実支払額）を区分で分けて表示します。金額は表示通貨に換算しています。", "Hiển thị riêng đặt hàng (ngày đặt, giá trị đặt hàng) và thanh toán (ngày chi, số tiền thực trả). Số tiền đã được quy đổi sang tiền tệ hiển thị.")}</div>
+              </div>
+              <TextField
+                select
+                label={tr("区分", "Loại")}
+                size="small"
+                value={expenseAxisFilter}
+                onChange={(event) => setExpenseAxisFilter(event.target.value as "all" | ExpenseAxis)}
+                sx={{ minWidth: 160 }}
+              >
+                <MenuItem value="all">{tr("すべて", "Tất cả")}</MenuItem>
+                <MenuItem value="order">{tr("発注のみ", "Chỉ đặt hàng")}</MenuItem>
+                <MenuItem value="payment">{tr("支払のみ", "Chỉ thanh toán")}</MenuItem>
+              </TextField>
             </div>
-            <DataTable columns={expenseColumns} rows={filteredExpenseEntries} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
+            <DataTable columns={expenseColumns} rows={filteredExpenseDetailEntries} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={10} />
           </Paper>
         );
       case "period":
@@ -932,7 +1018,7 @@ export default function FinanceSummaryView() {
             <Paper variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-3 space-y-1">
                 <div className="text-sm font-semibold text-gray-700">{tr("期間別一覧", "Danh sách theo kỳ")}</div>
-                <div className="text-xs text-gray-500">{tr("選択した集計単位で売上・入金・支出・差額を一覧表示します。", "Hiển thị danh sách doanh thu, thu tiền, chi phí và chênh lệch theo đơn vị gom đã chọn.")}</div>
+                <div className="text-xs text-gray-500">{tr("選択した集計単位で売上・入金・発注・支払・差額を一覧表示します。", "Hiển thị danh sách doanh thu, thu tiền, đặt hàng, thanh toán và chênh lệch theo đơn vị gom đã chọn.")}</div>
               </div>
               <DataTable columns={periodColumns} rows={periodRows} getRowId={(row) => row.id} enableHorizontalScroll defaultRowsPerPage={12} />
             </Paper>
@@ -1008,7 +1094,7 @@ export default function FinanceSummaryView() {
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (
           <Paper key={card.label} variant="outlined" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="text-xs font-medium text-gray-500">{card.label}</div>
