@@ -27,11 +27,14 @@ export class DynamoDbResources extends Construct {
   public readonly sequencesTable: dynamodb.Table;
 
   private readonly pointInTimeRecoveryEnabled: boolean;
+  private readonly deletionProtectionEnabled: boolean;
 
   constructor(scope: Construct, id: string, props: DynamoDbResourcesProps) {
     super(scope, id);
 
     this.pointInTimeRecoveryEnabled = props.deployEnv === "prod";
+    // 本番のみテーブル削除保護（CLI/コンソールからの delete-table 誤操作対策）
+    this.deletionProtectionEnabled = props.deployEnv === "prod";
     const removalPolicy = this.pointInTimeRecoveryEnabled ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
 
     // ---- clients ----
@@ -520,6 +523,7 @@ export class DynamoDbResources extends Construct {
       sortKey: args.sk,
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: args.removalPolicy,
+      deletionProtection: this.deletionProtectionEnabled,
       pointInTimeRecoverySpecification: {
         pointInTimeRecoveryEnabled: this.pointInTimeRecoveryEnabled,
       },
